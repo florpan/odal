@@ -1,0 +1,62 @@
+# Odal
+
+Browser-based multiplayer RTS in the spirit of Warcraft II: harvest, build, research, fight. Medieval,
+deliberately simple. TypeScript everywhere, Bun workspaces, React shell around a Three.js canvas,
+authoritative Bun server, and **every game rule lives in a data-driven tech tree**.
+
+This file is the entry point for humans and agents. Read the linked docs before changing the area they cover.
+
+| Doc | Read it when you… |
+|-----|-------------------|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | touch anything. Layers, data flow, tick order, the React/canvas bridge, and the rules ESLint enforces. |
+| [docs/CONTENT.md](docs/CONTENT.md) | add or change a unit, building, tech, resource or node. Field reference and walkthroughs. |
+| [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | set up, branch, test, open a PR. Definition of done. |
+| [docs/PLAN.md](docs/PLAN.md) | want to know why the game is the way it is and what is planned next. |
+| [docs/adr/](docs/adr/) | wonder why a big decision was made (or make one yourself). |
+
+## Packages (dependencies point left to right)
+
+```
+content ──▶ engine ◀── server        content: rulesets as JSON (the tech tree) + loader
+              ▲                      engine:  types, protocol, simulation systems, pathfinding, vision
+              └────── client         server:  rooms, sessions, fog filtering (Bun WebSocket)
+                                     client:  game/ (pure TS + Three.js)  ui/ (React)  app/store (the bridge)
+```
+
+## Commands
+
+```bash
+bun install
+bun run dev:server          # http://localhost:3000, WebSocket on /ws
+bun run dev:client          # http://localhost:5173 (proxies /ws to the server)
+bun run check               # typecheck + lint + tests + content validation  ← run before every PR
+bun run validate:content    # validate the default ruleset (or: bun packages/content/src/validate.ts <dir>)
+bun run tree:graph unit:soldier   # what leads to something (prerequisites + Mermaid); no arg = whole tree
+bun run build && bun start  # production: server serves the built client
+```
+
+## Hard rules (ESLint enforces the import ones)
+
+1. **Rules are data.** Never hard-code a unit, building, tech or resource id in engine, server or client code.
+   Read it from the tree. If the tree can't express what you need, extend the interface in
+   `engine/src/content.ts` and the schema in `engine/src/tree.ts` (the compile-time asserts keep them in
+   sync), apply it in a system, and document the new field in `docs/CONTENT.md`. Content itself is
+   TypeScript in `packages/content/default/`.
+2. **Server-authoritative.** Clients send `Command`s (`engine/src/protocol.ts`); the server never trusts client state.
+3. **Engine is pure.** No I/O, no Bun/Node APIs, no rendering. Same code runs on server and in the browser.
+4. **One system per file** in `engine/src/systems/`. Add new behaviour as a new system, register it in
+   `systems/index.ts`, describe it in ARCHITECTURE.md.
+5. **State is plain data**: records keyed by id, no classes or Maps, JSON-serialisable.
+6. **Client split:** `client/src/game/**` never imports React. `client/src/ui/**` never imports Three.js and only
+   imports `game/index.ts`. They meet in `app/store.ts` (zustand/vanilla) and `ui/GameCanvas.tsx`.
+7. **Protocol changes** bump `PROTOCOL_VERSION` and update server `visibility.ts`/`session.ts` and client
+   `game/world.ts`/`game/session.ts` together.
+8. **Balance numbers** live only in `packages/content/default/*.ts`.
+
+## Conventions
+
+- Prettier + ESLint config at the root; `bun run format` before committing.
+- Tests: `*.test.ts` next to the code, run with `bun test`. Engine tests use the default ruleset.
+- Coordinates: tiles are integers, positions are continuous with tile centre at `+0.5`. Game `y` is Three.js `z`.
+- Keep it simple. New resources/units/buildings need a reason in `docs/PLAN.md` first.
+- No C# here; the SharpTools rules from the global config do not apply.

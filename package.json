@@ -1,0 +1,30 @@
+{
+  "name": "odal",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:server": "bun run --cwd packages/server dev",
+    "dev:client": "bun run --cwd packages/client dev",
+    "build": "bun run --cwd packages/client build",
+    "start": "bun run --cwd packages/server start",
+    "typecheck": "bun run --cwd packages/engine typecheck && bun run --cwd packages/content typecheck && bun run --cwd packages/server typecheck && bun run --cwd packages/client typecheck",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "bun test",
+    "validate:content": "bun run --cwd packages/content validate",
+    "tree:graph": "bun packages/content/src/graph.ts",
+    "check": "bun run typecheck && bun run lint && bun test && bun run validate:content"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.15.0",
+    "eslint": "^9.15.0",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "globals": "^15.12.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.15.0"
+  }
+}

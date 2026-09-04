@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.vite/
+*.log
+.DS_Store
+.claude/settings.local.json
+.playwright-mcp/
+tools.yaml

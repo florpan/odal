@@ -1,0 +1,207 @@
+import { canPlaceFootprint, rectDistance } from './grid';
+import type { Ability, Effect, EffectType, Requirement, TechTree } from './content';
+import { idx } from './tree';
+import type { Building, GameState, Player, ResourceNode, Resources, Unit, Vec2 } from './types';
+
+// ---------------------------------------------------------------------------
+// Read-only questions about the game, used by the simulation, the server and
+// the client UI alike. No side effects in here.
+// ---------------------------------------------------------------------------
+
+export function canAfford(res: Resources, cost: Resources): boolean {
+  return Object.keys(cost).every((k) => (res[k] ?? 0) >= cost[k]);
+}
+
+export function pay(res: Resources, cost: Resources): void {
+  for (const k of Object.keys(cost)) res[k] = (res[k] ?? 0) - cost[k];
+}
+
+export function refund(res: Resources, cost: Resources): void {
+  for (const k of Object.keys(cost)) res[k] = (res[k] ?? 0) + cost[k];
+}
+
+export function hasTech(player: Player, tech: string): boolean {
+  return player.techs.includes(tech);
+}
+
+export function hasAbility(tree: TechTree, u: Unit, ability: Ability): boolean {
+  return idx(tree).units[u.type].abilities.includes(ability);
+}
+
+// ---------------------------------------------------------------------------
+// Tech effects
+// ---------------------------------------------------------------------------
+
+/** Product of all matching effect multipliers from the player's researched techs. */
+export function effectMultiplier(
+  tree: TechTree,
+  player: Player,
+  type: EffectType,
+  matches: (e: Effect) => boolean = () => true,
+): number {
+  const techs = idx(tree).techs;
+  let m = 1;
+  for (const id of player.techs) {
+    const tech = techs[id];
+    if (!tech) continue;
+    for (const e of tech.effects) if (e.type === type && matches(e)) m *= e.multiplier;
+  }
+  return m;
+}
+
+/** True when an effect's optional filter (e.g. `unit`) is absent or equals `value`. */
+function targets(e: Effect, key: 'resource' | 'building' | 'unit', value: string): boolean {
+  const v = (e as Record<string, unknown>)[key];
+  return v === undefined || v === value;
+}
+
+export const gatherRate = (tree: TechTree, player: Player, resource: string) =>
+  effectMultiplier(tree, player, 'gatherRate', (e) => targets(e, 'resource', resource));
+
+export const produceRate = (tree: TechTree, player: Player, building: string) =>
+  effectMultiplier(tree, player, 'produceRate', (e) => targets(e, 'building', building));
+
+export const buildSpeed = (tree: TechTree, player: Player) => effectMultiplier(tree, player, 'buildSpeed');
+
+export const unitDamage = (tree: TechTree, player: Player, unit: string) =>
+  idx(tree).units[unit].damage * effectMultiplier(tree, player, 'damage', (e) => targets(e, 'unit', unit));
+
+export const unitMaxHp = (tree: TechTree, player: Player, unit: string) =>
+  idx(tree).units[unit].hp * effectMultiplier(tree, player, 'maxHp', (e) => targets(e, 'unit', unit));
+
+export const unitSpeed = (tree: TechTree, player: Player, unit: string) =>
+  idx(tree).units[unit].speed * effectMultiplier(tree, player, 'speed', (e) => targets(e, 'unit', unit));
+
+// ---------------------------------------------------------------------------
+// Population and unlocks
+// ---------------------------------------------------------------------------
+
+export function popCap(state: GameState, playerId: number): number {
+  const defs = idx(state.tree).buildings;
+  let cap = 0;
+  for (const id in state.buildings) {
+    const b = state.buildings[id];
+    if (b.owner === playerId && b.progress >= 1) cap += defs[b.type].pop;
+  }
+  return cap;
+}
+
+/** Population of living units. */
+export function popAlive(state: GameState, playerId: number): number {
+  const defs = idx(state.tree).units;
+  let n = 0;
+  for (const id in state.units) {
+    const u = state.units[id];
+    if (u.owner === playerId) n += defs[u.type].pop;
+  }
+  return n;
+}
+
+/** Population of living units plus units waiting in production queues. */
+export function popUsed(state: GameState, playerId: number): number {
+  const defs = idx(state.tree).units;
+  let n = popAlive(state, playerId);
+  for (const id in state.buildings) {
+    const b = state.buildings[id];
+    if (b.owner !== playerId) continue;
+    for (const q of b.queue) if (q.kind === 'unit') n += defs[q.type].pop;
+  }
+  return n;
+}
+
+export function countUnits(state: GameState, playerId: number): number {
+  let n = 0;
+  for (const id in state.units) if (state.units[id].owner === playerId) n++;
+  return n;
+}
+
+export function isTechQueued(state: GameState, playerId: number, tech: string): boolean {
+  for (const id in state.buildings) {
+    const b = state.buildings[id];
+    if (b.owner === playerId && b.queue.some((q) => q.kind === 'tech' && q.id === tech)) return true;
+  }
+  return false;
+}
+
+/** True when the player owns a completed building of this type. */
+export function ownsBuilding(state: GameState, playerId: number, building: string): boolean {
+  for (const id in state.buildings) {
+    const b = state.buildings[id];
+    if (b.owner === playerId && b.type === building && b.progress >= 1) return true;
+  }
+  return false;
+}
+
+export function requirementMet(state: GameState, player: Player, r: Requirement): boolean {
+  return r.type === 'tech' ? hasTech(player, r.id) : ownsBuilding(state, player.id, r.id);
+}
+
+export function requirementsMet(state: GameState, player: Player, requires: Requirement[]): boolean {
+  return requires.every((r) => requirementMet(state, player, r));
+}
+
+/** The first missing requirement, for UI hints and rejection messages. */
+export function missingRequirement(state: GameState, player: Player, requires: Requirement[]): Requirement | undefined {
+  return requires.find((r) => !requirementMet(state, player, r));
+}
+
+export function buildingUnlocked(state: GameState, player: Player, building: string): boolean {
+  const def = idx(state.tree).buildings[building];
+  return !!def && def.buildable && requirementsMet(state, player, def.requires);
+}
+
+export function unitUnlocked(state: GameState, player: Player, unit: string): boolean {
+  const def = idx(state.tree).units[unit];
+  return !!def && requirementsMet(state, player, def.requires);
+}
+
+export function techUnlocked(state: GameState, player: Player, tech: string): boolean {
+  const def = idx(state.tree).techs[tech];
+  return !!def && requirementsMet(state, player, def.requires);
+}
+
+// ---------------------------------------------------------------------------
+// Spatial
+// ---------------------------------------------------------------------------
+
+export function canPlaceBuilding(
+  state: GameState,
+  blocked: Uint8Array,
+  building: string,
+  x: number,
+  y: number,
+): boolean {
+  const def = idx(state.tree).buildings[building];
+  return !!def && canPlaceFootprint(blocked, state.width, state.height, x, y, def.size.w, def.size.h);
+}
+
+export function findNearbyNode(state: GameState, from: Vec2, type: string, radius: number): ResourceNode | null {
+  let best: ResourceNode | null = null;
+  let bestD = radius * radius;
+  for (const id in state.nodes) {
+    const n = state.nodes[id];
+    if (n.type !== type) continue;
+    const d = (n.x + 0.5 - from.x) ** 2 + (n.y + 0.5 - from.y) ** 2;
+    if (d < bestD) {
+      bestD = d;
+      best = n;
+    }
+  }
+  return best;
+}
+
+export function nearestDropOff(state: GameState, u: Unit): Building | null {
+  const defs = idx(state.tree).buildings;
+  let best: Building | null = null;
+  let bestD = Infinity;
+  for (const id in state.buildings) {
+    const b = state.buildings[id];
+    if (b.owner !== u.owner || b.progress < 1 || !defs[b.type].dropOff) continue;
+    const d = rectDistance(u, b.x, b.y, b.w, b.h);
+    if (d < bestD) {
+      bestD = d;
+      best = b;
+    }
+  }
+  return best;
+}
