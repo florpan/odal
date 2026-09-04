@@ -5,18 +5,22 @@
     "packages/*"
   ],
   "scripts": {
-    "dev:server": "bun run --cwd packages/server dev",
+    "dev:server": "ODAL_DEV=1 bun --watch packages/server/src/index.ts",
     "dev:client": "bun run --cwd packages/client dev",
+    "dev:editor": "bun run --cwd packages/client vite --open /editor.html",
     "build": "bun run --cwd packages/client build",
     "start": "bun run --cwd packages/server start",
+    "start:editor": "ODAL_DEV=1 bun run --cwd packages/server start",
     "typecheck": "bun run --cwd packages/engine typecheck && bun run --cwd packages/content typecheck && bun run --cwd packages/server typecheck && bun run --cwd packages/client typecheck",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "bun test",
     "validate:content": "bun run --cwd packages/content validate",
+    "schema:gen": "bun run --cwd packages/content schema:gen",
+    "schema:check": "bun run --cwd packages/content schema:check",
     "tree:graph": "bun packages/content/src/graph.ts",
-    "check": "bun run typecheck && bun run lint && bun test && bun run validate:content"
+    "check": "bun run typecheck && bun run lint && bun test && bun run validate:content && bun run schema:check"
   },
   "devDependencies": {
     "@eslint/js": "^9.15.0",

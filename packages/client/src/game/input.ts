@@ -1,5 +1,6 @@
 import { canPlaceBuilding, computeBlocked, idx } from '@odal/engine';
 import type { Ability, Command, Vec2 } from '@odal/engine';
+import { appStore, toggleOverlay } from '../app/store';
 import type { Net } from './net';
 import type { Renderer } from './render/scene';
 import type { World } from './world';
@@ -351,6 +352,16 @@ export class Input {
     if (tag === 'INPUT' || tag === 'TEXTAREA') return;
     const k = e.key.toLowerCase();
     this.keys.add(k);
+
+    if (k === 'tab') {
+      e.preventDefault();
+      toggleOverlay('tree');
+      return;
+    }
+    if (k === 'escape' && appStore.getState().overlay) {
+      appStore.setState({ overlay: null });
+      return;
+    }
 
     if (k >= '1' && k <= '9') {
       const n = Number(k);

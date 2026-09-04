@@ -8,9 +8,11 @@ import { Minimap } from '../hud/Minimap';
 import { ModeHint } from '../hud/ModeHint';
 import { SelectionPanel } from '../hud/SelectionPanel';
 import { TopBar } from '../hud/TopBar';
+import { TechTreeOverlay } from './TechTreeOverlay';
 
 export function GameScreen() {
   const error = useApp((s) => s.error);
+  const overlay = useApp((s) => s.overlay);
   return (
     <div className="game-screen">
       <GameCanvas />
@@ -22,11 +24,12 @@ export function GameScreen() {
         <Messages />
         <ModeHint />
         {error && <div className="hud-error">{error}</div>}
-        <div className="bottom">
+        <div className="hud-bottom">
           <SelectionPanel />
           <ActionBar />
           <Minimap />
         </div>
+        {overlay === 'tree' && <TechTreeOverlay />}
       </div>
     </div>
   );

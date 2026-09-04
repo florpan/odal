@@ -1,4 +1,4 @@
-import type { Ref, TechTree } from './content';
+import type { Cost, ProducibleDef, Ref, Requirement, TechTree } from './content';
 
 // ---------------------------------------------------------------------------
 // The tech graph: what leads to what.
@@ -31,9 +31,31 @@ export function parseRef(s: string): Ref | null {
   return null;
 }
 
-export function refName(tree: TechTree, ref: Ref): string {
+export function refDef(tree: TechTree, ref: Ref): ProducibleDef | undefined {
   const list = ref.kind === 'unit' ? tree.units : ref.kind === 'building' ? tree.buildings : tree.techs;
-  return list.find((x) => x.id === ref.id)?.name ?? ref.id;
+  return list.find((x) => x.id === ref.id);
+}
+
+export function refName(tree: TechTree, ref: Ref): string {
+  return refDef(tree, ref)?.name ?? ref.id;
+}
+
+/**
+ * What it takes to obtain `ref` from nothing: its own cost and time plus that of
+ * every prerequisite. Times are summed as if done one after another, so this is
+ * an upper bound. The balance number a tree view shows next to an item.
+ */
+export function chainCost(tree: TechTree, ref: Ref): { cost: Cost; time: number; steps: number } {
+  const chain = [...prerequisites(tree, ref), ref];
+  const cost: Cost = {};
+  let time = 0;
+  for (const r of chain) {
+    const def = refDef(tree, r);
+    if (!def) continue;
+    for (const k of Object.keys(def.cost)) cost[k] = (cost[k] ?? 0) + def.cost[k];
+    time += def.time;
+  }
+  return { cost, time, steps: chain.length };
 }
 
 export function buildGraph(tree: TechTree): TechGraph {
@@ -43,8 +65,11 @@ export function buildGraph(tree: TechTree): TechGraph {
     ...tree.techs.map((t): Ref => ({ kind: 'tech', id: t.id })),
   ];
   const edges: GraphEdge[] = [];
-  const req = (to: Ref, requires: { type: 'tech' | 'building'; id: string }[]) => {
-    for (const r of requires) edges.push({ from: { kind: r.type, id: r.id }, to, reason: 'requires' });
+  const req = (to: Ref, requires: Requirement[]) => {
+    for (const r of requires) {
+      if (r.type === 'population') continue; // a gate, not a node
+      edges.push({ from: { kind: r.type, id: r.id }, to, reason: 'requires' });
+    }
   };
   for (const b of tree.buildings) {
     const me: Ref = { kind: 'building', id: b.id };

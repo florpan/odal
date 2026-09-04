@@ -1,6 +1,6 @@
 # 0006 – Typed content, uniform requirements, and a derived tech graph
 
-Date: 2026-09-04   Status: accepted
+Date: 2026-09-04 Status: accepted; point 2 (TypeScript content) superseded by [0007](0007-json-content-and-editor.md)
 
 ## Context
 

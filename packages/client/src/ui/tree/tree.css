@@ -1,0 +1,145 @@
+/* Tech tree graph: shared by the in-game overlay and the editor */
+.tree-graph {
+  position: absolute;
+  inset: 0;
+  background: #14100b;
+}
+.tree-graph .react-flow__attribution {
+  display: none;
+}
+.tree-node {
+  width: 172px;
+  height: 58px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #6b4f2a;
+  background: #2a2016;
+  color: #f1e6cf;
+  font-size: 12px;
+  line-height: 1.25;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  transition:
+    opacity 0.15s,
+    border-color 0.15s;
+}
+.tree-node .react-flow__handle {
+  width: 8px;
+  height: 8px;
+  background: #8a6a3a;
+  border: none;
+}
+.tree-node-kind {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #a89a80;
+}
+.tree-node-name {
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tree-node-cost {
+  color: #c9b58a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tree-node.kind-unit {
+  border-radius: 20px;
+}
+.tree-node.kind-tech {
+  border-style: dashed;
+  background: #201a2a;
+  border-color: #7e57c2;
+}
+.tree-node.kind-building {
+  background: #2a2016;
+}
+.tree-node.status-owned {
+  border-color: #7cb342;
+  box-shadow: 0 0 0 1px #7cb342 inset;
+}
+.tree-node.status-inProgress {
+  border-color: #e0a030;
+  box-shadow: 0 0 0 1px #e0a030 inset;
+}
+.tree-node.status-available {
+  border-color: #c9b58a;
+}
+.tree-node.status-locked {
+  opacity: 0.55;
+}
+.tree-node.is-selected {
+  border-color: #ffb74d;
+  box-shadow: 0 0 0 2px #ffb74d;
+  opacity: 1;
+}
+.tree-node.is-dimmed {
+  opacity: 0.3;
+}
+.tree-edge .react-flow__edge-path {
+  stroke: #8a6a3a;
+  stroke-width: 1.5;
+}
+.tree-edge.reason-requires .react-flow__edge-path {
+  stroke-dasharray: 5 4;
+}
+.tree-edge.is-touching .react-flow__edge-path {
+  stroke: #ffb74d;
+  stroke-width: 2.5;
+}
+.tree-edge.selected .react-flow__edge-path {
+  stroke: #ff8a80;
+  stroke-width: 3;
+}
+.tree-edge .react-flow__edge-textbg {
+  fill: #14100b;
+}
+.tree-edge .react-flow__edge-text {
+  fill: #a89a80;
+  font-size: 10px;
+}
+.tree-graph .react-flow__controls button {
+  background: #2a2016;
+  border-color: #6b4f2a;
+  fill: #f1e6cf;
+}
+.tree-graph .react-flow__controls button:hover {
+  background: #3b2b16;
+}
+
+/* Legend used by both views */
+.tree-legend {
+  display: flex;
+  gap: 14px;
+  font-size: 11px;
+  color: #a89a80;
+  align-items: center;
+}
+.tree-legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 4px;
+  vertical-align: -1px;
+  border: 1px solid #6b4f2a;
+}
+.tree-legend i.owned {
+  border-color: #7cb342;
+  background: rgba(124, 179, 66, 0.35);
+}
+.tree-legend i.inProgress {
+  border-color: #e0a030;
+  background: rgba(224, 160, 48, 0.35);
+}
+.tree-legend i.available {
+  border-color: #c9b58a;
+}
+.tree-legend i.locked {
+  opacity: 0.5;
+}

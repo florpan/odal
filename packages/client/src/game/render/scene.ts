@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { idx, unitMaxHp } from '@odal/engine';
+import { buildingMaxHp, idx, unitMaxHp } from '@odal/engine';
 import type { Building, GameState, RallyPoint, Vec2 } from '@odal/engine';
 
 // ---------------------------------------------------------------------------
@@ -385,7 +385,7 @@ export class Renderer {
           mat,
           bar,
           barHeight: height + 0.45,
-          maxHp: def.hp,
+          maxHp: buildingMaxHp(state.tree, state.players[b.owner], b.type),
           lastHp: b.hp,
           flashUntil: 0,
           target: group.position.clone(),

@@ -1,6 +1,6 @@
 # 0004 – React owns the app, the game owns the canvas, one bridge component
 
-Date: 2026-09-04   Status: accepted
+Date: 2026-09-04 Status: accepted
 
 ## Context
 

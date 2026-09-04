@@ -10,10 +10,13 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@dagrejs/dagre": "^3.1.1",
     "@odal/engine": "workspace:*",
+    "@xyflow/react": "^12.11.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "three": "^0.170.0",
+    "zod": "^3.23.8",
     "zustand": "^5.0.0"
   },
   "devDependencies": {

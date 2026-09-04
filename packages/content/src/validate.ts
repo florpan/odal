@@ -7,7 +7,7 @@ import { validateTree } from '@odal/engine';
 import { DEFAULT_TREE_DATA, validateTreeDir } from './index';
 
 const dirArg = process.argv[2];
-const label = dirArg ? resolve(dirArg) : 'packages/content/default (TypeScript)';
+const label = dirArg ? resolve(dirArg) : 'packages/content/default';
 const { tree, errors } = dirArg ? validateTreeDir(resolve(dirArg)) : validateTree(DEFAULT_TREE_DATA);
 
 if (errors.length) {

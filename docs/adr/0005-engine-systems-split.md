@@ -1,6 +1,6 @@
 # 0005 – Engine split into one system per file with a fixed tick order
 
-Date: 2026-09-04   Status: accepted
+Date: 2026-09-04 Status: accepted
 
 ## Context
 

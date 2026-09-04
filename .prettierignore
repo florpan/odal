@@ -1,4 +1,1 @@
-node_modules
-dist
-bun.lock
-*.md
+packages/content/schema/

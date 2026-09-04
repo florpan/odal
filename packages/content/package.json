@@ -1,16 +1,20 @@
 {
   "name": "@odal/content",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "validate": "bun src/validate.ts"
+    "validate": "bun src/validate.ts",
+    "schema:gen": "bun src/schema.ts",
+    "schema:check": "bun src/schema.ts --check"
   },
   "dependencies": {
-    "@odal/engine": "workspace:*"
+    "@odal/engine": "workspace:*",
+    "zod": "^3.23.8",
+    "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
     "bun-types": "^1.1.0",

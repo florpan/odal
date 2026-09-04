@@ -4,26 +4,46 @@ Everything the game knows about resources, nodes, units, buildings and technolog
 `packages/content/default/`. Change the data, change the game. The engine only understands the generic
 concepts described here.
 
+Two ways to edit it:
+
+- **The editor** (recommended for anything structural): run `bun run dev:server` and `bun run dev:editor`
+  (or open http://localhost:5173/editor.html while `dev:client` runs; with a built client,
+  `bun run start:editor` serves it at http://localhost:3000/editor.html). Plain `bun start` is production
+  mode and has no editor routes. Left: everything that exists.
+  Middle: the tree, drag from a prerequisite to what it unlocks, select an edge and press Delete to remove
+  it. Right: the selected item's fields (generated from the schema) plus its facts: cost and time from
+  scratch, where it is obtained, what it leads to. Bottom: the validator's complaints, click one to jump
+  there. Save (Ctrl+S) validates, formats and writes the JSON; new rooms on the dev server use the new
+  rules immediately. Renaming an id renames every reference.
+- **A text editor**: the files are plain JSON. `.vscode/settings.json` maps them to JSON Schemas generated
+  from the engine (`packages/content/schema/`), so VS Code autocompletes fields and flags mistakes.
+
 ```bash
 bun run validate:content                    # validate the default ruleset
+bun run schema:gen                          # regenerate the JSON Schemas after changing engine/src/tree.ts
 bun run tree:graph                          # whole tree as a Mermaid diagram
 bun run tree:graph unit:soldier             # what leads to the soldier, in order
-bun packages/content/src/validate.ts <dir>  # validate a JSON ruleset directory
-TREE_DIR=<dir> bun run dev:server           # play a JSON ruleset
+bun packages/content/src/validate.ts <dir>  # validate another JSON ruleset directory
+TREE_DIR=<dir> bun run dev:server           # play (and edit) another ruleset
 ```
 
 The validator checks the schema (unknown fields are errors, so typos fail fast), every cross-reference,
 and the dependency graph: no cycles, and everything must be obtainable from the starting position. CI runs
-it. Tests in `content/src/content.test.ts` add sanity checks such as "every resource can be obtained".
+it, and fails if the committed JSON Schemas are stale. Tests in `content/src/content.test.ts` add sanity
+checks such as "every resource can be obtained" and "every resource is spent on something".
+
+In the game, **Tab** opens the same tree for players, coloured by what they have, what is in progress, what
+they could get right now and what is still locked.
 
 ## Where the types live
 
-| | |
-|-|-|
-| `engine/src/content.ts` | The interfaces. `EntityDef` → `ResourceDef`, `NodeDef`, `ProducibleDef` → `UnitDef`, `BuildingDef`, `TechDef`. This is the source of truth. |
-| `engine/src/tree.ts` | zod schemas with defaults, asserted at compile time to produce exactly those interfaces. Exports the `*Input` types authors write against. |
-| `packages/content/default/*.ts` | The default ruleset, typed with `UnitDefInput[]` etc. so the editor checks and autocompletes fields. |
-| `engine/src/techgraph.ts` | The dependency graph derived from a tree: `buildGraph`, `prerequisites`, `findCycle`, `unobtainable`, `toMermaid`. |
+|                                   |                                                                                                                                                                   |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `engine/src/content.ts`           | The interfaces. `EntityDef` → `ResourceDef`, `NodeDef`, `ProducibleDef` → `UnitDef`, `BuildingDef`, `TechDef`. This is the source of truth.                       |
+| `engine/src/tree.ts`              | zod schemas with defaults, asserted at compile time to produce exactly those interfaces. `FILE_SCHEMAS` drives the editor's forms and the generated JSON Schemas. |
+| `packages/content/default/*.json` | The default ruleset.                                                                                                                                              |
+| `packages/content/schema/`        | Generated JSON Schemas (`bun run schema:gen`). Do not edit by hand.                                                                                               |
+| `engine/src/techgraph.ts`         | The dependency graph derived from a tree: `buildGraph`, `prerequisites`, `chainCost`, `findCycle`, `unobtainable`, `toMermaid`.                                   |
 
 The hierarchy exists so code can be written against the general shape: anything `ProducibleDef` has a
 `cost`, a `time` and `requires`, so affordability, unlock checks and the tech graph work the same way for
@@ -31,128 +51,140 @@ units, buildings and techs.
 
 ## Files
 
-| File | Exports |
-|------|---------|
-| `rules.ts` | `name`, `version`, `rules`, `start` |
-| `resources.ts` | `resources: ResourceDefInput[]` |
-| `nodes.ts` | `nodes: NodeDefInput[]` |
-| `units.ts` | `units: UnitDefInput[]` |
-| `buildings.ts` | `buildings: BuildingDefInput[]` |
-| `techs.ts` | `techs: TechDefInput[]` |
+| File             | Contents                          |
+| ---------------- | --------------------------------- |
+| `rules.json`     | `{ name, version, rules, start }` |
+| `resources.json` | `ResourceDef[]`                   |
+| `nodes.json`     | `NodeDef[]`                       |
+| `units.json`     | `UnitDef[]`                       |
+| `buildings.json` | `BuildingDef[]`                   |
+| `techs.json`     | `TechDef[]`                       |
 
-JSON rulesets use the same six names with `.json` and the same shapes. Ids are lowercase `snake_case`,
-unique within their file. Colors are `#rrggbb`. Times are seconds, distances tiles, rates multipliers.
+Ids are lowercase `snake_case`, unique within their file. Colors are `#rrggbb`. Times are seconds,
+distances tiles, rates multipliers. A `$schema` key at the top level of a file is ignored.
 
 ## Field reference
 
+Fields shared by every entity (`EntityDef`):
+
+| Field        | Default  | Meaning                                                                        |
+| ------------ | -------- | ------------------------------------------------------------------------------ |
+| `id`, `name` | required |                                                                                |
+| `desc`       | `''`     | HUD text                                                                       |
+| `notes`      | `''`     | Author notes: balance reasoning, todos. Shown in the editor, never to players. |
+
 Fields shared by every unit, building and tech (`ProducibleDef`):
 
-| Field | Default | Meaning |
-|-------|---------|---------|
-| `id`, `name` | required | |
-| `desc` | `''` | HUD text |
-| `cost` | `{}` | `{ resourceId: amount }` paid when queued or placed |
-| `time` | required | Seconds to train / build (per builder) / research |
-| `requires` | `[]` | Prerequisites, see below |
+| Field      | Default  | Meaning                                             |
+| ---------- | -------- | --------------------------------------------------- |
+| `cost`     | `{}`     | `{ resourceId: amount }` paid when queued or placed |
+| `time`     | required | Seconds to train / build (per builder) / research   |
+| `requires` | `[]`     | Prerequisites, see below                            |
 
 ### requires
 
 A list of requirements that must all hold before the thing can be trained, placed or queued:
 
-```ts
-requires: [
-  { type: 'tech', id: 'ironworking' },   // the player has researched it
-  { type: 'building', id: 'library' },   // the player owns a completed one
+```json
+"requires": [
+  { "type": "tech", "id": "ironworking" },
+  { "type": "building", "id": "library" },
+  { "type": "population", "min": 10 }
 ]
 ```
+
+- `tech`: the player has researched it.
+- `building`: the player owns a completed one.
+- `population`: the player's living units add up to at least `min` population. A gate, not an edge: it
+  is checked but not drawn in the tree.
 
 Being trained by a building or researched at one is an implicit requirement and does not need listing.
 The HUD shows the first missing requirement on the disabled button; the engine rejects the command with
 the same message. Requirements feed the tech graph (below), so listing them explicitly is worth it even
-when they are implied, because it makes the item's own card honest in a tree view.
+when they are implied, because it makes the item's own card honest in the tree view.
 
 ### rules
 
-| Field | Default | Meaning |
-|-------|---------|---------|
-| `tickRate` | 10 | Simulation steps per second |
-| `map.width`, `map.height` | required | Tiles (16–256) |
-| `startResources` | required | `{ resourceId: amount }` every player starts with |
-| `maxQueue` | 5 | Max items in a building's train/research queue |
-| `separationDist` | 0.6 | Units closer than this push each other apart (0 disables) |
-| `startClearRadius` | 4 | Nodes within this radius of a start building are removed |
-| `upkeepInterval` | 60 | Seconds between upkeep payments |
-| `playerColors` | required | Array of colors assigned in join order |
+| Field                     | Default  | Meaning                                                   |
+| ------------------------- | -------- | --------------------------------------------------------- |
+| `tickRate`                | 10       | Simulation steps per second                               |
+| `map.width`, `map.height` | required | Tiles (16–256)                                            |
+| `startResources`          | required | `{ resourceId: amount }` every player starts with         |
+| `maxQueue`                | 5        | Max items in a building's train/research queue            |
+| `separationDist`          | 0.6      | Units closer than this push each other apart (0 disables) |
+| `startClearRadius`        | 4        | Nodes within this radius of a start building are removed  |
+| `upkeepInterval`          | 60       | Seconds between upkeep payments                           |
+| `playerColors`            | required | Array of colors assigned in join order                    |
 
 ### start
 
-| Field | Meaning |
-|-------|---------|
+| Field      | Meaning                                                                                  |
+| ---------- | ---------------------------------------------------------------------------------------- |
 | `building` | Building id placed for each new player. Must be a `dropOff`. Usually `buildable: false`. |
-| `units` | `[{ type, count }]` spawned next to it |
+| `units`    | `[{ type, count }]` spawned next to it                                                   |
 
 ### resources
 
-| Field | Default | Meaning |
-|-------|---------|---------|
-| `id`, `name` | required | |
-| `desc` | `''` | |
-| `icon` | `''` | Shown in the HUD (an emoji works) |
+| Field  | Default | Meaning                           |
+| ------ | ------- | --------------------------------- |
+| `icon` | `''`    | Shown in the HUD (an emoji works) |
+
+The default ruleset gives each resource a primary sink (see PLAN.md): lumber for general buildings,
+stone for protective buildings, iron for units, gold for research, wheat for unit count. That is a design
+guideline, not a rule the engine knows about; mixed costs are the interesting ones.
 
 ### nodes
 
-| Field | Default | Meaning |
-|-------|---------|---------|
-| `id`, `name`, `desc` | | |
-| `resource` | required | Resource id gathered from it |
-| `amount` | required | Total per node; the node disappears at 0 |
-| `gatherTime` | required | Seconds per load |
-| `gatherAmount` | required | Resources per load |
-| `spawn` | required | `{ kind: 'forest', clustersPer1000Tiles, radius: [min,max] }` blobs, or `{ kind: 'deposit', depositsPer1000Tiles, size: [min,max] }` small clumps |
-| `visual` | required | `{ shape: 'cone' \| 'rock', color }` |
+| Field          | Default  | Meaning                                                                                                                                           |
+| -------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `resource`     | required | Resource id gathered from it                                                                                                                      |
+| `amount`       | required | Total per node; the node disappears at 0                                                                                                          |
+| `gatherTime`   | required | Seconds per load                                                                                                                                  |
+| `gatherAmount` | required | Resources per load                                                                                                                                |
+| `spawn`        | required | `{ kind: 'forest', clustersPer1000Tiles, radius: [min,max] }` blobs, or `{ kind: 'deposit', depositsPer1000Tiles, size: [min,max] }` small clumps |
+| `visual`       | required | `{ shape: 'cone' \| 'rock', color }`                                                                                                              |
 
 ### units
 
-| Field | Default | Meaning |
-|-------|---------|---------|
-| shared | | `id`, `name`, `desc`, `cost`, `time`, `requires` |
-| `hp`, `speed` | required | Speed in tiles/second |
-| `damage` | 0 | Per hit |
-| `range` | 1 | Tiles |
-| `attackTime` | 1 | Seconds between hits |
-| `aggro` | 0 | Auto-attack enemies within this radius when idle or attack-moving (0 = never) |
-| `vision` | 6 | Fog-of-war sight radius |
-| `pop` | 1 | Population used |
-| `upkeep` | `{}` | `{ resourceId: amount }` paid every `rules.upkeepInterval` seconds while alive |
-| `abilities` | `[]` | Any of `harvest`, `build`, `attack`. Decides which commands apply and which buttons show. |
-| `visual` | `{}` | `{ width: 0.4, height: 1, helmet: false }`, body in player color |
+| Field         | Default  | Meaning                                                                                   |
+| ------------- | -------- | ----------------------------------------------------------------------------------------- |
+| `hp`, `speed` | required | Speed in tiles/second                                                                     |
+| `damage`      | 0        | Per hit                                                                                   |
+| `range`       | 1        | Tiles                                                                                     |
+| `attackTime`  | 1        | Seconds between hits                                                                      |
+| `aggro`       | 0        | Auto-attack enemies within this radius when idle or attack-moving (0 = never)             |
+| `vision`      | 6        | Fog-of-war sight radius                                                                   |
+| `pop`         | 1        | Population used                                                                           |
+| `upkeep`      | `{}`     | `{ resourceId: amount }` paid every `rules.upkeepInterval` seconds while alive            |
+| `abilities`   | `[]`     | Any of `harvest`, `build`, `attack`. Decides which commands apply and which buttons show. |
+| `visual`      | `{}`     | `{ width: 0.4, height: 1, helmet: false }`, body in player color                          |
 
 Upkeep is summed per player and charged in one go. When a player can't pay, the resource bottoms out at 0
 and they get a message. What else happens to starving units is an open balance decision (PLAN.md).
 
 ### buildings
 
-| Field | Default | Meaning |
-|-------|---------|---------|
-| shared | | `id`, `name`, `desc`, `cost`, `time`, `requires` |
-| `buildable` | true | `false` for things only placed by `start` |
-| `hp` | required | |
-| `size` | required | `{ w, h }` in tiles |
-| `pop` | 0 | Population capacity granted when complete |
-| `trains` | `[]` | Unit ids |
-| `researches` | `[]` | Tech ids |
-| `dropOff` | false | Harvesters deliver here |
-| `produces` | – | `{ resource, amount, interval }` passive income while complete |
-| `vision` | 6 | |
-| `hotkey` | – | Single letter for build mode. Must be unique. Avoid `A`, `S`, `W`, `D`, `X` (camera/commands). |
-| `visual` | required | `{ shape: 'box' \| 'cone', color, height, glow? }`. `glow` adds emissive color and a point light. |
+| Field        | Default  | Meaning                                                                                                                                         |
+| ------------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `buildable`  | true     | `false` for things only placed by `start`                                                                                                       |
+| `hp`         | required |                                                                                                                                                 |
+| `size`       | required | `{ w, h }` in tiles                                                                                                                             |
+| `pop`        | 0        | Population capacity granted when complete                                                                                                       |
+| `trains`     | `[]`     | Unit ids                                                                                                                                        |
+| `researches` | `[]`     | Tech ids                                                                                                                                        |
+| `dropOff`    | false    | Harvesters deliver here                                                                                                                         |
+| `produces`   | –        | `{ resource, amount, interval }` passive income while complete                                                                                  |
+| `attack`     | –        | `{ damage, range, attackTime }`: once complete it shoots the nearest enemy within `range` (towers). Raw damage; unit damage techs do not apply. |
+| `passable`   | false    | The owner's units walk through it, everyone else is blocked (gates)                                                                             |
+| `vision`     | 6        |                                                                                                                                                 |
+| `hotkey`     | –        | Single letter for build mode. Must be unique. Avoid `A`, `S`, `W`, `D`, `X` (camera/commands).                                                  |
+| `visual`     | required | `{ shape: 'box' \| 'cone', color, height, glow? }`. `glow` adds emissive color and a point light.                                               |
 
 ### techs
 
-| Field | Default | Meaning |
-|-------|---------|---------|
-| shared | | `id`, `name`, `desc`, `cost`, `time`, `requires` |
-| `effects` | `[]` | See below. A tech with no effects is still useful as a requirement gate. |
+| Field     | Default | Meaning                                                                  |
+| --------- | ------- | ------------------------------------------------------------------------ |
+| `effects` | `[]`    | See below. A tech with no effects is still useful as a requirement gate. |
 
 A tech must appear in some building's `researches`, or the validator reports it as unobtainable.
 
@@ -160,77 +192,76 @@ A tech must appear in some building's `researches`, or the validator reports it 
 
 All effects multiply. Filters are optional; omit them to affect everything of that kind.
 
-| `type` | Filter | Applies to |
-|--------|--------|-----------|
-| `gatherRate` | `resource` | Gathering speed of that resource |
-| `produceRate` | `building` | `produces` interval of that building |
-| `damage` | `unit` | Damage per hit |
-| `maxHp` | `unit` | Max HP (new units; existing keep current HP) |
-| `speed` | `unit` | Movement speed |
-| `buildSpeed` | – | Construction speed of all builders |
+| `type`        | Filter     | Applies to                                                                          |
+| ------------- | ---------- | ----------------------------------------------------------------------------------- |
+| `gatherRate`  | `resource` | Gathering speed of that resource                                                    |
+| `produceRate` | `building` | `produces` interval of that building                                                |
+| `damage`      | `unit`     | Damage per hit                                                                      |
+| `maxHp`       | `unit`     | Max HP (new units; existing keep current HP)                                        |
+| `speed`       | `unit`     | Movement speed                                                                      |
+| `buildingHp`  | `building` | Max HP of buildings completed after the research (existing buildings are unchanged) |
+| `buildSpeed`  | –          | Construction speed of all builders                                                  |
 
-Example: `{ type: 'damage', unit: 'soldier', multiplier: 1.5 }`.
+Example: `{ "type": "damage", "unit": "soldier", "multiplier": 1.5 }`.
 
 Need a new effect? Add it to `Effect` in `engine/src/content.ts` and `EffectSchema` in `tree.ts`, apply
-it in the relevant system via a helper in `engine/src/queries.ts`, add a test, and document it here.
+it in the relevant system via a helper in `engine/src/queries.ts`, add a case to `describeEffect`, add a
+test, run `bun run schema:gen`, and document it here. The editor picks it up from the schema.
 
 ## The tech graph
 
 `buildGraph(tree)` turns a ruleset into a directed graph. Nodes are units, buildings and techs; an edge
 A → B means A must exist before B: a building `trains` a unit or `researches` a tech, or A is in B's
-`requires`. On top of it:
+`requires`. Population requirements are not edges. On top of it:
 
 - `prerequisites(tree, ref)` – everything needed for `ref`, in an order you could obtain them in.
+- `chainCost(tree, ref)` – total cost, summed time and step count of `ref` plus its whole prerequisite
+  chain. The number shown as "From scratch" in the editor and the in-game tree.
 - `findCycle(graph)` – validation: requirement loops are rejected.
 - `unobtainable(tree, graph)` – validation: units nobody trains, techs nobody researches, or anything
   whose prerequisites can never be met.
 - `toMermaid(tree, graph, highlight?)` – diagram source; `bun run tree:graph [ref]` prints it.
 
-A ref is `unit:<id>`, `building:<id>` or `tech:<id>`. This is the data a Civilization-style tree screen
-renders and what a "focus on defence" or "rush a strong unit" planner would search. The engine keeps it
-pure so the client can show it from the tree it already receives in `welcome`.
+A ref is `unit:<id>`, `building:<id>` or `tech:<id>`. `client/src/ui/tree/TechTreeGraph.tsx` renders this
+graph for both the editor and the in-game screen; the engine keeps it pure so the client can show it from
+the tree it already receives in `welcome`.
 
 ## Walkthroughs
 
 ### Add a unit: the archer
 
-1. `units.ts`: add
-   ```ts
-   {
-     id: 'archer', name: 'Archer', desc: 'Shoots from a distance.',
-     cost: { wheat: 20, lumber: 15 }, time: 12,
-     requires: [{ type: 'tech', id: 'ironworking' }],
-     hp: 40, speed: 2.8, damage: 6, range: 5, attackTime: 1.2, aggro: 7,
-     upkeep: { wheat: 1 },
-     abilities: ['attack'], visual: { width: 0.4, height: 1.1, helmet: true },
-   }
-   ```
-2. `buildings.ts`: add `'archer'` to the barracks' `trains`.
-3. `bun run validate:content`, then `bun test`, then `bun run tree:graph unit:archer` to see its path.
-4. Play-test in two tabs. Done: no engine or client code touched.
+1. In the editor, Units → **+**. Set id `archer`, name, cost `{ wheat: 20, lumber: 15 }`, time 12, hp 40,
+   speed 2.8, damage 6, range 5, attackTime 1.2, aggro 7, upkeep `{ wheat: 1 }`, abilities `attack`,
+   visual helmet on. The problems bar says `unit:archer: unobtainable`.
+2. Drag from the Barracks to the Archer and choose **trains**. Optionally drag from Ironworking to the
+   Archer for an explicit requirement. The problem disappears.
+3. Save. `bun test`, then play-test in two tabs. Done: no engine or client code touched.
+
+By hand: add the object to `units.json`, add `"archer"` to the barracks' `trains`, `bun run validate:content`.
 
 ### Add a building: the tower
 
-1. `buildings.ts`: add a 1×1 building with `hp`, `cost`, `time`, `hotkey: 'T'`, `visual`, `vision: 10`.
-2. Want it to shoot? That is behaviour the tree can't express yet. Add an optional `attack` block to
-   `BuildingDef` and `BuildingSchema` (`{ damage, range, attackTime }`), a `systems/towers.ts` that finds
-   targets like `combat.ts` does, register it in `systems/index.ts`, test it, document the field above.
-   Then the tower is data again for everyone after you.
+The default ruleset has one: `tower` in `buildings.json` with an `attack` block. The behaviour behind it
+is `engine/src/systems/towers.ts`, added exactly as ARCHITECTURE.md describes: an optional field on
+`BuildingDef` and `BuildingSchema`, a system that finds targets like `combat.ts` does, registered in
+`systems/index.ts`, tested in `game.test.ts`. Anything you want that the tree can't express follows the
+same path, and is data again for everyone after you.
 
 ### Add a resource: stone
 
-1. `resources.ts`: add `{ id: 'stone', name: 'Stone', icon: '🪨' }`.
-2. `nodes.ts`: add a `stone_rock` node with a `deposit` spawn and `resource: 'stone'`.
-3. Use it in some `cost`. Add `stone: 0` to `rules.startResources` (optional; missing means 0).
-4. Validate. The HUD, minimap and renderer pick it up from the tree.
+Also already in the default ruleset. The recipe: a resource, a node with a `deposit` spawn for it, at least
+two or three things that cost it (otherwise it is a chore, not a choice), `stone: 0` in
+`rules.startResources` (optional; missing means 0). The HUD, minimap, renderer and tree pick it up from the
+tree.
 
 ### Gate something behind a building
 
 `requires: [{ type: 'building', id: 'library' }]` on a unit, building or tech means the player must own a
 completed library. Use it for "you need a Blacksmith before Steel Weapons" style rules without inventing a
-placeholder tech.
+placeholder tech. In the editor: drag from the building to the thing and choose **requires**.
 
 ### Tune balance
 
-Edit numbers, validate, play. Keep a note of what you changed and why in the PR; PLAN.md tracks the
-reasoning behind bigger shifts.
+Edit numbers in the editor, watch the "From scratch" line and the problems bar, save, play. Keep a note of
+what you changed and why in the entity's `notes` and in the PR; PLAN.md tracks the reasoning behind bigger
+shifts.

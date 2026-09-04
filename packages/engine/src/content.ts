@@ -21,8 +21,13 @@ export type Cost = Record<string, number>;
 
 export type Ability = 'harvest' | 'build' | 'attack';
 
-/** A prerequisite: a researched tech, or a completed building the player owns. */
-export type Requirement = { type: 'tech'; id: string } | { type: 'building'; id: string };
+/**
+ * A prerequisite: a researched tech, a completed building the player owns, or a
+ * minimum living population. Tech and building requirements are edges in the
+ * tech graph; population is a gate that is checked but not drawn.
+ */
+export type Requirement =
+  { type: 'tech'; id: string } | { type: 'building'; id: string } | { type: 'population'; min: number };
 
 export type Effect =
   | { type: 'gatherRate'; resource?: string; multiplier: number }
@@ -30,6 +35,7 @@ export type Effect =
   | { type: 'damage'; unit?: string; multiplier: number }
   | { type: 'maxHp'; unit?: string; multiplier: number }
   | { type: 'speed'; unit?: string; multiplier: number }
+  | { type: 'buildingHp'; building?: string; multiplier: number }
   | { type: 'buildSpeed'; multiplier: number };
 export type EffectType = Effect['type'];
 
@@ -41,6 +47,8 @@ export interface EntityDef {
   id: string;
   name: string;
   desc: string;
+  /** Author notes (balance reasoning, todos). Never shown to players. */
+  notes: string;
 }
 
 export interface ResourceDef extends EntityDef {
@@ -87,6 +95,10 @@ export interface BuildingDef extends ProducibleDef {
   researches: string[];
   dropOff: boolean;
   produces?: { resource: string; amount: number; interval: number };
+  /** Shoots enemies within `range` tiles once complete (towers). */
+  attack?: { damage: number; range: number; attackTime: number };
+  /** The owner's units walk through it; everyone else is blocked (gates). */
+  passable: boolean;
   vision: number;
   hotkey?: string;
   visual: { shape: 'box' | 'cone'; color: string; height: number; glow?: string };

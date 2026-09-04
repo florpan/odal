@@ -1,0 +1,197 @@
+{
+  "$ref": "#/definitions/units",
+  "definitions": {
+    "units": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "desc": {
+            "type": "string",
+            "default": ""
+          },
+          "notes": {
+            "type": "string",
+            "default": ""
+          },
+          "cost": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number",
+              "minimum": 0
+            },
+            "propertyNames": {
+              "pattern": "^[a-z][a-z0-9_]*$"
+            },
+            "default": {}
+          },
+          "time": {
+            "type": "number",
+            "minimum": 0
+          },
+          "requires": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "tech"
+                    },
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9_]*$"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "id"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "building"
+                    },
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9_]*$"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "id"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "population"
+                    },
+                    "min": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "min"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "default": []
+          },
+          "hp": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "speed": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "damage": {
+            "type": "number",
+            "minimum": 0,
+            "default": 0
+          },
+          "range": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "default": 1
+          },
+          "attackTime": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "default": 1
+          },
+          "aggro": {
+            "type": "number",
+            "minimum": 0,
+            "default": 0
+          },
+          "vision": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "default": 6
+          },
+          "pop": {
+            "type": "number",
+            "minimum": 0,
+            "default": 1
+          },
+          "upkeep": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number",
+              "minimum": 0
+            },
+            "propertyNames": {
+              "pattern": "^[a-z][a-z0-9_]*$"
+            },
+            "default": {}
+          },
+          "abilities": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "harvest",
+                "build",
+                "attack"
+              ]
+            },
+            "default": []
+          },
+          "visual": {
+            "type": "object",
+            "properties": {
+              "width": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "default": 0.4
+              },
+              "height": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "default": 1
+              },
+              "helmet": {
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "additionalProperties": false,
+            "default": {}
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "time",
+          "hp",
+          "speed"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

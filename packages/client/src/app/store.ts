@@ -14,6 +14,8 @@ import type { HudModel } from '../game/viewmodel';
 
 export type Screen = 'start' | 'lobby' | 'game';
 export type Connection = 'idle' | 'connecting' | 'open' | 'closed';
+/** Full-screen panels over the game. `null` = playing. */
+export type Overlay = 'tree' | null;
 
 export interface AppState {
   screen: Screen;
@@ -24,6 +26,7 @@ export interface AppState {
   lobby: LobbyInfo | null;
   session: GameSession | null;
   hud: HudModel;
+  overlay: Overlay;
 }
 
 export const appStore = createStore<AppState>(() => ({
@@ -35,10 +38,23 @@ export const appStore = createStore<AppState>(() => ({
   lobby: null,
   session: null,
   hud: EMPTY_HUD,
+  overlay: null,
 }));
+
+export function toggleOverlay(which: Exclude<Overlay, null>) {
+  appStore.setState((s) => ({ overlay: s.overlay === which ? null : which }));
+}
 
 /** Leave the current session and go back to the start screen. */
 export function leaveGame() {
   appStore.getState().session?.dispose();
-  appStore.setState({ screen: 'start', connection: 'idle', lobby: null, session: null, hud: EMPTY_HUD, error: null });
+  appStore.setState({
+    screen: 'start',
+    connection: 'idle',
+    lobby: null,
+    session: null,
+    hud: EMPTY_HUD,
+    error: null,
+    overlay: null,
+  });
 }

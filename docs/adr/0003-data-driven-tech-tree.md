@@ -1,6 +1,6 @@
 # 0003 – All game rules are data (the tech tree)
 
-Date: 2026-09-04   Status: accepted
+Date: 2026-09-04 Status: accepted
 
 ## Context
 
@@ -17,7 +17,7 @@ never references a specific id. The server loads the ruleset and sends it to cli
 ## Consequences
 
 - Adding a unit, building, tech or resource is a JSON change validated by CI. See `docs/CONTENT.md`.
-- New *kinds* of rules still need engine work: extend the schema, apply it in a system, document it.
+- New _kinds_ of rules still need engine work: extend the schema, apply it in a system, document it.
   This is the intended pressure: engine changes should add capability, not content.
 - Ids are strings, not literal unions; the validator catches dangling references at load time instead
   of the compiler.

@@ -72,6 +72,10 @@ export const unitMaxHp = (tree: TechTree, player: Player, unit: string) =>
 export const unitSpeed = (tree: TechTree, player: Player, unit: string) =>
   idx(tree).units[unit].speed * effectMultiplier(tree, player, 'speed', (e) => targets(e, 'unit', unit));
 
+export const buildingMaxHp = (tree: TechTree, player: Player | undefined, building: string) =>
+  idx(tree).buildings[building].hp *
+  (player ? effectMultiplier(tree, player, 'buildingHp', (e) => targets(e, 'building', building)) : 1);
+
 // ---------------------------------------------------------------------------
 // Population and unlocks
 // ---------------------------------------------------------------------------
@@ -133,7 +137,14 @@ export function ownsBuilding(state: GameState, playerId: number, building: strin
 }
 
 export function requirementMet(state: GameState, player: Player, r: Requirement): boolean {
-  return r.type === 'tech' ? hasTech(player, r.id) : ownsBuilding(state, player.id, r.id);
+  switch (r.type) {
+    case 'tech':
+      return hasTech(player, r.id);
+    case 'building':
+      return ownsBuilding(state, player.id, r.id);
+    case 'population':
+      return popAlive(state, player.id) >= r.min;
+  }
 }
 
 export function requirementsMet(state: GameState, player: Player, requires: Requirement[]): boolean {

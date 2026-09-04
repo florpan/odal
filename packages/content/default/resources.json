@@ -1,0 +1,12 @@
+[
+  { "id": "lumber", "name": "Lumber", "icon": "🌲", "notes": "Primary sink: general buildings." },
+  {
+    "id": "stone",
+    "name": "Stone",
+    "icon": "🪨",
+    "notes": "Primary sink: protective buildings (walls, gates, towers). Optional to mine: quarrying it is a visible commitment to defence."
+  },
+  { "id": "iron", "name": "Iron", "icon": "⛏", "notes": "Primary sink: military units." },
+  { "id": "gold", "name": "Gold", "icon": "💰", "notes": "Primary sink: research." },
+  { "id": "wheat", "name": "Wheat", "icon": "🌾", "notes": "Primary sink: unit count (training cost and upkeep)." }
+]

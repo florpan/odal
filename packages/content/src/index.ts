@@ -1,54 +1,48 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { parseTree, validateTree } from '@odal/engine';
-import type { TechTree, TechTreeInput, TreeValidation } from '@odal/engine';
-import { buildings } from '../default/buildings';
-import { nodes } from '../default/nodes';
-import { resources } from '../default/resources';
-import { name, rules, start, version } from '../default/rules';
-import { techs } from '../default/techs';
-import { units } from '../default/units';
+import { RULESET_FILES, mergeFiles, parseTree, validateTree } from '@odal/engine';
+import type { RulesetFile, RulesetFiles, TechTree, TechTreeInput, TreeValidation } from '@odal/engine';
+import buildings from '../default/buildings.json';
+import nodes from '../default/nodes.json';
+import resources from '../default/resources.json';
+import rules from '../default/rules.json';
+import techs from '../default/techs.json';
+import units from '../default/units.json';
 
 // ---------------------------------------------------------------------------
-// Game content. A ruleset is six files (rules, resources, nodes, units,
-// buildings, techs) that together form one TechTree (see docs/CONTENT.md).
+// Game content. A ruleset is six JSON files (rules, resources, nodes, units,
+// buildings, techs) in one directory that together form one TechTree (see
+// docs/CONTENT.md). The default ruleset is packages/content/default/; the
+// content editor (client /editor.html) reads and writes it through the dev
+// server. Any other directory loads the same way with TREE_DIR.
 //
-// The default ruleset is written in TypeScript, typed as UnitDefInput[] etc.,
-// so authors get type checking and autocomplete; it is still validated at
-// runtime like any other. External rulesets are plain JSON directories loaded
-// with TREE_DIR.
+// JSON Schema files for editor support are generated from the zod schemas by
+// `bun run schema:gen` into packages/content/schema/.
 // ---------------------------------------------------------------------------
 
-export const RULESET_FILES = ['rules', 'resources', 'nodes', 'units', 'buildings', 'techs'] as const;
+export { RULESET_FILES, mergeFiles };
+export type { RulesetFile, RulesetFiles };
+
+/** Absolute path of the default ruleset directory. */
+export const DEFAULT_TREE_DIR = join(import.meta.dir, '../default');
 
 /** The default ruleset as authored (defaults not yet applied). */
-export const DEFAULT_TREE_DATA: TechTreeInput = {
-  name,
-  version,
-  rules,
-  start,
-  resources,
-  nodes,
-  units,
-  buildings,
-  techs,
-};
+export const DEFAULT_TREE_DATA = mergeFiles({ rules, resources, nodes, units, buildings, techs }) as TechTreeInput;
 
 /** The default ruleset, validated. Throws at import time if the content is broken. */
 export const DEFAULT_TREE: TechTree = parseTree(DEFAULT_TREE_DATA);
 
+/** Read the six JSON files of a ruleset directory. */
+export function readTreeFiles(dir: string): RulesetFiles {
+  const read = (file: RulesetFile) => JSON.parse(readFileSync(join(dir, `${file}.json`), 'utf8')) as unknown;
+  const out = {} as RulesetFiles;
+  for (const f of RULESET_FILES) out[f] = read(f);
+  return out;
+}
+
 /** Merge the six JSON files of a ruleset directory into one tree object (unvalidated). */
 export function readTreeDir(dir: string): unknown {
-  const read = (file: string) => JSON.parse(readFileSync(join(dir, `${file}.json`), 'utf8'));
-  const base = read('rules') as Record<string, unknown>;
-  return {
-    ...base,
-    resources: read('resources'),
-    nodes: read('nodes'),
-    units: read('units'),
-    buildings: read('buildings'),
-    techs: read('techs'),
-  };
+  return mergeFiles(readTreeFiles(dir));
 }
 
 export function validateTreeDir(dir: string): TreeValidation {

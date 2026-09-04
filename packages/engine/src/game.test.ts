@@ -1,10 +1,12 @@
 import { describe, expect, test } from 'bun:test';
 import { DEFAULT_TREE } from '@odal/content';
+import { makeBuilding } from './entities';
 import { addPlayer, createGame, emptyEvents, stepGame } from './game';
+import { computeBlocked } from './grid';
 import type { PlayerCommand } from './protocol';
-import { countUnits } from './queries';
+import { buildingMaxHp, countUnits } from './queries';
 import type { GameState, ResourceNode } from './types';
-import { buildGraph, findCycle, prerequisites } from './techgraph';
+import { buildGraph, chainCost, findCycle, prerequisites } from './techgraph';
 import { computeVision, isVisible } from './vision';
 
 const DT = 1 / DEFAULT_TREE.rules.tickRate;
@@ -192,5 +194,88 @@ describe('engine with the default tech tree', () => {
       { playerId: a.id, cmd: { type: 'attack', unitIds: [ua.id], targetId: ub.id, targetKind: 'unit' } },
     ]);
     expect(state.units[ub.id]).toBeUndefined();
+  });
+
+  test('a completed building with an attack block shoots enemies in range', () => {
+    const towerDef = DEFAULT_TREE.buildings.find((b) => b.attack)!;
+    const state = createGame(DEFAULT_TREE, 7);
+    const a = addPlayer(state, 'Alice', emptyEvents());
+    const b = addPlayer(state, 'Bob', emptyEvents());
+    const ua = Object.values(state.units).find((u) => u.owner === a.id)!;
+    const ub = Object.values(state.units).find((u) => u.owner === b.id)!;
+    const tower = makeBuilding(state, a.id, towerDef.id, Math.floor(ua.x) + 2, Math.floor(ua.y));
+    tower.progress = 1;
+    tower.hp = towerDef.hp;
+    // Park Bob's worker just inside range and Alice's own worker out of the way.
+    ub.x = tower.x + 0.5 + towerDef.attack!.range - 1;
+    ub.y = tower.y + 0.5;
+    ua.x = tower.x - 3;
+    const before = ub.hp;
+    run(state, Math.ceil(towerDef.attack!.attackTime * DEFAULT_TREE.rules.tickRate) + 2);
+    expect(ub.hp).toBeLessThan(before);
+    expect(ua.hp).toBe(before); // never shoots its own
+  });
+
+  test('a passable building blocks enemies but not its owner', () => {
+    const gateDef = DEFAULT_TREE.buildings.find((b) => b.passable)!;
+    const state = createGame(DEFAULT_TREE, 7);
+    const a = addPlayer(state, 'Alice', emptyEvents());
+    const b = addPlayer(state, 'Bob', emptyEvents());
+    const home = Object.values(state.buildings).find((x) => x.owner === a.id)!;
+    const gate = makeBuilding(state, a.id, gateDef.id, home.x + 2, home.y);
+    gate.progress = 1;
+    const i = gate.y * state.width + gate.x;
+    expect(computeBlocked(state)[i]).toBe(1);
+    expect(computeBlocked(state, b.id)[i]).toBe(1);
+    expect(computeBlocked(state, a.id)[i]).toBe(0);
+  });
+
+  test('a population requirement gates research until enough units live', () => {
+    const tree = structuredClone(DEFAULT_TREE);
+    const library = tree.buildings.find((b) => b.researches.length)!;
+    const techId = library.researches[0];
+    tree.techs.find((t) => t.id === techId)!.requires = [{ type: 'population', min: 2 }];
+    const state = createGame(tree, 7);
+    const p = addPlayer(state, 'Alice', emptyEvents());
+    const camp = Object.values(state.buildings)[0];
+    const lib = makeBuilding(state, p.id, library.id, camp.x + 3, camp.y + 3);
+    lib.progress = 1;
+    for (const r of tree.resources) p.resources[r.id] = 1000;
+    const ev = stepGame(state, [{ playerId: p.id, cmd: { type: 'research', buildingId: lib.id, tech: techId } }], DT);
+    expect(lib.queue.length).toBe(0);
+    expect(ev.messages.some((m) => m.text.includes('2 population'))).toBe(true);
+    run(state, 120, [{ playerId: p.id, cmd: { type: 'train', buildingId: camp.id, unit: tree.start.units[0].type } }]);
+    expect(countUnits(state, p.id)).toBe(2);
+    stepGame(state, [{ playerId: p.id, cmd: { type: 'research', buildingId: lib.id, tech: techId } }], DT);
+    expect(lib.queue.length).toBe(1);
+  });
+
+  test('buildingHp effect raises the max HP of buildings finished afterwards', () => {
+    const tech = DEFAULT_TREE.techs.find((t) => t.effects.some((e) => e.type === 'buildingHp'))!;
+    const state = createGame(DEFAULT_TREE, 7);
+    const p = addPlayer(state, 'Alice', emptyEvents());
+    const worker = Object.values(state.units)[0];
+    const camp = Object.values(state.buildings)[0];
+    const house = DEFAULT_TREE.buildings.find((b) => b.buildable && !b.requires.length && b.pop > 0)!;
+    p.techs.push(tech.id);
+    p.resources = Object.fromEntries(DEFAULT_TREE.resources.map((r) => [r.id, 1000]));
+    run(state, 800, [
+      {
+        playerId: p.id,
+        cmd: { type: 'build', unitIds: [worker.id], building: house.id, x: camp.x + 2, y: camp.y + 2 },
+      },
+    ]);
+    const built = Object.values(state.buildings).find((b) => b.type === house.id)!;
+    expect(built.progress).toBe(1);
+    expect(built.hp).toBeCloseTo(buildingMaxHp(DEFAULT_TREE, p, house.id));
+    expect(built.hp).toBeGreaterThan(house.hp);
+  });
+
+  test('chainCost sums the whole prerequisite chain', () => {
+    const soldier = { kind: 'unit', id: 'soldier' } as const;
+    const { cost, time, steps } = chainCost(DEFAULT_TREE, soldier);
+    expect(steps).toBe(prerequisites(DEFAULT_TREE, soldier).length + 1);
+    expect(cost.gold).toBeGreaterThan(0); // the library and ironworking cost gold, the soldier does not
+    expect(time).toBeGreaterThan(DEFAULT_TREE.units.find((u) => u.id === 'soldier')!.time);
   });
 });

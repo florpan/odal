@@ -1,4 +1,5 @@
 import {
+  buildingMaxHp,
   buildingUnlocked,
   canAfford,
   describeRequirement,
@@ -7,11 +8,13 @@ import {
   idx,
   isTechQueued,
   missingRequirement,
+  ownsBuilding,
   popCap,
   popUsed,
+  requirementsMet,
   unitMaxHp,
 } from '@odal/engine';
-import type { Building, Unit } from '@odal/engine';
+import type { Building, GameState, Player, TechTree, Unit } from '@odal/engine';
 import type { Input } from './input';
 import type { World } from './world';
 
@@ -79,6 +82,15 @@ export interface MessageView {
   at: number;
 }
 
+/** How far the player is from having a unit, building or tech. */
+export type RefStatus = 'owned' | 'inProgress' | 'available' | 'locked';
+
+/** What the tech tree screen needs: the rules plus the player's progress through them. */
+export interface TreeView {
+  tree: TechTree;
+  status: Record<string, RefStatus>; // keyed by refKey: unit:<id> | building:<id> | tech:<id>
+}
+
 export interface HudModel {
   player: { name: string; color: string } | null;
   resources: ResourceView[];
@@ -87,6 +99,7 @@ export interface HudModel {
   actions: ActionView[];
   modeHint: string;
   messages: MessageView[];
+  tree: TreeView | null;
 }
 
 export const EMPTY_HUD: HudModel = {
@@ -97,7 +110,64 @@ export const EMPTY_HUD: HudModel = {
   actions: [],
   modeHint: '',
   messages: [],
+  tree: null,
 };
+
+let lastStatus: Record<string, RefStatus> = {};
+
+/** The player's progress per tree item. Returns the previous object when nothing changed so React can skip. */
+function treeStatus(st: GameState, me: Player): Record<string, RefStatus> {
+  const defs = idx(st.tree);
+  const alive = new Set<string>();
+  const queuedUnits = new Set<string>();
+  const trainers = new Set<string>();
+  const researchers = new Set<string>();
+  const building = new Set<string>();
+  for (const id in st.units) if (st.units[id].owner === me.id) alive.add(st.units[id].type);
+  for (const id in st.buildings) {
+    const b = st.buildings[id];
+    if (b.owner !== me.id) continue;
+    if (b.progress < 1) {
+      building.add(b.type);
+      continue;
+    }
+    for (const q of b.queue) if (q.kind === 'unit') queuedUnits.add(q.type);
+    for (const t of defs.buildings[b.type].trains) trainers.add(t);
+    for (const t of defs.buildings[b.type].researches) researchers.add(t);
+  }
+  const status: Record<string, RefStatus> = {};
+  for (const u of st.tree.units) {
+    status[`unit:${u.id}`] = alive.has(u.id)
+      ? 'owned'
+      : queuedUnits.has(u.id)
+        ? 'inProgress'
+        : trainers.has(u.id) && requirementsMet(st, me, u.requires)
+          ? 'available'
+          : 'locked';
+  }
+  for (const b of st.tree.buildings) {
+    status[`building:${b.id}`] = ownsBuilding(st, me.id, b.id)
+      ? 'owned'
+      : building.has(b.id)
+        ? 'inProgress'
+        : b.buildable && requirementsMet(st, me, b.requires)
+          ? 'available'
+          : 'locked';
+  }
+  for (const t of st.tree.techs) {
+    status[`tech:${t.id}`] = hasTech(me, t.id)
+      ? 'owned'
+      : isTechQueued(st, me.id, t.id)
+        ? 'inProgress'
+        : researchers.has(t.id) && requirementsMet(st, me, t.requires)
+          ? 'available'
+          : 'locked';
+  }
+  const keys = Object.keys(status);
+  const same = keys.length === Object.keys(lastStatus).length && keys.every((k) => lastStatus[k] === status[k]);
+  if (!same) lastStatus = status;
+  return lastStatus;
+}
 
 export function buildHud(world: World, input: Input | null): HudModel {
   const st = world.state;
@@ -135,7 +205,7 @@ export function buildHud(world: World, input: Input | null): HudModel {
       own,
       remembered,
       hp: Math.ceil(b.hp),
-      maxHp: def.hp,
+      maxHp: Math.round(buildingMaxHp(tree, owner, b.type)),
       progress: b.progress,
       desc: def.desc,
       rally:
@@ -279,6 +349,7 @@ export function buildHud(world: World, input: Input | null): HudModel {
     actions,
     modeHint,
     messages: world.messages,
+    tree: { tree, status: treeStatus(st, me) },
   };
 }
 

@@ -73,6 +73,7 @@ export interface Building {
   queue: QueueItem[];
   queueProgress: number; // seconds spent on queue[0]
   produceTimer: number;
+  cooldown: number; // seconds until a building with `attack` fires again
   rally: RallyPoint | null;
 }
 

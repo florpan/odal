@@ -1,6 +1,6 @@
 # 0001 – TypeScript everywhere in a Bun workspace monorepo
 
-Date: 2026-09-04   Status: accepted
+Date: 2026-09-04 Status: accepted
 
 ## Context
 

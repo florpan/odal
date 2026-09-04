@@ -126,9 +126,14 @@ export class RoomManager {
   private rooms = new Map<string, Room>();
 
   constructor(
-    private readonly tree: TechTree,
+    private tree: TechTree,
     private readonly emptyTtlMs: number,
   ) {}
+
+  /** Swap the ruleset for rooms created from now on (the content editor saved). Running rooms keep theirs. */
+  setTree(tree: TechTree) {
+    this.tree = tree;
+  }
 
   get(name: string): Room {
     let room = this.rooms.get(name);

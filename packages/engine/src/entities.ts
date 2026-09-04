@@ -18,6 +18,7 @@ export function makeBuilding(state: GameState, owner: number, type: string, x: n
     queue: [],
     queueProgress: 0,
     produceTimer: 0,
+    cooldown: 0,
     rally: null,
   };
   state.buildings[b.id] = b;

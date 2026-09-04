@@ -24,7 +24,7 @@ export function StartScreen() {
     <div className="overlay">
       <form className="panel" onSubmit={join}>
         <h1>Odal</h1>
-        <p className="muted">Gather lumber, iron, gold and wheat. Build a village. Research. Raise an army.</p>
+        <p className="muted">Gather. Build a village. Research. Raise an army.</p>
         {error && <p className="error">{error}</p>}
         <label>
           Name

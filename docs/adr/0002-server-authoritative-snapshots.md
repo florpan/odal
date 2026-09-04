@@ -1,6 +1,6 @@
 # 0002 – Server-authoritative simulation with per-player snapshots
 
-Date: 2026-09-04   Status: accepted
+Date: 2026-09-04 Status: accepted
 
 ## Context
 

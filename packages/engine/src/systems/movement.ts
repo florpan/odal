@@ -1,3 +1,4 @@
+import { blockedFor } from '../ctx';
 import type { Ctx } from '../ctx';
 import {
   adjacentTiles,
@@ -20,7 +21,8 @@ export type GoResult = 'arrived' | 'moving' | 'unreachable';
 
 /** Walk towards a tile, (re)computing the path when needed. */
 export function goTo(ctx: Ctx, u: Unit, tx: number, ty: number): GoResult {
-  const { state, blocked } = ctx;
+  const { state } = ctx;
+  const blocked = blockedFor(ctx, u.owner);
   const { width: w, height: h } = state;
 
   // If the destination itself is blocked, aim for the nearest free tile around it.
@@ -85,7 +87,13 @@ export function goToAdjacent(ctx: Ctx, u: Unit, x: number, y: number, w: number,
     u.goal = null;
     return 'arrived';
   }
-  const tile = nearestWalkableTile(ctx.blocked, ctx.state.width, ctx.state.height, adjacentTiles(x, y, w, h), u);
+  const tile = nearestWalkableTile(
+    blockedFor(ctx, u.owner),
+    ctx.state.width,
+    ctx.state.height,
+    adjacentTiles(x, y, w, h),
+    u,
+  );
   if (!tile) return 'unreachable';
   const r = goTo(ctx, u, tile.x, tile.y);
   return r === 'arrived' ? (isAdjacentTo(u, x, y, w, h) ? 'arrived' : 'moving') : r;

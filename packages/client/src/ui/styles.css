@@ -120,7 +120,7 @@ button {
   font-size: 13px;
 }
 
-.bottom {
+.hud-bottom {
   position: absolute;
   left: 0;
   right: 0;
@@ -322,4 +322,91 @@ button.small:hover {
 }
 .lobby-players li.ready span {
   color: #7cb342;
+}
+
+/* Tech tree overlay (in game) */
+.tree-overlay {
+  position: absolute;
+  inset: 36px 0 190px 0;
+  display: flex;
+  flex-direction: column;
+  background: rgba(16, 12, 8, 0.96);
+  border-bottom: 2px solid #6b4f2a;
+}
+.tree-overlay-head {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 6px 14px;
+  border-bottom: 1px solid #4a3620;
+}
+.tree-overlay-head h2 {
+  margin: 0;
+  font-size: 16px;
+}
+.tree-overlay-head .spacer {
+  flex: 1;
+}
+.tree-overlay-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+.tree-overlay-graph {
+  flex: 1;
+  position: relative;
+}
+.tree-overlay-side {
+  flex: 0 0 340px;
+  padding: 12px 16px;
+  border-left: 1px solid #4a3620;
+  overflow: auto;
+  font-size: 13px;
+}
+.tree-overlay-side h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+.status-tag {
+  font-size: 11px;
+  font-weight: normal;
+  color: #a89a80;
+  margin-left: 6px;
+}
+.status-tag.owned {
+  color: #7cb342;
+}
+.status-tag.inProgress {
+  color: #e0a030;
+}
+.status-tag.available {
+  color: #f1e6cf;
+}
+button.small.active {
+  border-color: #ffb74d;
+  color: #ffb74d;
+}
+
+/* Facts about a unit / building / tech (overlay and editor) */
+.ref-details .desc {
+  margin: 0 0 8px;
+  color: #f1e6cf;
+}
+.ref-details dl {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 4px 10px;
+  margin: 0;
+}
+.ref-details dt {
+  color: #a89a80;
+}
+.ref-details dd {
+  margin: 0;
+}
+.ref-details .met {
+  color: #7cb342;
+}
+.ref-details .unmet {
+  color: #ff8a80;
 }

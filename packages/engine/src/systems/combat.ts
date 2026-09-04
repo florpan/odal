@@ -54,15 +54,19 @@ export function stepAttack(ctx: Ctx, u: Unit) {
   u.cooldown = def.attackTime;
 }
 
-/** Nearest enemy unit or building within `radius`, preferring units. */
-export function findEnemyInRange(ctx: Ctx, u: Unit, radius: number): Target | null {
+/** Nearest enemy unit or building within `radius` of a point owned by `owner`, preferring units. */
+export function findEnemyInRange(
+  ctx: Ctx,
+  from: { owner: number; x: number; y: number },
+  radius: number,
+): Target | null {
   const { state } = ctx;
   let best: Target | null = null;
   let bestD = radius;
   for (const id in state.units) {
     const o = state.units[id];
-    if (o.owner === u.owner || o.hp <= 0) continue;
-    const d = Math.hypot(o.x - u.x, o.y - u.y);
+    if (o.owner === from.owner || o.hp <= 0) continue;
+    const d = Math.hypot(o.x - from.x, o.y - from.y);
     if (d <= bestD) {
       bestD = d;
       best = { targetId: o.id, targetKind: 'unit' };
@@ -70,8 +74,8 @@ export function findEnemyInRange(ctx: Ctx, u: Unit, radius: number): Target | nu
   }
   for (const id in state.buildings) {
     const b = state.buildings[id];
-    if (b.owner === u.owner || b.hp <= 0) continue;
-    const d = rectDistance(u, b.x, b.y, b.w, b.h) + 1; // prefer units over buildings
+    if (b.owner === from.owner || b.hp <= 0) continue;
+    const d = rectDistance(from, b.x, b.y, b.w, b.h) + 1; // prefer units over buildings
     if (d <= bestD) {
       bestD = d;
       best = { targetId: b.id, targetKind: 'building' };

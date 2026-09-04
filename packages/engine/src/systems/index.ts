@@ -8,13 +8,14 @@ import { stepHarvest } from './harvest';
 import { goTo } from './movement';
 import { stepBuilding } from './production';
 import { separateUnits } from './separation';
+import { stepTower } from './towers';
 import { stepUpkeep } from './upkeep';
 
 // ---------------------------------------------------------------------------
 // System order for one tick. game.ts calls these after commands are applied:
 //   1. units      (task dispatch: movement, harvest, construction, combat)
 //   2. separation (push idle/walking units apart)
-//   3. buildings  (production and research queues)
+//   3. buildings  (production and research queues, then towers shoot)
 //   4. upkeep     (units eat, every rules.upkeepInterval seconds)
 // Adding a system: write it in its own file, call it here, document it in
 // docs/ARCHITECTURE.md.
@@ -25,7 +26,11 @@ export function stepUnits(ctx: Ctx) {
 }
 
 export function stepBuildings(ctx: Ctx) {
-  for (const id in ctx.state.buildings) stepBuilding(ctx, ctx.state.buildings[id]);
+  for (const id in ctx.state.buildings) {
+    const b = ctx.state.buildings[id];
+    stepBuilding(ctx, b);
+    stepTower(ctx, b);
+  }
 }
 
 export { separateUnits, stepUpkeep };

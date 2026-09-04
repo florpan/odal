@@ -95,10 +95,19 @@ export function addPlayer(state: GameState, name: string, events: TickEvents): P
 /** Advance the simulation by `dt` seconds after applying this tick's commands. */
 export function stepGame(state: GameState, commands: PlayerCommand[], dt: number): TickEvents {
   const events = emptyEvents();
-  const ctx: Ctx = { state, tree: state.tree, defs: idx(state.tree), dt, events, blocked: computeBlocked(state) };
+  const ctx: Ctx = {
+    state,
+    tree: state.tree,
+    defs: idx(state.tree),
+    dt,
+    events,
+    blocked: computeBlocked(state),
+    blockedByOwner: {},
+  };
 
   for (const pc of commands) applyCommand(ctx, pc);
   ctx.blocked = computeBlocked(state);
+  ctx.blockedByOwner = {};
 
   stepUnits(ctx);
   separateUnits(ctx);

@@ -1,6 +1,6 @@
 import { say, setTask } from '../ctx';
 import type { Ctx } from '../ctx';
-import { buildSpeed } from '../queries';
+import { buildSpeed, buildingMaxHp } from '../queries';
 import type { Unit } from '../types';
 import { goToAdjacent } from './movement';
 
@@ -26,11 +26,13 @@ export function stepBuild(ctx: Ctx, u: Unit) {
   if (r !== 'arrived') return;
 
   const def = defs.buildings[b.type];
-  const step = def.time > 0 ? (dt * buildSpeed(ctx.tree, state.players[u.owner])) / def.time : 1;
+  const owner = state.players[u.owner];
+  const maxHp = buildingMaxHp(ctx.tree, owner, b.type);
+  const step = def.time > 0 ? (dt * buildSpeed(ctx.tree, owner)) / def.time : 1;
   b.progress = Math.min(1, b.progress + step);
-  b.hp = Math.min(def.hp, b.hp + def.hp * step);
+  b.hp = Math.min(maxHp, b.hp + maxHp * step);
   if (b.progress >= 1) {
-    b.hp = def.hp;
+    b.hp = maxHp;
     say(ctx, u.owner, `${def.name} complete.`);
   }
 }

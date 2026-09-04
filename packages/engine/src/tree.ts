@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type {
   BuildingDef,
   Cost,
+  Effect,
   NodeDef,
   Requirement,
   ResourceDef,
@@ -32,6 +33,7 @@ const NonNeg = z.number().min(0);
 export const RequirementSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('tech'), id: Id }).strict(),
   z.object({ type: z.literal('building'), id: Id }).strict(),
+  z.object({ type: z.literal('population'), min: z.number().int().min(1) }).strict(),
 ]);
 
 /** What a technology changes once researched. Filters are optional: omit to affect everything. */
@@ -41,6 +43,7 @@ export const EffectSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('damage'), unit: Id.optional(), multiplier: Positive }).strict(),
   z.object({ type: z.literal('maxHp'), unit: Id.optional(), multiplier: Positive }).strict(),
   z.object({ type: z.literal('speed'), unit: Id.optional(), multiplier: Positive }).strict(),
+  z.object({ type: z.literal('buildingHp'), building: Id.optional(), multiplier: Positive }).strict(),
   z.object({ type: z.literal('buildSpeed'), multiplier: Positive }).strict(),
 ]);
 
@@ -58,7 +61,7 @@ export const SpawnSchema = z.discriminatedUnion('kind', [
     .strict(),
 ]);
 
-const entity = { id: Id, name: z.string().min(1), desc: z.string().default('') };
+const entity = { id: Id, name: z.string().min(1), desc: z.string().default(''), notes: z.string().default('') };
 const producible = {
   ...entity,
   cost: CostSchema.default({}),
@@ -111,6 +114,8 @@ export const BuildingSchema = z
     researches: z.array(Id).default([]),
     dropOff: z.boolean().default(false),
     produces: z.object({ resource: Id, amount: Positive, interval: Positive }).strict().optional(),
+    attack: z.object({ damage: Positive, range: Positive, attackTime: Positive }).strict().optional(),
+    passable: z.boolean().default(false),
     vision: Positive.default(6),
     hotkey: z.string().length(1).optional(),
     visual: z
@@ -263,7 +268,10 @@ export function validateTree(data: unknown): TreeValidation {
     if (id !== undefined && !set.has(id)) errors.push(`${where}: unknown ${kind} "${id}"`);
   };
   const checkRequires = (where: string, requires: Requirement[]) => {
-    for (const r of requires) checkRef(where, r.type === 'tech' ? ids.techs : ids.buildings, r.id, r.type);
+    for (const r of requires) {
+      if (r.type === 'population') continue;
+      checkRef(where, r.type === 'tech' ? ids.techs : ids.buildings, r.id, r.type);
+    }
   };
 
   checkCost('rules.startResources', t.rules.startResources);
@@ -339,5 +347,71 @@ export function formatCost(tree: TechTree, cost: Cost): string {
 }
 
 export function describeRequirement(tree: TechTree, r: Requirement): string {
+  if (r.type === 'population') return `${r.min} population`;
   return refName(tree, { kind: r.type, id: r.id });
 }
+
+/** One line of plain English for a tech effect, e.g. "Soldier damage ×1.5". */
+export function describeEffect(tree: TechTree, e: Effect): string {
+  const i = idx(tree);
+  const pct = `×${e.multiplier}`;
+  const name = (list: Record<string, { name: string }>, id: string | undefined, all: string) =>
+    id ? (list[id]?.name ?? id) : all;
+  switch (e.type) {
+    case 'gatherRate':
+      return `${name(i.resources, e.resource, 'All')} gathering ${pct}`;
+    case 'produceRate':
+      return `${name(i.buildings, e.building, 'All buildings')} production ${pct}`;
+    case 'damage':
+      return `${name(i.units, e.unit, 'All units')} damage ${pct}`;
+    case 'maxHp':
+      return `${name(i.units, e.unit, 'All units')} max HP ${pct}`;
+    case 'speed':
+      return `${name(i.units, e.unit, 'All units')} speed ${pct}`;
+    case 'buildingHp':
+      return `${name(i.buildings, e.building, 'All buildings')} HP ${pct}`;
+    case 'buildSpeed':
+      return `Construction speed ${pct}`;
+  }
+}
+
+/** A ruleset on disk is six JSON files with these names. */
+export const RULESET_FILES = ['rules', 'resources', 'nodes', 'units', 'buildings', 'techs'] as const;
+export type RulesetFile = (typeof RULESET_FILES)[number];
+/** The six files as raw JSON values, as authored (defaults not applied). */
+export type RulesetFiles = Record<RulesetFile, unknown>;
+
+/** Drop editor-only keys (`$schema`) so strict validation accepts the file. */
+function stripMeta(value: unknown): unknown {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const { $schema: _schema, ...rest } = value as Record<string, unknown>;
+    return rest;
+  }
+  return value;
+}
+
+/** Merge the six files of a ruleset into one tree object (unvalidated; feed it to validateTree). */
+export function mergeFiles(files: RulesetFiles): unknown {
+  const base = stripMeta(files.rules) as Record<string, unknown>;
+  return {
+    ...base,
+    resources: stripMeta(files.resources),
+    nodes: stripMeta(files.nodes),
+    units: stripMeta(files.units),
+    buildings: stripMeta(files.buildings),
+    techs: stripMeta(files.techs),
+  };
+}
+
+/**
+ * The per-file schemas keyed by ruleset file name, for tools that walk the
+ * schema (the content editor builds its forms from this).
+ */
+export const FILE_SCHEMAS = {
+  rules: z.object({ name: z.string().min(1), version: z.literal(1), rules: RulesSchema, start: StartSchema }).strict(),
+  resources: ResourceSchema,
+  nodes: NodeSchema,
+  units: UnitSchema,
+  buildings: BuildingSchema,
+  techs: TechSchema,
+} as const;

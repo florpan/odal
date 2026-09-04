@@ -77,6 +77,26 @@ export default tseslint.config(
     ]),
   },
 
+  // --- client/editor: the content editor page. React + engine + ui/tree; never the game. ---
+  {
+    files: ['packages/client/src/editor/**/*.{ts,tsx}'],
+    plugins: { 'react-hooks': reactHooks },
+    rules: {
+      ...reactHooks.configs.recommended.rules,
+      ...restrict([
+        { group: ['three'], message: 'The editor has no 3D view.' },
+        {
+          group: ['**/game/**', '**/app/**'],
+          message: 'The editor is a separate page; it never touches the game session.',
+        },
+        {
+          group: ['@odal/content', '@odal/server'],
+          message: 'The editor reads content from the dev server, never imports it.',
+        },
+      ]),
+    },
+  },
+
   // --- client/ui: React only. Talks to the game through the store and the session API. ---
   {
     files: ['packages/client/src/ui/**/*.{ts,tsx}'],

@@ -1,3 +1,4 @@
+import { idx } from './tree';
 import type { GameState, Vec2 } from './types';
 
 // ---------------------------------------------------------------------------
@@ -13,15 +14,22 @@ export function inBounds(w: number, h: number, x: number, y: number): boolean {
 }
 
 /** 1 = blocked (tree, rock or building footprint), 0 = walkable. */
-export function computeBlocked(state: GameState): Uint8Array {
+/**
+ * Tiles nothing can walk through: nodes and buildings. With `forOwner`, that
+ * player's `passable` buildings (gates) are left open, so pathfinding for their
+ * units walks through them while everyone else goes around.
+ */
+export function computeBlocked(state: GameState, forOwner?: number): Uint8Array {
   const { width: w, height: h } = state;
   const g = new Uint8Array(w * h);
   for (const id in state.nodes) {
     const n = state.nodes[id];
     g[n.y * w + n.x] = 1;
   }
+  const defs = idx(state.tree).buildings;
   for (const id in state.buildings) {
     const b = state.buildings[id];
+    if (forOwner !== undefined && b.owner === forOwner && defs[b.type].passable) continue;
     for (let y = b.y; y < b.y + b.h; y++) {
       for (let x = b.x; x < b.x + b.w; x++) {
         if (inBounds(w, h, x, y)) g[y * w + x] = 1;

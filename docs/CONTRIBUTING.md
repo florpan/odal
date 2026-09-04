@@ -19,16 +19,17 @@ Requirements: Bun ≥ 1.1. No Node needed. Editors: enable Prettier and ESLint; 
 1. Read [CLAUDE.md](../CLAUDE.md) (entry point) and [ARCHITECTURE.md](ARCHITECTURE.md).
 2. Find where your change belongs. Most changes fall into one of these buckets:
 
-| I want to… | Touch | Read first |
-|-----------|-------|------------|
-| Add/tune a unit, building, tech, resource, node | `packages/content/default/*.ts` only | [CONTENT.md](CONTENT.md) |
-| Add a new kind of rule the tree can't express (e.g. a new effect) | `engine/src/tree.ts` schema + the system that applies it + CONTENT.md | ARCHITECTURE §2–3 |
-| Change unit behaviour | `engine/src/systems/<system>.ts` | ARCHITECTURE §3 |
-| Add a player command | `engine/src/protocol.ts` + `commands.ts` + client `input.ts`/`session.ts`, bump `PROTOCOL_VERSION` | ARCHITECTURE §6 |
-| Change rooms, lobby, reconnect | `server/src/room.ts`, `session.ts` | ARCHITECTURE §4 |
-| Change what the player sees on the map | `client/src/game/render/scene.ts` | ARCHITECTURE §5 |
-| Change HUD/menus/dialogs | `client/src/ui/**` + `game/viewmodel.ts` if new data is needed | ARCHITECTURE §5 |
-| Change mouse/keyboard handling | `client/src/game/input.ts` | ARCHITECTURE §5 |
+| I want to…                                                        | Touch                                                                                                       | Read first               |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------ |
+| Add/tune a unit, building, tech, resource, node                   | `packages/content/default/*.json`, ideally through the editor (`bun run dev:editor`)                        | [CONTENT.md](CONTENT.md) |
+| Add a new kind of rule the tree can't express (e.g. a new effect) | `engine/src/content.ts` + `tree.ts` schema + the system that applies it + `bun run schema:gen` + CONTENT.md | ARCHITECTURE §2–3        |
+| Change unit behaviour                                             | `engine/src/systems/<system>.ts`                                                                            | ARCHITECTURE §3          |
+| Add a player command                                              | `engine/src/protocol.ts` + `commands.ts` + client `input.ts`/`session.ts`, bump `PROTOCOL_VERSION`          | ARCHITECTURE §6          |
+| Change rooms, lobby, reconnect                                    | `server/src/room.ts`, `session.ts`                                                                          | ARCHITECTURE §4          |
+| Change what the player sees on the map                            | `client/src/game/render/scene.ts`                                                                           | ARCHITECTURE §5          |
+| Change HUD/menus/dialogs                                          | `client/src/ui/**` + `game/viewmodel.ts` if new data is needed                                              | ARCHITECTURE §5          |
+| Change the tech tree screen or the editor                         | `client/src/ui/tree/**` (shared graph), `client/src/editor/**`                                              | ARCHITECTURE §5          |
+| Change mouse/keyboard handling                                    | `client/src/game/input.ts`                                                                                  | ARCHITECTURE §5          |
 
 If your change spans several buckets, split it into several PRs in dependency order.
 
@@ -36,13 +37,13 @@ If your change spans several buckets, split it into several PRs in dependency or
 
 - Branch from `main`: `feat/<thing>`, `fix/<thing>`, `content/<thing>`, `docs/<thing>`.
 - Small PRs. One concern each. A content change and an engine change are two PRs.
-- `bun run check` must pass locally (typecheck, lint, tests, content validation). CI runs the same plus
+- `bun run check` must pass locally (typecheck, lint, tests, content validation, schema check). CI runs the same plus
   `format:check` and the production build.
 - Write or update a test when you change behaviour: engine tests in `engine/src/game.test.ts`
   (or a new `*.test.ts` next to the system), content tests in `content/src/content.test.ts`.
 - Update docs in the same PR: ARCHITECTURE.md for structure, CONTENT.md for schema fields,
   PLAN.md for design intent, an ADR (see `docs/adr/`) for decisions others will ask about later.
-- Commit messages: imperative, short subject, explain *why* in the body when it isn't obvious.
+- Commit messages: imperative, short subject, explain _why_ in the body when it isn't obvious.
 
 ## Definition of done
 

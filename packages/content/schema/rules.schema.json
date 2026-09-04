@@ -1,0 +1,139 @@
+{
+  "$ref": "#/definitions/rules",
+  "definitions": {
+    "rules": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "rules": {
+          "type": "object",
+          "properties": {
+            "tickRate": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 60,
+              "default": 10
+            },
+            "map": {
+              "type": "object",
+              "properties": {
+                "width": {
+                  "type": "integer",
+                  "minimum": 16,
+                  "maximum": 256
+                },
+                "height": {
+                  "type": "integer",
+                  "minimum": 16,
+                  "maximum": 256
+                }
+              },
+              "required": [
+                "width",
+                "height"
+              ],
+              "additionalProperties": false
+            },
+            "startResources": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "number",
+                "minimum": 0
+              },
+              "propertyNames": {
+                "pattern": "^[a-z][a-z0-9_]*$"
+              }
+            },
+            "maxQueue": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 5
+            },
+            "separationDist": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0.6
+            },
+            "startClearRadius": {
+              "type": "number",
+              "minimum": 0,
+              "default": 4
+            },
+            "upkeepInterval": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "default": 60
+            },
+            "playerColors": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^#[0-9a-fA-F]{6}$"
+              },
+              "minItems": 1
+            }
+          },
+          "required": [
+            "map",
+            "startResources",
+            "playerColors"
+          ],
+          "additionalProperties": false
+        },
+        "start": {
+          "type": "object",
+          "properties": {
+            "building": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]*$"
+            },
+            "units": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]*$"
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "required": [
+                  "type",
+                  "count"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "building",
+            "units"
+          ],
+          "additionalProperties": false
+        },
+        "$schema": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "rules",
+        "start"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}
