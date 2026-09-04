@@ -1,0 +1,14 @@
+# Portainer stack for the Odal test server. Expose port 3000 through a
+# Cloudflare tunnel (HTTP, WebSocket on /ws works out of the box).
+services:
+  odal:
+    image: registry.berge.tech/lab/odal:latest
+    container_name: odal
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      PORT: '3000'
+      # Minutes before an empty room is discarded (default 5).
+      EMPTY_ROOM_TTL_MS: '300000'
+      # ODAL_DEV: '1'   # mounts /dev/tree so /editor.html can save the ruleset; never on a public URL

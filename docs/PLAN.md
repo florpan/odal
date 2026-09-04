@@ -159,7 +159,7 @@ basic combat, multiplayer over WebSocket, minimap, HUD.
 
 ### Ops
 
-- [ ] Dockerfile + deploy on the homelab behind Cloudflare tunnel
+- [x] Dockerfile + image at registry.berge.tech/lab/odal (2026-09-04); stack + Cloudflare tunnel still to be set up
 - [ ] Delta snapshots or binary encoding if bandwidth becomes an issue
 - [ ] Multiple rulesets selectable per room (the loader and editor already take any directory)
 

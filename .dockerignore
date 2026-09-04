@@ -1,0 +1,16 @@
+node_modules
+**/node_modules
+**/dist
+.vite
+**/.vite
+*.log
+.git
+.github
+.vscode
+.claude
+.playwright-mcp
+docs
+tools.yaml
+Dockerfile
+docker-compose.yml
+deploy

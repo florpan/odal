@@ -1,7 +1,6 @@
 import { join } from 'node:path';
 import { DEFAULT_TREE, DEFAULT_TREE_DIR, loadTreeDir } from '@odal/content';
 import type { Conn } from './conn';
-import { devHandler } from './dev';
 import { RoomManager } from './room';
 import { handleClose, handleMessage } from './session';
 import { staticHandler } from './static';
@@ -21,7 +20,8 @@ const tree = process.env.TREE_DIR ? loadTreeDir(process.env.TREE_DIR) : DEFAULT_
 
 const rooms = new RoomManager(tree, EMPTY_ROOM_TTL_MS);
 const serveStatic = staticHandler(join(import.meta.dir, '../../client/dist'));
-const serveDev = DEV ? devHandler(TREE_DIR, (t) => rooms.setTree(t)) : null;
+// dev.ts pulls in prettier (a devDependency), so it is only loaded when the editor routes are on.
+const serveDev = DEV ? (await import('./dev')).devHandler(TREE_DIR, (t) => rooms.setTree(t)) : null;
 
 Bun.serve<Conn>({
   port: PORT,

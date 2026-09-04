@@ -22,6 +22,11 @@ bun run dev:client   # client on http://localhost:5173
 Open http://localhost:5173 in two tabs (or on two machines on the LAN) and join the same room with
 different names. Production: `bun run build && bun start` serves the built client from the game server.
 
+Container: `bun run docker:build && bun run docker:push` builds and pushes `registry.berge.tech/lab/odal:latest`
+(see `Dockerfile`); `deploy/docker-compose.yml` is the stack that runs it. The server listens on port 3000 and
+honours `PORT`, `EMPTY_ROOM_TTL_MS` and `TREE_DIR`. The editor routes are never mounted in the image unless
+`ODAL_DEV=1` is set.
+
 ## Controls
 
 | Action         | Input                                                                                                                  |
