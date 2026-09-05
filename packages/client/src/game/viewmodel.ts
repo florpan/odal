@@ -101,6 +101,8 @@ export interface TreeView {
   status: Record<string, RefStatus>; // keyed by refKey: unit:<id> | building:<id> | tech:<id>
   /** refKey → the player can pay for it right now. */
   affordable: Record<string, boolean>;
+  /** tech refKey → 0..1 for techs being researched (rounded to whole percent). */
+  progress: Record<string, number>;
 }
 
 export interface HudModel {
@@ -125,16 +127,18 @@ export const EMPTY_HUD: HudModel = {
   tree: null,
 };
 
-let lastProgress: Pick<TreeView, 'status' | 'affordable'> = { status: {}, affordable: {} };
+type TreeProgress = Pick<TreeView, 'status' | 'affordable' | 'progress'>;
+let lastProgress: TreeProgress = { status: {}, affordable: {}, progress: {} };
 
 /** The player's progress per tree item. Returns the previous object when nothing changed so React can skip. */
-function treeProgress(st: GameState, me: Player): Pick<TreeView, 'status' | 'affordable'> {
+function treeProgress(st: GameState, me: Player): TreeProgress {
   const defs = idx(st.tree);
   const alive = new Set<string>();
   const queuedUnits = new Set<string>();
   const trainers = new Set<string>();
   const researchers = new Set<string>();
   const building = new Set<string>();
+  const progress: Record<string, number> = {};
   for (const id in st.units) if (st.units[id].owner === me.id) alive.add(st.units[id].type);
   for (const id in st.buildings) {
     const b = st.buildings[id];
@@ -144,6 +148,9 @@ function treeProgress(st: GameState, me: Player): Pick<TreeView, 'status' | 'aff
       continue;
     }
     for (const q of b.queue) if (q.kind === 'unit') queuedUnits.add(q.type);
+    const head = b.queue[0];
+    if (head?.kind === 'tech')
+      progress[`tech:${head.id}`] = Math.round((100 * b.queueProgress) / defs.techs[head.id].time) / 100;
     for (const t of defs.buildings[b.type].trains) trainers.add(t);
     for (const t of defs.buildings[b.type].researches) researchers.add(t);
   }
@@ -187,8 +194,13 @@ function treeProgress(st: GameState, me: Player): Pick<TreeView, 'status' | 'aff
   const keys = Object.keys(status);
   const same =
     keys.length === Object.keys(lastProgress.status).length &&
-    keys.every((k) => lastProgress.status[k] === status[k] && lastProgress.affordable[k] === affordable[k]);
-  if (!same) lastProgress = { status, affordable };
+    keys.every(
+      (k) =>
+        lastProgress.status[k] === status[k] &&
+        lastProgress.affordable[k] === affordable[k] &&
+        lastProgress.progress[k] === progress[k],
+    );
+  if (!same) lastProgress = { status, affordable, progress };
   return lastProgress;
 }
 

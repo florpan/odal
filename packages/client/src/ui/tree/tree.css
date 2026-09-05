@@ -143,3 +143,215 @@
 .tree-legend i.locked {
   opacity: 0.5;
 }
+
+/* Tech timeline (in game): tier columns, cards, dashed connectors */
+.timeline {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px) 0 0 / 100% 122px,
+    #14100b;
+}
+.timeline-canvas {
+  position: relative;
+}
+.tl-heads {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  height: 44px;
+  border-bottom: 1px solid #4a3620;
+  background: rgba(20, 16, 11, 0.92);
+}
+.tl-head {
+  flex: 0 0 auto;
+  line-height: 44px;
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #c9b58a;
+  border-right: 1px solid #2e2418;
+}
+.tl-edges {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.tl-edge {
+  fill: none;
+  stroke: #6b4f2a;
+  stroke-width: 3;
+  stroke-dasharray: 8 6;
+  stroke-linejoin: round;
+}
+.tl-edge.is-done {
+  stroke: #7cb342;
+  stroke-dasharray: none;
+}
+.tl-edge.is-touching {
+  stroke: #ffb74d;
+  stroke-width: 4;
+  stroke-dasharray: none;
+}
+.tl-card {
+  position: absolute;
+  height: 100px;
+  display: flex;
+  gap: 10px;
+  padding: 8px 10px 8px 8px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  border: 1px solid #6b4f2a;
+  background: linear-gradient(#3a2c1a, #2a2016);
+  color: #f1e6cf;
+  font-size: 12px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.55);
+  cursor: pointer;
+  transition:
+    opacity 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+.tl-card:hover {
+  border-color: #c9b58a;
+}
+.tl-card.owned {
+  border-color: #7cb342;
+  background: linear-gradient(#2f3d1e, #22301a);
+}
+.tl-card.inProgress {
+  border-color: #e0a030;
+  box-shadow:
+    0 0 0 1px #e0a030 inset,
+    0 3px 8px rgba(0, 0, 0, 0.55);
+}
+.tl-card.available {
+  border-color: #d8c49a;
+  background: linear-gradient(#4a3a22, #33271a);
+}
+.tl-card.locked {
+  opacity: 0.55;
+}
+.tl-card.is-selected {
+  border-color: #ffb74d;
+  box-shadow:
+    0 0 0 2px #ffb74d,
+    0 3px 8px rgba(0, 0, 0, 0.55);
+  opacity: 1;
+}
+.tl-card.tl-start {
+  cursor: default;
+  border-style: dashed;
+  background: #201a14;
+}
+.tl-medal {
+  flex: 0 0 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid #8a6a3a;
+  background: radial-gradient(#5a4525, #2a2016);
+  color: #f1e6cf;
+  font-size: 20px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  text-shadow: 0 1px 2px #000;
+}
+.tl-card.owned .tl-medal {
+  border-color: #7cb342;
+}
+.tl-card.inProgress .tl-medal {
+  border-color: #e0a030;
+}
+.tl-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.tl-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+}
+.tl-name {
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tl-cost {
+  color: #c9b58a;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.tl-at {
+  font-size: 10px;
+  color: #a89a80;
+}
+.tl-unlocks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: auto;
+}
+.tl-none {
+  font-size: 10px;
+  color: #6f6555;
+}
+.tl-chip {
+  font: inherit;
+  font-size: 10px;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 3px;
+  border: 1px solid #6b4f2a;
+  background: #1c1610;
+  color: #e6d9be;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tl-chip.kind-unit {
+  border-radius: 9px;
+  border-color: #4f7a3a;
+}
+.tl-chip.kind-building {
+  border-color: #8a6a3a;
+}
+.tl-chip.kind-tech {
+  border-color: #7e57c2;
+  border-style: dashed;
+}
+.tl-chip.owned {
+  color: #a5d66f;
+}
+.tl-chip.inProgress {
+  color: #ffc766;
+}
+.tl-chip.locked {
+  opacity: 0.6;
+}
+.tl-chip:hover,
+.tl-chip.is-selected {
+  border-color: #ffb74d;
+  color: #ffb74d;
+  opacity: 1;
+}
+.tl-progress {
+  height: 4px;
+  background: #1c1610;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.tl-progress > div {
+  height: 100%;
+  background: #e0a030;
+}

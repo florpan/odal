@@ -4,12 +4,14 @@ import type { Ref } from '@odal/engine';
 import { appStore } from '../../app/store';
 import { useApp } from '../hooks';
 import { RefDetails } from '../tree/RefDetails';
-import { TechTreeGraph } from '../tree/TechTreeGraph';
+import { TechTimeline } from '../tree/TechTimeline';
 
 /**
- * The player's tech tree: every unit, building and tech, coloured by how far
- * they are from having it. Doubles as the research screen: an available tech
- * has a Research button here, queued at whichever own building can do it.
+ * The research screen: a sideways timeline of techs by tier (TechTimeline),
+ * each card listing what it unlocks, coloured by how far the player is from it.
+ * An available tech has a Research button in the side panel, queued at
+ * whichever own building can do it. Locked ones show what they still need, so
+ * the whole tree is readable ahead of time.
  * Toggled with Tab, the top bar button, or from a research building's actions.
  */
 export function TechTreeOverlay() {
@@ -36,7 +38,7 @@ export function TechTreeOverlay() {
           <span>
             <i className="locked" /> locked
           </span>
-          <span className="muted">dashed = requires · solid = trains / researches</span>
+          <span className="muted">scroll sideways · chips = what a tech unlocks</span>
         </div>
         <span className="spacer" />
         <button type="button" className="small" onClick={close}>
@@ -45,7 +47,13 @@ export function TechTreeOverlay() {
       </div>
       <div className="tree-overlay-body">
         <div className="tree-overlay-graph">
-          <TechTreeGraph tree={view.tree} status={view.status} selected={key} onSelect={setSelected} />
+          <TechTimeline
+            tree={view.tree}
+            status={view.status}
+            progress={view.progress}
+            selected={key}
+            onSelect={setSelected}
+          />
         </div>
         <aside className="tree-overlay-side">
           {selected ? (
@@ -71,7 +79,9 @@ export function TechTreeOverlay() {
               )}
             </>
           ) : (
-            <p className="muted">Click something to see what it costs, what it needs and what it leads to.</p>
+            <p className="muted">
+              Click a tech for details and to research it. Click a chip to see what that unit or building needs.
+            </p>
           )}
         </aside>
       </div>

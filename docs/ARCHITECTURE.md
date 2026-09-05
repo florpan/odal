@@ -140,7 +140,7 @@ client/src/
     screens/            StartScreen, LobbyScreen, GameScreen, TechTreeOverlay (also the research screen), KeysOverlay
     hud/                TopBar, Messages, ModeHint, SelectionPanel, ActionBar, Minimap, HelpBar
     dialogs/            RestartButton
-    tree/               TechTreeGraph (React Flow + dagre), RefDetails, layout. Shared with the editor.
+    tree/               TechTimeline (tier columns, in game), TechTreeGraph (React Flow + dagre, editor), RefDetails, layout.
     styles.css
   editor/               REACT. The content editor page. Imports engine + ui/tree, never game/ or app/.
     main.tsx            React root of editor.html

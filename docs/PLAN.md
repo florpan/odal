@@ -155,8 +155,10 @@ basic combat, multiplayer over WebSocket, minimap, HUD.
 - [x] **Idle units must not pick fights with buildings.** A scouting soldier razed a whole base without an
       order. Now: idle units engage enemy _units_ within their aggro radius, are leashed to 1.5× that radius,
       and walk back to their post; only attack-move and explicit orders target buildings (`systems/combat.ts`).
-- [x] **Tech tree is the research screen.** Available techs have a Research button in the tree (queued at the
-      least busy own building that can), Library actions include "Tech tree (Tab)".
+- [x] **Tech tree is the research screen.** Civilization-style sideways timeline: a column per tier, a card
+      per tech with chips for everything it unlocks, dashed connectors, progress on the card being researched.
+      Available techs have a Research button (queued at the least busy own building that can), locked ones
+      show what they still need. Library actions include "Tech tree (Tab)". The editor keeps the free graph.
 - [x] **Select resource nodes.** Left-click shows type, remaining amount and yield per trip.
 - [x] **Fair resource placement.** `rules.map.starts` slots on a ring around the centre; every slot gets each
       node type's `spawn.perStart` within `rules.homeRadius`; `zone: 'centre'` keeps the contested gold in the
