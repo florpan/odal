@@ -62,6 +62,16 @@ export type SelectionView =
     }
   | { kind: 'units'; count: number; summary: string }
   | {
+      kind: 'node';
+      name: string;
+      resource: string;
+      icon: string;
+      amount: number;
+      total: number;
+      gather: string;
+      desc: string;
+    }
+  | {
       kind: 'building';
       name: string;
       owner: string;
@@ -89,6 +99,8 @@ export type RefStatus = 'owned' | 'inProgress' | 'available' | 'locked';
 export interface TreeView {
   tree: TechTree;
   status: Record<string, RefStatus>; // keyed by refKey: unit:<id> | building:<id> | tech:<id>
+  /** refKey → the player can pay for it right now. */
+  affordable: Record<string, boolean>;
 }
 
 export interface HudModel {
@@ -113,10 +125,10 @@ export const EMPTY_HUD: HudModel = {
   tree: null,
 };
 
-let lastStatus: Record<string, RefStatus> = {};
+let lastProgress: Pick<TreeView, 'status' | 'affordable'> = { status: {}, affordable: {} };
 
 /** The player's progress per tree item. Returns the previous object when nothing changed so React can skip. */
-function treeStatus(st: GameState, me: Player): Record<string, RefStatus> {
+function treeProgress(st: GameState, me: Player): Pick<TreeView, 'status' | 'affordable'> {
   const defs = idx(st.tree);
   const alive = new Set<string>();
   const queuedUnits = new Set<string>();
@@ -136,6 +148,15 @@ function treeStatus(st: GameState, me: Player): Record<string, RefStatus> {
     for (const t of defs.buildings[b.type].researches) researchers.add(t);
   }
   const status: Record<string, RefStatus> = {};
+  const affordable: Record<string, boolean> = {};
+  for (const x of [...st.tree.units, ...st.tree.buildings, ...st.tree.techs]) {
+    const kind = st.tree.units.includes(x as never)
+      ? 'unit'
+      : st.tree.buildings.includes(x as never)
+        ? 'building'
+        : 'tech';
+    affordable[`${kind}:${x.id}`] = canAfford(me.resources, x.cost);
+  }
   for (const u of st.tree.units) {
     status[`unit:${u.id}`] = alive.has(u.id)
       ? 'owned'
@@ -164,9 +185,11 @@ function treeStatus(st: GameState, me: Player): Record<string, RefStatus> {
           : 'locked';
   }
   const keys = Object.keys(status);
-  const same = keys.length === Object.keys(lastStatus).length && keys.every((k) => lastStatus[k] === status[k]);
-  if (!same) lastStatus = status;
-  return lastStatus;
+  const same =
+    keys.length === Object.keys(lastProgress.status).length &&
+    keys.every((k) => lastProgress.status[k] === status[k] && lastProgress.affordable[k] === affordable[k]);
+  if (!same) lastProgress = { status, affordable };
+  return lastProgress;
 }
 
 export function buildHud(world: World, input: Input | null): HudModel {
@@ -191,6 +214,7 @@ export function buildHud(world: World, input: Input | null): HudModel {
   const bId = world.selectedBuilding;
   const b = bId !== null ? world.building(bId) : undefined;
   const units = world.selectedUnits.map((id) => st.units[id]).filter(Boolean);
+  const node = world.selectedNode !== null ? st.nodes[world.selectedNode] : undefined;
 
   if (b) {
     const def = defs.buildings[b.type];
@@ -265,9 +289,31 @@ export function buildHud(world: World, input: Input | null): HudModel {
           disabled: false,
           active: false,
         });
+      if (def.researches.length)
+        actions.push({
+          id: 'tree',
+          label: 'Tech tree (Tab)',
+          sub: 'Plan research',
+          title: 'Open the tech tree. Research can be queued from there too.',
+          disabled: false,
+          active: false,
+        });
       if (def.trains.length && !input?.buildMode && !input?.attackMoveMode)
         modeHint = 'Right-click the ground or a resource to set the rally point';
     }
+  } else if (node) {
+    const nd = defs.nodes[node.type];
+    const res = defs.resources[nd.resource];
+    selection = {
+      kind: 'node',
+      name: nd.name,
+      resource: res?.name ?? nd.resource,
+      icon: res?.icon ?? '',
+      amount: node.amount,
+      total: nd.amount,
+      gather: `${nd.gatherAmount} ${res?.name.toLowerCase() ?? nd.resource} per ${nd.gatherTime}s trip`,
+      desc: nd.desc,
+    };
   } else if (units.length === 1) {
     const u = units[0];
     const def = defs.units[u.type];
@@ -349,7 +395,7 @@ export function buildHud(world: World, input: Input | null): HudModel {
     actions,
     modeHint,
     messages: world.messages,
-    tree: { tree, status: treeStatus(st, me) },
+    tree: { tree, ...treeProgress(st, me) },
   };
 }
 

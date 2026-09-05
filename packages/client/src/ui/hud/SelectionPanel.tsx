@@ -28,6 +28,21 @@ export function SelectionPanel() {
           <div className="muted">{sel.summary}</div>
         </div>
       );
+    case 'node':
+      return (
+        <div className="selection">
+          <h3>
+            {sel.icon} {sel.name}
+          </h3>
+          <div className="muted">{sel.resource}</div>
+          <div>
+            {sel.amount} / {sel.total} left
+          </div>
+          <Bar value={sel.amount} max={sel.total} />
+          <div className="muted">{sel.gather}</div>
+          {sel.desc && <div className="muted desc">{sel.desc}</div>}
+        </div>
+      );
     case 'unit':
       return (
         <div className="selection">

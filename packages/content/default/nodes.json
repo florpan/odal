@@ -6,7 +6,7 @@
     "amount": 40,
     "gatherTime": 4,
     "gatherAmount": 10,
-    "spawn": { "kind": "forest", "clustersPer1000Tiles": 5.5, "radius": [3, 8] },
+    "spawn": { "kind": "forest", "clustersPer1000Tiles": 4.5, "radius": [3, 8], "perStart": 2 },
     "visual": { "shape": "cone", "color": "#2e7d32" }
   },
   {
@@ -17,7 +17,7 @@
     "gatherTime": 6,
     "gatherAmount": 10,
     "notes": "Slower than lumber per trip. Deposits are larger than iron so one outcrop carries a whole wall project.",
-    "spawn": { "kind": "deposit", "depositsPer1000Tiles": 2, "size": [4, 8] },
+    "spawn": { "kind": "deposit", "depositsPer1000Tiles": 1.5, "size": [4, 8], "perStart": 1 },
     "visual": { "shape": "rock", "color": "#6d6d6d" }
   },
   {
@@ -27,7 +27,7 @@
     "amount": 100,
     "gatherTime": 6,
     "gatherAmount": 10,
-    "spawn": { "kind": "deposit", "depositsPer1000Tiles": 2.5, "size": [4, 7] },
+    "spawn": { "kind": "deposit", "depositsPer1000Tiles": 2, "size": [4, 7], "perStart": 1 },
     "visual": { "shape": "rock", "color": "#8a8f98" }
   },
   {
@@ -37,7 +37,8 @@
     "amount": 100,
     "gatherTime": 6,
     "gatherAmount": 10,
-    "spawn": { "kind": "deposit", "depositsPer1000Tiles": 1.65, "size": [3, 6] },
+    "notes": "Contested: one small home deposit each, the rest in the middle of the map. Research is where gold goes, so holding the centre means out-teching.",
+    "spawn": { "kind": "deposit", "depositsPer1000Tiles": 1.2, "size": [3, 6], "perStart": 1, "zone": "centre" },
     "visual": { "shape": "rock", "color": "#f5c518" }
   }
 ]

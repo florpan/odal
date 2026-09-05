@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { DEFAULT_TREE } from '@odal/content';
-import { makeBuilding } from './entities';
+import { makeBuilding, makeUnit } from './entities';
 import { addPlayer, createGame, emptyEvents, stepGame } from './game';
 import { computeBlocked } from './grid';
 import type { PlayerCommand } from './protocol';
@@ -36,6 +36,51 @@ describe('engine with the default tech tree', () => {
     const b = createGame(DEFAULT_TREE, 42);
     expect(Object.keys(a.nodes).length).toBeGreaterThan(200);
     expect(JSON.stringify(a.nodes)).toBe(JSON.stringify(b.nodes));
+    expect(a.starts).toEqual(b.starts);
+  });
+
+  test('every start slot has its home resources within homeRadius', () => {
+    const { rules } = DEFAULT_TREE;
+    for (const seed of [1, 2, 3, 42]) {
+      const st = createGame(DEFAULT_TREE, seed);
+      expect(st.starts.length).toBe(rules.map.starts);
+      for (const s of st.starts) {
+        for (const nd of DEFAULT_TREE.nodes) {
+          if (nd.spawn.perStart === 0) continue;
+          const near = Object.values(st.nodes).filter(
+            (n) => n.type === nd.id && Math.hypot(n.x - s.x, n.y - s.y) <= rules.homeRadius,
+          );
+          expect(near.length).toBeGreaterThan(0);
+        }
+      }
+    }
+  });
+
+  test('centre-zone deposits stay in the middle of the map', () => {
+    const centred = DEFAULT_TREE.nodes.filter((n) => n.spawn.zone === 'centre' && n.spawn.perStart === 0);
+    if (!centred.length) return;
+    const st = createGame(DEFAULT_TREE, 42);
+    for (const nd of centred) {
+      const walk = nd.spawn.kind === 'deposit' ? nd.spawn.size[1] : nd.spawn.radius[1];
+      for (const n of Object.values(st.nodes)) {
+        if (n.type !== nd.id) continue;
+        expect(Math.abs(n.x - st.width / 2)).toBeLessThanOrEqual(st.width * 0.2 + walk + 1);
+        expect(Math.abs(n.y - st.height / 2)).toBeLessThanOrEqual(st.height * 0.2 + walk + 1);
+      }
+    }
+  });
+
+  test('players take start slots, the second one farthest from the first', () => {
+    const state = createGame(DEFAULT_TREE, 7);
+    const a = addPlayer(state, 'Alice', emptyEvents());
+    const b = addPlayer(state, 'Bob', emptyEvents());
+    const homeA = Object.values(state.buildings).find((x) => x.owner === a.id)!;
+    const homeB = Object.values(state.buildings).find((x) => x.owner === b.id)!;
+    const onSlot = (h: { x: number; y: number }) => state.starts.some((s) => s.x === h.x && s.y === h.y);
+    expect(onSlot(homeA)).toBe(true);
+    expect(onSlot(homeB)).toBe(true);
+    const d = Math.hypot(homeA.x - homeB.x, homeA.y - homeB.y);
+    for (const s of state.starts) expect(d).toBeGreaterThanOrEqual(Math.hypot(homeA.x - s.x, homeA.y - s.y) - 1e-9);
   });
 
   test('joining gives the starting building and units', () => {
@@ -194,6 +239,48 @@ describe('engine with the default tech tree', () => {
       { playerId: a.id, cmd: { type: 'attack', unitIds: [ua.id], targetId: ub.id, targetKind: 'unit' } },
     ]);
     expect(state.units[ub.id]).toBeUndefined();
+  });
+
+  test('an idle fighter ignores enemy buildings, kills units that come close and returns to its post', () => {
+    const soldierDef = DEFAULT_TREE.units.find((u) => u.aggro > 0 && u.abilities.includes('attack'))!;
+    const victimDef = DEFAULT_TREE.units.find((u) => u.id !== soldierDef.id)!;
+    const state = createGame(DEFAULT_TREE, 7);
+    const a = addPlayer(state, 'Alice', emptyEvents());
+    const b = addPlayer(state, 'Bob', emptyEvents());
+    const homeB = Object.values(state.buildings).find((x) => x.owner === b.id)!;
+    for (const u of Object.values(state.units)) if (u.owner === b.id) delete state.units[u.id];
+    // Open ground around Bob's campfire so pathing is not part of the test.
+    for (const n of Object.values(state.nodes))
+      if (Math.hypot(n.x - homeB.x, n.y - homeB.y) < 14) delete state.nodes[n.id];
+    const s = makeUnit(state, a.id, soldierDef.id, homeB.x + homeB.w + 1.5, homeB.y + 0.5);
+    const post = { x: s.x, y: s.y };
+    const homeHp = homeB.hp;
+
+    run(state, 30);
+    expect(s.task.kind).toBe('idle');
+    expect(homeB.hp).toBe(homeHp);
+
+    const v = makeUnit(state, b.id, victimDef.id, post.x + soldierDef.aggro - 1, post.y);
+    run(state, 5);
+    expect(s.task.kind).toBe('attack');
+    run(state, 600);
+    expect(state.units[v.id]).toBeUndefined();
+    expect(homeB.hp).toBe(homeHp);
+    expect(s.task.kind).toBe('idle');
+    expect(Math.hypot(s.x - post.x, s.y - post.y)).toBeLessThan(1.5);
+  });
+
+  test('an attack-moving fighter razes buildings on its own', () => {
+    const soldierDef = DEFAULT_TREE.units.find((u) => u.aggro > 0 && u.abilities.includes('attack'))!;
+    const state = createGame(DEFAULT_TREE, 7);
+    const a = addPlayer(state, 'Alice', emptyEvents());
+    const b = addPlayer(state, 'Bob', emptyEvents());
+    const homeB = Object.values(state.buildings).find((x) => x.owner === b.id)!;
+    for (const u of Object.values(state.units)) if (u.owner === b.id) delete state.units[u.id];
+    const s = makeUnit(state, a.id, soldierDef.id, homeB.x + homeB.w + 1.5, homeB.y + 0.5);
+    const homeHp = homeB.hp;
+    run(state, 60, [{ playerId: a.id, cmd: { type: 'attackMove', unitIds: [s.id], target: { x: s.x, y: s.y } } }]);
+    expect(homeB.hp).toBeLessThan(homeHp);
   });
 
   test('a completed building with an attack block shoots enemies in range', () => {

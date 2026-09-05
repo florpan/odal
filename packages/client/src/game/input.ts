@@ -84,9 +84,10 @@ export class Input {
     });
   }
 
-  private select(units: number[], building: number | null) {
+  private select(units: number[], building: number | null, node: number | null = null) {
     this.world.selectedUnits = units;
     this.world.selectedBuilding = building;
+    this.world.selectedNode = node;
     this.onChange();
   }
 
@@ -342,6 +343,8 @@ export class Input {
       }
     } else if (pick?.kind === 'building') {
       this.select([], pick.id);
+    } else if (pick?.kind === 'node') {
+      this.select([], null, pick.id);
     } else {
       this.select([], null);
     }
@@ -356,6 +359,11 @@ export class Input {
     if (k === 'tab') {
       e.preventDefault();
       toggleOverlay('tree');
+      return;
+    }
+    if (k === 'f1' || k === '?') {
+      e.preventDefault();
+      toggleOverlay('keys');
       return;
     }
     if (k === 'escape' && appStore.getState().overlay) {

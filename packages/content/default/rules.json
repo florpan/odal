@@ -3,7 +3,8 @@
   "version": 1,
   "rules": {
     "tickRate": 10,
-    "map": { "width": 64, "height": 64 },
+    "map": { "width": 96, "height": 96, "starts": 4 },
+    "homeRadius": 12,
     "startResources": { "lumber": 60, "stone": 0, "iron": 0, "gold": 20, "wheat": 40 },
     "maxQueue": 5,
     "separationDist": 0.6,

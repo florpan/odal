@@ -92,6 +92,8 @@ export interface GameState {
   width: number;
   height: number;
   nodes: Record<number, ResourceNode>;
+  /** Start slots from map generation; addPlayer hands them out. */
+  starts: Vec2[];
   units: Record<number, Unit>;
   buildings: Record<number, Building>;
   players: Record<number, Player>;

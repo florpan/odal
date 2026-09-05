@@ -17,8 +17,8 @@ import type { GameState, Player, TickEvents, Vec2 } from './types';
 
 export function createGame(tree: TechTree, seed: number): GameState {
   const { width, height } = tree.rules.map;
-  const { nodes, nextId } = generateMap(tree, seed, width, height);
-  return { tree, seed, tick: 0, width, height, nodes, units: {}, buildings: {}, players: {}, nextId };
+  const { nodes, nextId, starts } = generateMap(tree, seed, width, height);
+  return { tree, seed, tick: 0, width, height, nodes, starts, units: {}, buildings: {}, players: {}, nextId };
 }
 
 export function emptyEvents(): TickEvents {
@@ -26,7 +26,8 @@ export function emptyEvents(): TickEvents {
 }
 
 /**
- * Adds a player: picks a start location far from other players, clears the
+ * Adds a player: takes the free start slot farthest from everyone else (or, when
+ * the slots are all taken, a random spot far from other players), clears the
  * surroundings, and places the starting building and units from the tree.
  */
 export function addPlayer(state: GameState, name: string, events: TickEvents): Player {
@@ -38,16 +39,22 @@ export function addPlayer(state: GameState, name: string, events: TickEvents): P
   const others = Object.values(state.buildings).filter((b) => b.type === tree.start.building);
   const startDef = defs.buildings[tree.start.building];
 
+  const distToOthers = (p: Vec2) => others.reduce((m, o) => Math.min(m, Math.hypot(o.x - p.x, o.y - p.y)), 1000);
+  const free = state.starts.filter((s) => distToOthers(s) >= tree.rules.homeRadius);
   let best: Vec2 = { x: Math.floor(state.width / 2), y: Math.floor(state.height / 2) };
-  let bestScore = -1;
-  for (let i = 0; i < 80; i++) {
-    const x = 6 + Math.floor(rng() * (state.width - 12));
-    const y = 6 + Math.floor(rng() * (state.height - 12));
-    let score = 1000;
-    for (const o of others) score = Math.min(score, Math.hypot(o.x - x, o.y - y));
-    if (score > bestScore) {
-      bestScore = score;
-      best = { x, y };
+  if (free.length) {
+    best = others.length
+      ? free.reduce((a, b) => (distToOthers(b) > distToOthers(a) ? b : a))
+      : free[Math.floor(rng() * free.length)];
+  } else {
+    let bestScore = -1;
+    for (let i = 0; i < 80; i++) {
+      const p = { x: 6 + Math.floor(rng() * (state.width - 12)), y: 6 + Math.floor(rng() * (state.height - 12)) };
+      const score = distToOthers(p);
+      if (score > bestScore) {
+        bestScore = score;
+        best = p;
+      }
     }
   }
 

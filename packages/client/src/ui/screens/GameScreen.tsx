@@ -8,6 +8,7 @@ import { Minimap } from '../hud/Minimap';
 import { ModeHint } from '../hud/ModeHint';
 import { SelectionPanel } from '../hud/SelectionPanel';
 import { TopBar } from '../hud/TopBar';
+import { KeysOverlay } from './KeysOverlay';
 import { TechTreeOverlay } from './TechTreeOverlay';
 
 export function GameScreen() {
@@ -30,6 +31,7 @@ export function GameScreen() {
           <Minimap />
         </div>
         {overlay === 'tree' && <TechTreeOverlay />}
+        {overlay === 'keys' && <KeysOverlay />}
       </div>
     </div>
   );

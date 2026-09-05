@@ -8,11 +8,13 @@ import { TechTreeGraph } from '../tree/TechTreeGraph';
 
 /**
  * The player's tech tree: every unit, building and tech, coloured by how far
- * they are from having it. Read-only; the ActionBar is where things get queued.
- * Toggled with Tab or the top bar button.
+ * they are from having it. Doubles as the research screen: an available tech
+ * has a Research button here, queued at whichever own building can do it.
+ * Toggled with Tab, the top bar button, or from a research building's actions.
  */
 export function TechTreeOverlay() {
   const view = useApp((s) => s.hud.tree);
+  const session = useApp((s) => s.session);
   const [selected, setSelected] = useState<Ref | null>(null);
   if (!view) return null;
   const close = () => appStore.setState({ overlay: null });
@@ -53,6 +55,20 @@ export function TechTreeOverlay() {
                 <span className={`status-tag ${view.status[key!] ?? ''}`}>{labelFor(view.status[key!])}</span>
               </h3>
               <RefDetails tree={view.tree} ref={selected} status={view.status} />
+              {selected.kind === 'tech' && view.status[key!] === 'available' && (
+                <button
+                  type="button"
+                  className="research"
+                  disabled={!view.affordable[key!]}
+                  title={view.affordable[key!] ? 'Queue this research' : 'Not enough resources yet'}
+                  onClick={() => session?.action(`research:${selected.id}`)}
+                >
+                  {view.affordable[key!] ? 'Research' : 'Cannot afford'} {refName(view.tree, selected)}
+                </button>
+              )}
+              {selected.kind === 'tech' && view.status[key!] === 'locked' && (
+                <p className="muted">Locked: meet the requirements above, then research it here.</p>
+              )}
             </>
           ) : (
             <p className="muted">Click something to see what it costs, what it needs and what it leads to.</p>

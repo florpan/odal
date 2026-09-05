@@ -8,6 +8,7 @@ export class World {
   playerId = 0;
   selectedUnits: number[] = [];
   selectedBuilding: number | null = null;
+  selectedNode: number | null = null;
   messages: MessageView[] = [];
 
   vision: Uint8Array | null = null; // currently visible tiles
@@ -39,6 +40,7 @@ export class World {
     this.state = null;
     this.selectedUnits = [];
     this.selectedBuilding = null;
+    this.selectedNode = null;
     this.ghosts = {};
     this.lastSeen = {};
     this.vision = null;
@@ -88,6 +90,7 @@ export class World {
     this.updateGhosts();
     this.selectedUnits = this.selectedUnits.filter((id) => st.units[id]);
     if (this.selectedBuilding !== null && !this.building(this.selectedBuilding)) this.selectedBuilding = null;
+    if (this.selectedNode !== null && !st.nodes[this.selectedNode]) this.selectedNode = null;
   }
 
   private refreshVision() {

@@ -28,6 +28,14 @@ export function TopBar({ children }: { children?: ReactNode }) {
       >
         Tech tree (Tab)
       </button>
+      <button
+        type="button"
+        className={`small${overlay === 'keys' ? ' active' : ''}`}
+        onClick={() => toggleOverlay('keys')}
+        title="All mouse and keyboard controls"
+      >
+        Controls (F1)
+      </button>
       {children}
     </div>
   );

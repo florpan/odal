@@ -67,7 +67,7 @@ in `content/schema/` (generated from the zod schemas by `bun run schema:gen`, us
 | `entities.ts`  | `makeUnit`, `makeBuilding`.                                                                                                                                                |
 | `ctx.ts`       | The per-tick `Ctx` (state, tree, defs, dt, events, blocked grids) and tiny helpers. `blockedFor(ctx, owner)` opens the owner's gates.                                      |
 | `grid.ts`      | Blocking grid (optionally per owner), adjacency, footprint checks, A* (8-directional, no corner cutting).                                                                  |
-| `mapgen.ts`    | Seeded map generation driven by each node type's `spawn` rule.                                                                                                             |
+| `mapgen.ts`    | Seeded map generation: start slots on a ring, per-start home resources, then each node type's `spawn` scatter (optionally centre-only).                                    |
 | `vision.ts`    | Fog of war: vision grids from a player's units and buildings.                                                                                                              |
 | `systems/`     | One behaviour per file, see below.                                                                                                                                         |
 
@@ -137,7 +137,7 @@ client/src/
     App.tsx             Screen switch (start | lobby | game) from the store
     GameCanvas.tsx      THE bridge: renders <canvas>, session.attach(canvas) in an effect, cleanup disposes
     hooks.ts            useApp(selector)
-    screens/            StartScreen, LobbyScreen, GameScreen, TechTreeOverlay
+    screens/            StartScreen, LobbyScreen, GameScreen, TechTreeOverlay (also the research screen), KeysOverlay
     hud/                TopBar, Messages, ModeHint, SelectionPanel, ActionBar, Minimap, HelpBar
     dialogs/            RestartButton
     tree/               TechTreeGraph (React Flow + dagre), RefDetails, layout. Shared with the editor.

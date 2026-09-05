@@ -150,6 +150,23 @@ basic combat, multiplayer over WebSocket, minimap, HUD.
 - [ ] Win condition: destroy all enemy campfires
 - [ ] Balance pass with real opponents, using the editor
 
+### Playtest feedback 2026-09-05 (first real match, one player vs an empty base)
+
+- [x] **Idle units must not pick fights with buildings.** A scouting soldier razed a whole base without an
+      order. Now: idle units engage enemy _units_ within their aggro radius, are leashed to 1.5× that radius,
+      and walk back to their post; only attack-move and explicit orders target buildings (`systems/combat.ts`).
+- [x] **Tech tree is the research screen.** Available techs have a Research button in the tree (queued at the
+      least busy own building that can), Library actions include "Tech tree (Tab)".
+- [x] **Select resource nodes.** Left-click shows type, remaining amount and yield per trip.
+- [x] **Fair resource placement.** `rules.map.starts` slots on a ring around the centre; every slot gets each
+      node type's `spawn.perStart` within `rules.homeRadius`; `zone: 'centre'` keeps the contested gold in the
+      middle. Players take the free slot farthest from everyone. Mirrored maps are the next step if this is
+      not fair enough.
+- [x] **Larger map**: 96×96.
+- [x] **Controls overview** in game (F1 / ?), building hotkeys read from the tree.
+- [ ] **Camera:** edge scrolling, follow selected unit, jump to last event. Deferred to the graphics milestone.
+- [ ] **Map rotation** (Q/E in 90° steps, or free orbit). Deferred to the graphics milestone.
+
 ### M3 — Looks
 
 - [ ] Replace primitives with low-poly models (Blender / Meshy pipeline); `visual` blocks grow a `model` field
@@ -164,6 +181,9 @@ basic combat, multiplayer over WebSocket, minimap, HUD.
 - [ ] Multiple rulesets selectable per room (the loader and editor already take any directory)
 
 ## Open questions
+
+- Hexagonal tiles? Raised after the first playtest. Touches grid, pathfinding, building footprints (rect
+  w×h today), rendering and the editor; only worth it with a gameplay reason (e.g. no diagonal cheese).
 
 - Population is a hard cap and wheat is consumed as upkeep (both, as of 2026-09-04). Still undecided: what
   happens when a player cannot pay upkeep. Options: units lose HP, units stop fighting, production halts.

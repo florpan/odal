@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { buildingMaxHp, idx, unitMaxHp } from '@odal/engine';
-import type { Building, GameState, RallyPoint, Vec2 } from '@odal/engine';
+import type { Building, GameState, RallyPoint, ResourceNode, Vec2 } from '@odal/engine';
 
 // ---------------------------------------------------------------------------
 // The 3D scene. Everything in world coordinates is drawn here and nowhere
@@ -406,12 +406,18 @@ export class Renderer {
   // Selection rings, rally marker, build ghost, effects
   // -------------------------------------------------------------------------
 
-  setSelection(unitIds: number[], buildingId: number | null, buildings: Record<number, Building>) {
+  setSelection(
+    unitIds: number[],
+    buildingId: number | null,
+    buildings: Record<number, Building>,
+    node: ResourceNode | null = null,
+  ) {
     this.selectedUnits = new Set(unitIds);
     this.selectedBuilding = buildingId;
     const wanted = new Set<string>();
     for (const id of unitIds) wanted.add(`u${id}`);
     if (buildingId !== null) wanted.add(`b${buildingId}`);
+    if (node) wanted.add(`n${node.id}`);
     for (const [key, ring] of this.rings) {
       if (!wanted.has(key)) {
         this.scene.remove(ring);
@@ -433,6 +439,9 @@ export class Renderer {
           ring.position.set(b.x + b.w / 2, 0.03, b.y + b.h / 2);
           ring.scale.setScalar(Math.max(b.w, b.h) * 1.4);
         }
+      } else if (key[0] === 'n' && node) {
+        ring.position.set(node.x + 0.5, 0.03, node.y + 0.5);
+        ring.scale.setScalar(1.3);
       }
     }
   }

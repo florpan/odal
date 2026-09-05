@@ -105,16 +105,18 @@ when they are implied, because it makes the item's own card honest in the tree v
 
 ### rules
 
-| Field                     | Default  | Meaning                                                   |
-| ------------------------- | -------- | --------------------------------------------------------- |
-| `tickRate`                | 10       | Simulation steps per second                               |
-| `map.width`, `map.height` | required | Tiles (16–256)                                            |
-| `startResources`          | required | `{ resourceId: amount }` every player starts with         |
-| `maxQueue`                | 5        | Max items in a building's train/research queue            |
-| `separationDist`          | 0.6      | Units closer than this push each other apart (0 disables) |
-| `startClearRadius`        | 4        | Nodes within this radius of a start building are removed  |
-| `upkeepInterval`          | 60       | Seconds between upkeep payments                           |
-| `playerColors`            | required | Array of colors assigned in join order                    |
+| Field                     | Default  | Meaning                                                                                                                                              |
+| ------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tickRate`                | 10       | Simulation steps per second                                                                                                                          |
+| `map.width`, `map.height` | required | Tiles (16–256)                                                                                                                                       |
+| `map.starts`              | 4        | Start slots on a ring around the centre (2–8). Players take the free slot farthest from everyone; late joiners beyond that land on a random far spot |
+| `homeRadius`              | 12       | Each start slot gets every node type's `spawn.perStart` within this radius                                                                           |
+| `startResources`          | required | `{ resourceId: amount }` every player starts with                                                                                                    |
+| `maxQueue`                | 5        | Max items in a building's train/research queue                                                                                                       |
+| `separationDist`          | 0.6      | Units closer than this push each other apart (0 disables)                                                                                            |
+| `startClearRadius`        | 4        | Nodes within this radius of a start building are removed                                                                                             |
+| `upkeepInterval`          | 60       | Seconds between upkeep payments                                                                                                                      |
+| `playerColors`            | required | Array of colors assigned in join order                                                                                                               |
 
 ### start
 
@@ -135,14 +137,14 @@ guideline, not a rule the engine knows about; mixed costs are the interesting on
 
 ### nodes
 
-| Field          | Default  | Meaning                                                                                                                                           |
-| -------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `resource`     | required | Resource id gathered from it                                                                                                                      |
-| `amount`       | required | Total per node; the node disappears at 0                                                                                                          |
-| `gatherTime`   | required | Seconds per load                                                                                                                                  |
-| `gatherAmount` | required | Resources per load                                                                                                                                |
-| `spawn`        | required | `{ kind: 'forest', clustersPer1000Tiles, radius: [min,max] }` blobs, or `{ kind: 'deposit', depositsPer1000Tiles, size: [min,max] }` small clumps |
-| `visual`       | required | `{ shape: 'cone' \| 'rock', color }`                                                                                                              |
+| Field          | Default  | Meaning                                                                                                                                                                                                                                                                                                                                                       |
+| -------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `resource`     | required | Resource id gathered from it                                                                                                                                                                                                                                                                                                                                  |
+| `amount`       | required | Total per node; the node disappears at 0                                                                                                                                                                                                                                                                                                                      |
+| `gatherTime`   | required | Seconds per load                                                                                                                                                                                                                                                                                                                                              |
+| `gatherAmount` | required | Resources per load                                                                                                                                                                                                                                                                                                                                            |
+| `spawn`        | required | `{ kind: 'forest', clustersPer1000Tiles, radius: [min,max] }` blobs, or `{ kind: 'deposit', depositsPer1000Tiles, size: [min,max] }` small clumps. Both take `perStart` (default 0: clusters/deposits guaranteed within `rules.homeRadius` of every start slot) and `zone` (`'anywhere'` or `'centre'`, the middle fifth of the map, for contested resources) |
+| `visual`       | required | `{ shape: 'cone' \| 'rock', color }`                                                                                                                                                                                                                                                                                                                          |
 
 ### units
 
@@ -152,7 +154,7 @@ guideline, not a rule the engine knows about; mixed costs are the interesting on
 | `damage`      | 0        | Per hit                                                                                   |
 | `range`       | 1        | Tiles                                                                                     |
 | `attackTime`  | 1        | Seconds between hits                                                                      |
-| `aggro`       | 0        | Auto-attack enemies within this radius when idle or attack-moving (0 = never)             |
+| `aggro`       | 0        | Idle: fight enemy _units_ within this radius, then return. Attack-moving: fight anything  |
 | `vision`      | 6        | Fog-of-war sight radius                                                                   |
 | `pop`         | 1        | Population used                                                                           |
 | `upkeep`      | `{}`     | `{ resourceId: amount }` paid every `rules.upkeepInterval` seconds while alive            |

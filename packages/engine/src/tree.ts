@@ -48,15 +48,27 @@ export const EffectSchema = z.discriminatedUnion('type', [
 ]);
 
 /** How a resource node is scattered over a generated map. */
+const spawnCommon = {
+  /** Clusters / deposits guaranteed within rules.homeRadius of every start slot. */
+  perStart: z.number().int().min(0).default(0),
+  /** Where the per-1000-tiles scatter may land. */
+  zone: z.enum(['anywhere', 'centre']).default('anywhere'),
+};
 export const SpawnSchema = z.discriminatedUnion('kind', [
   z
-    .object({ kind: z.literal('forest'), clustersPer1000Tiles: Positive, radius: z.tuple([Positive, Positive]) })
+    .object({
+      kind: z.literal('forest'),
+      clustersPer1000Tiles: NonNeg,
+      radius: z.tuple([Positive, Positive]),
+      ...spawnCommon,
+    })
     .strict(),
   z
     .object({
       kind: z.literal('deposit'),
-      depositsPer1000Tiles: Positive,
+      depositsPer1000Tiles: NonNeg,
       size: z.tuple([z.number().int().min(1), z.number().int().min(1)]),
+      ...spawnCommon,
     })
     .strict(),
 ]);
@@ -134,7 +146,14 @@ export const TechSchema = z.object({ ...producible, effects: z.array(EffectSchem
 export const RulesSchema = z
   .object({
     tickRate: z.number().int().min(1).max(60).default(10),
-    map: z.object({ width: z.number().int().min(16).max(256), height: z.number().int().min(16).max(256) }).strict(),
+    map: z
+      .object({
+        width: z.number().int().min(16).max(256),
+        height: z.number().int().min(16).max(256),
+        starts: z.number().int().min(2).max(8).default(4),
+      })
+      .strict(),
+    homeRadius: Positive.default(12),
     startResources: CostSchema,
     maxQueue: z.number().int().min(1).default(5),
     separationDist: NonNeg.default(0.6),

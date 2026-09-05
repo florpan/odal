@@ -15,7 +15,7 @@ import type { HudModel } from '../game/viewmodel';
 export type Screen = 'start' | 'lobby' | 'game';
 export type Connection = 'idle' | 'connecting' | 'open' | 'closed';
 /** Full-screen panels over the game. `null` = playing. */
-export type Overlay = 'tree' | null;
+export type Overlay = 'tree' | 'keys' | null;
 
 export interface AppState {
   screen: Screen;

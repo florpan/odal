@@ -33,6 +33,12 @@
                   "type": "integer",
                   "minimum": 16,
                   "maximum": 256
+                },
+                "starts": {
+                  "type": "integer",
+                  "minimum": 2,
+                  "maximum": 8,
+                  "default": 4
                 }
               },
               "required": [
@@ -40,6 +46,11 @@
                 "height"
               ],
               "additionalProperties": false
+            },
+            "homeRadius": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "default": 12
             },
             "startResources": {
               "type": "object",
