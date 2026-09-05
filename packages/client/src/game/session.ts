@@ -134,6 +134,7 @@ export class GameSession {
     if (!r || !st) return;
     r.reset();
     r.setMap(st.width, st.height);
+    r.preloadModels(st.tree);
     const home = Object.values(st.buildings).find(
       (b) => b.owner === this.world.playerId && b.type === st.tree.start.building,
     );

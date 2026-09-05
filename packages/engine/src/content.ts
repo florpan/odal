@@ -64,7 +64,11 @@ export interface NodeDef extends EntityDef {
   gatherTime: number;
   gatherAmount: number;
   spawn: Spawn;
-  visual: { shape: 'cone' | 'rock'; color: string };
+  /**
+   * `models`: GLBs under /models/ (authored 1 unit tall, base at y=0); one is picked per node by id.
+   * `scale` multiplies that height (default 1). Without `models` the shape/color primitive is drawn.
+   */
+  visual: { shape: 'cone' | 'rock'; color: string; models?: string[]; scale?: number };
 }
 
 /** Something obtained by paying `cost` and waiting `time` seconds, once `requires` are met. */
@@ -86,7 +90,8 @@ export interface UnitDef extends ProducibleDef {
   /** Resources consumed every `rules.upkeepInterval` seconds while the unit lives. */
   upkeep: Cost;
   abilities: Ability[];
-  visual: { width: number; height: number; helmet: boolean };
+  /** `model`: a GLB under the client's /models/ (see tools/models); the primitives are the fallback. */
+  visual: { width: number; height: number; helmet: boolean; model?: string };
 }
 
 export interface BuildingDef extends ProducibleDef {
@@ -104,7 +109,12 @@ export interface BuildingDef extends ProducibleDef {
   passable: boolean;
   vision: number;
   hotkey?: string;
-  visual: { shape: 'box' | 'cone'; color: string; height: number; glow?: string };
+  /**
+   * `model`: a GLB under /models/ authored with a 1×1 footprint and base at y=0, scaled to the
+   * building's footprint. `{team}` in the name is replaced by the owner's nearest KayKit colour
+   * (red, blue, green, yellow). Without it the shape/color primitive is drawn.
+   */
+  visual: { shape: 'box' | 'cone'; color: string; height: number; glow?: string; model?: string };
 }
 
 export interface TechDef extends ProducibleDef {

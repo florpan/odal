@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { buildingMaxHp, idx, unitMaxHp } from '@odal/engine';
-import type { Building, GameState, RallyPoint, ResourceNode, Vec2 } from '@odal/engine';
+import type { Building, GameState, RallyPoint, ResourceNode, TechTree, Unit, Vec2 } from '@odal/engine';
+import { ModelLibrary } from './models';
 
 // ---------------------------------------------------------------------------
 // The 3D scene. Everything in world coordinates is drawn here and nowhere
@@ -15,6 +16,9 @@ export interface Pick {
 
 const FLASH_TIME = 0.15;
 const PARTICLE_LIFE = 0.7;
+/** KayKit's building colour variants and the hue each one stands for. */
+const TEAM_HUES: Record<string, number> = { red: 0, yellow: 52, green: 120, blue: 215 };
+const TEAM_VARIANTS = Object.keys(TEAM_HUES);
 
 interface HpBar {
   group: THREE.Group;
@@ -23,8 +27,22 @@ interface HpBar {
 
 interface EntityView {
   group: THREE.Group;
-  body: THREE.Mesh;
-  mat: THREE.Material;
+  /** The visible body: a primitive mesh, or a model instance (an Object3D with meshes below it). */
+  body: THREE.Object3D;
+  /** Meshes whose material is swapped for the damage flash, and what to restore afterwards. */
+  meshes: THREE.Mesh[];
+  mats: THREE.Material[];
+  /** Model file still loading; swapped in by syncUnits / syncBuildings once ready. */
+  wantModel?: string;
+  /** Buildings: uniform scale applied to a footprint-normalised model (min of w, h). */
+  modelScale?: number;
+  /** Animation state for skinned models. `workClip` is what the task wants when standing still. */
+  mixer?: THREE.AnimationMixer;
+  clips?: Record<string, THREE.AnimationClip>;
+  action?: THREE.AnimationAction;
+  clip?: string;
+  workClip: string;
+  speed: number;
   bar: HpBar;
   barHeight: number;
   maxHp: number;
@@ -53,7 +71,8 @@ export class Renderer {
   mapW = 64;
   mapH = 64;
 
-  private nodeMeshes = new Map<number, THREE.Mesh>();
+  private models = new ModelLibrary();
+  private nodeMeshes = new Map<number, THREE.Object3D>();
   private units = new Map<number, EntityView>();
   private buildings = new Map<number, EntityView>();
   private rings = new Map<string, THREE.Mesh>();
@@ -123,6 +142,7 @@ export class Renderer {
     for (const g of Object.values(this.geo)) g.dispose();
     for (const g of this.geometries.values()) g.dispose();
     for (const m of this.materials.values()) m.dispose();
+    this.models.dispose();
   }
 
   /** Remove every game object (new game / restart). Map is rebuilt by setMap. */
@@ -250,17 +270,112 @@ export class Renderer {
       const n = nodes[id];
       const def = defs[n.type];
       let mesh = this.nodeMeshes.get(n.id);
+      const file = def.visual.models?.[n.id % def.visual.models.length];
+      if (mesh && mesh.userData.wantModel && this.models.ready(mesh.userData.wantModel as string)) {
+        this.scene.remove(mesh);
+        this.nodeMeshes.delete(n.id);
+        mesh = undefined;
+      }
       if (!mesh) {
-        const isCone = def.visual.shape === 'cone';
-        mesh = new THREE.Mesh(isCone ? this.geo.cone : this.geo.rock, this.material(def.visual.color));
-        mesh.position.set(n.x + 0.5, isCone ? 0.65 : 0.3, n.y + 0.5);
-        if (!isCone) mesh.rotation.set(Math.random(), Math.random(), 0);
-        mesh.userData = { kind: 'node', id: n.id } satisfies Pick;
+        const inst = file ? this.models.instantiate(file, '#ffffff') : null;
+        if (inst) {
+          mesh = inst.root;
+          mesh.position.set(n.x + 0.5, 0, n.y + 0.5);
+          mesh.rotation.y = ((n.id * 137) % 360) * (Math.PI / 180); // varied but stable
+          mesh.userData = { kind: 'node', id: n.id, unit: def.visual.scale ?? 1 };
+        } else {
+          if (file) void this.models.load(file);
+          const isCone = def.visual.shape === 'cone';
+          mesh = new THREE.Mesh(isCone ? this.geo.cone : this.geo.rock, this.material(def.visual.color));
+          mesh.position.set(n.x + 0.5, isCone ? 0.65 : 0.3, n.y + 0.5);
+          if (!isCone) mesh.rotation.set(Math.random(), Math.random(), 0);
+          mesh.userData = { kind: 'node', id: n.id, unit: 1, wantModel: file };
+        }
         this.scene.add(mesh);
         this.nodeMeshes.set(n.id, mesh);
       }
-      mesh.scale.setScalar(0.55 + 0.45 * (n.amount / def.amount));
+      mesh.scale.setScalar((mesh.userData.unit as number) * (0.55 + 0.45 * (n.amount / def.amount)));
       mesh.visible = !explored || explored[n.y * this.mapW + n.x] === 1;
+    }
+  }
+
+  /** Kick off loading every model the tree refers to, so things appear as models from the first frame. */
+  preloadModels(tree: TechTree) {
+    for (const u of tree.units) if (u.visual.model) void this.models.load(u.visual.model);
+    for (const b of tree.buildings)
+      if (b.visual.model)
+        for (const c of b.visual.model.includes('{team}') ? TEAM_VARIANTS : [''])
+          void this.models.load(b.visual.model.replace('{team}', c));
+    for (const n of tree.nodes) for (const f of n.visual.models ?? []) void this.models.load(f);
+  }
+
+  /** "{team}" in a building model name → the KayKit colour variant nearest to the owner's colour. */
+  private teamVariant(file: string, color: string): string {
+    if (!file.includes('{team}')) return file;
+    const hsl = { h: 0, s: 0, l: 0 };
+    new THREE.Color(color).getHSL(hsl);
+    const hue = hsl.h * 360;
+    let best = TEAM_VARIANTS[0];
+    let bestD = 999;
+    for (const [name, h] of Object.entries(TEAM_HUES)) {
+      const d = Math.min(Math.abs(hue - h), 360 - Math.abs(hue - h));
+      if (d < bestD) {
+        bestD = d;
+        best = name;
+      }
+    }
+    return file.replace('{team}', best);
+  }
+
+  /** Give a unit view its GLB body (owner-coloured), replacing whatever body it has. */
+  private attachModel(v: EntityView, file: string, height: number) {
+    const inst = this.models.instantiate(file, v.color);
+    if (!inst) return false;
+    v.group.remove(v.body);
+    inst.root.scale.setScalar(height);
+    inst.root.rotation.y = v.body.rotation.y;
+    v.group.add(inst.root);
+    v.body = inst.root;
+    v.meshes = inst.meshes;
+    v.mats = inst.mats;
+    v.wantModel = undefined;
+    if (Object.keys(inst.clips).length) {
+      v.mixer = new THREE.AnimationMixer(inst.root);
+      v.clips = inst.clips;
+      v.clip = undefined;
+      this.playClip(v, v.workClip);
+    }
+    return true;
+  }
+
+  /** Crossfade to a named clip (falls back to idle). Walk speed follows the unit's speed. */
+  private playClip(v: EntityView, name: string) {
+    if (!v.mixer || !v.clips || v.clip === name) return;
+    const clip = v.clips[name] ?? v.clips.idle;
+    if (!clip) return;
+    const next = v.mixer.clipAction(clip);
+    next.reset();
+    next.timeScale = name === 'walk' ? Math.max(0.6, v.speed / 1.4) : 1;
+    next.fadeIn(0.15).play();
+    v.action?.fadeOut(0.15);
+    v.action = next;
+    v.clip = name;
+  }
+
+  /** What a unit does with its hands while standing still, from its task. Walking is decided per frame. */
+  private workClipFor(u: Unit, state: GameState): string {
+    const t = u.task;
+    switch (t.kind) {
+      case 'harvest': {
+        const shape = idx(state.tree).nodes[t.nodeType]?.visual.shape;
+        return t.phase === 'gathering' ? (shape === 'rock' ? 'mine' : 'chop') : 'idle';
+      }
+      case 'build':
+        return 'build';
+      case 'attack':
+        return 'attack';
+      default:
+        return 'idle';
     }
   }
 
@@ -283,12 +398,12 @@ export class Renderer {
       if (!v) {
         const group = new THREE.Group();
         const color = owner?.color ?? '#ffffff';
-        const { width, height, helmet } = def.visual;
+        const { width, height, helmet, model } = def.visual;
         const mat = this.material(color);
         const body = new THREE.Mesh(this.box(width, height, width), mat);
         body.position.y = height / 2;
         group.add(body);
-        if (helmet) {
+        if (helmet && !model) {
           const head = new THREE.Mesh(this.geo.head, this.material(0x3a3a3a));
           head.position.y = height + 0.11;
           group.add(head);
@@ -305,7 +420,11 @@ export class Renderer {
         v = {
           group,
           body,
-          mat,
+          meshes: [body],
+          mats: [mat],
+          wantModel: model,
+          workClip: 'idle',
+          speed: def.speed,
           bar,
           barHeight: height + 0.55,
           maxHp: def.hp,
@@ -316,7 +435,10 @@ export class Renderer {
           carry,
         };
         this.units.set(u.id, v);
+        if (model) void this.models.load(model);
       }
+      if (v.wantModel) this.attachModel(v, v.wantModel, def.visual.height);
+      v.workClip = this.workClipFor(u, state);
       v.maxHp = owner ? unitMaxHp(tree, owner, u.type) : def.hp;
       v.target.set(u.x, 0, u.y);
       if (u.hp < v.lastHp) v.flashUntil = this.time + FLASH_TIME;
@@ -355,7 +477,7 @@ export class Renderer {
         plate.position.set(0, 0.02, 0);
         group.add(plate);
 
-        const { shape, color: bodyColor, height, glow } = def.visual;
+        const { shape, color: bodyColor, height, glow, model } = def.visual;
         const mat: THREE.Material = new THREE.MeshLambertMaterial({
           color: bodyColor,
           emissive: glow ?? 0x000000,
@@ -382,7 +504,12 @@ export class Renderer {
         v = {
           group,
           body,
-          mat,
+          meshes: [body],
+          mats: [mat],
+          wantModel: model && !isGhost ? this.teamVariant(model, color) : undefined,
+          modelScale: Math.min(b.w, b.h),
+          workClip: 'idle',
+          speed: 0,
           bar,
           barHeight: height + 0.45,
           maxHp: buildingMaxHp(state.tree, state.players[b.owner], b.type),
@@ -394,9 +521,16 @@ export class Renderer {
         };
         this.buildings.set(b.id, v);
       }
+      if (v.wantModel) this.attachModel(v, v.wantModel, v.modelScale ?? 1);
       const s = Math.max(0.08, b.progress);
-      v.body.scale.y = s;
-      v.body.position.y = (def.visual.height * s) / 2;
+      if (v.modelScale !== undefined && !v.wantModel && v.body.type !== 'Mesh') {
+        // A model grows out of the ground during construction; its base is already at y=0.
+        v.body.scale.set(v.modelScale, v.modelScale * s, v.modelScale);
+        v.body.position.y = 0;
+      } else {
+        v.body.scale.y = s;
+        v.body.position.y = (def.visual.height * s) / 2;
+      }
       if (b.hp < v.lastHp) v.flashUntil = this.time + FLASH_TIME;
       v.lastHp = b.hp;
     }
@@ -513,8 +647,20 @@ export class Renderer {
     this.time += dt;
     const k = 1 - Math.exp(-dt * 14);
     for (const v of this.units.values()) {
+      // Face the way we are going (models are authored facing +z). Boxes rotate too; it is invisible.
+      const dx = v.target.x - v.group.position.x;
+      const dz = v.target.z - v.group.position.z;
+      const moving = dx * dx + dz * dz > 0.0004;
+      if (moving) {
+        const d = Math.atan2(dx, dz) - v.body.rotation.y;
+        v.body.rotation.y += Math.atan2(Math.sin(d), Math.cos(d)) * Math.min(1, dt * 10);
+      }
       if (v.group.position.distanceTo(v.target) > 3) v.group.position.copy(v.target);
       else v.group.position.lerp(v.target, k);
+      if (v.mixer) {
+        this.playClip(v, moving ? 'walk' : v.workClip);
+        v.mixer.update(dt);
+      }
     }
     for (const [key, ring] of this.rings) {
       if (key[0] !== 'u') continue;
@@ -549,7 +695,8 @@ export class Renderer {
   }
 
   private updateView(v: EntityView, selected: boolean) {
-    v.body.material = this.time < v.flashUntil ? this.flashMat : v.mat;
+    const flashing = this.time < v.flashUntil;
+    for (let i = 0; i < v.meshes.length; i++) v.meshes[i].material = flashing ? this.flashMat : v.mats[i];
     const ratio = Math.max(0, Math.min(1, v.lastHp / v.maxHp));
     const show = !v.ghost && (selected || ratio < 0.999);
     v.bar.group.visible = show;

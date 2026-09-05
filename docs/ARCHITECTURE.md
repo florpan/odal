@@ -132,6 +132,7 @@ client/src/
                         TreeView (tree + per-item status) for the tech tree screen
     minimap.ts          Draws the minimap into a 2D context
     render/scene.ts     Three.js scene. Everything in world coordinates. Looks come from tree `visual`s.
+    render/models.ts    GLB library for `visual.model`: load once, per-team "Team" material, Lambert look, skeleton clones + clips.
     index.ts            The ONLY module ui/ may import from game/
   ui/                   REACT. Never imports Three.js or game internals.
     App.tsx             Screen switch (start | lobby | game) from the store

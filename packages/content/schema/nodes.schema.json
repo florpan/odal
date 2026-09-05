@@ -149,6 +149,18 @@
               "color": {
                 "type": "string",
                 "pattern": "^#[0-9a-fA-F]{6}$"
+              },
+              "models": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "minItems": 1
+              },
+              "scale": {
+                "type": "number",
+                "exclusiveMinimum": 0
               }
             },
             "required": [

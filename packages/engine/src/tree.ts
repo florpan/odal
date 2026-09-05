@@ -91,7 +91,16 @@ export const NodeSchema = z
     gatherTime: Positive,
     gatherAmount: Positive,
     spawn: SpawnSchema,
-    visual: z.object({ shape: z.enum(['cone', 'rock']), color: Color }).strict(),
+    visual: z
+      .object({
+        shape: z.enum(['cone', 'rock']),
+        color: Color,
+        /** GLB file names under /models/, 1 unit tall, picked per node by id. */
+        models: z.array(z.string().min(1)).min(1).optional(),
+        /** Height multiplier for the models (default 1). */
+        scale: Positive.optional(),
+      })
+      .strict(),
   })
   .strict();
 
@@ -109,7 +118,13 @@ export const UnitSchema = z
     upkeep: CostSchema.default({}),
     abilities: z.array(z.enum(['harvest', 'build', 'attack'])).default([]),
     visual: z
-      .object({ width: Positive.default(0.4), height: Positive.default(1), helmet: z.boolean().default(false) })
+      .object({
+        width: Positive.default(0.4),
+        height: Positive.default(1),
+        helmet: z.boolean().default(false),
+        /** File name under /models/, e.g. "worker.glb". Authored at height 1, feet at y=0, facing +z. */
+        model: z.string().min(1).optional(),
+      })
       .strict()
       .default({}),
   })
@@ -136,6 +151,8 @@ export const BuildingSchema = z
         color: Color,
         height: Positive.default(1),
         glow: Color.optional(),
+        /** GLB under /models/ with a 1×1 footprint; "{team}" → owner's nearest KayKit colour. */
+        model: z.string().min(1).optional(),
       })
       .strict(),
   })
