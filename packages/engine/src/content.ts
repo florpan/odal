@@ -65,8 +65,8 @@ export interface NodeDef extends EntityDef {
   gatherAmount: number;
   spawn: Spawn;
   /**
-   * `models`: GLBs under /models/ (authored 1 unit tall, base at y=0); one is picked per node by id.
-   * `scale` multiplies that height (default 1). Without `models` the shape/color primitive is drawn.
+   * `models`: GLBs under /models/ at world scale (1 unit = 1 tile, base at y=0); one is picked per node
+   * by id. `scale` multiplies all of them equally (default 1). Without `models` the primitive is drawn.
    */
   visual: { shape: 'cone' | 'rock'; color: string; models?: string[]; scale?: number };
 }

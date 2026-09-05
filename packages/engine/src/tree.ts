@@ -95,9 +95,9 @@ export const NodeSchema = z
       .object({
         shape: z.enum(['cone', 'rock']),
         color: Color,
-        /** GLB file names under /models/, 1 unit tall, picked per node by id. */
+        /** GLB file names under /models/ at world scale, picked per node by id. */
         models: z.array(z.string().min(1)).min(1).optional(),
-        /** Height multiplier for the models (default 1). */
+        /** Size multiplier applied to all the models equally (default 1). */
         scale: Positive.optional(),
       })
       .strict(),

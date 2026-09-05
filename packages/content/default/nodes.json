@@ -11,7 +11,7 @@
       "shape": "cone",
       "color": "#2e7d32",
       "models": ["tree_1.glb", "tree_2.glb", "tree_3.glb", "tree_4.glb"],
-      "scale": 1.6
+      "scale": 0.6
     }
   },
   {

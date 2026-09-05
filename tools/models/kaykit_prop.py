@@ -5,8 +5,11 @@ y=0 and the footprint is centred on the origin, normalised, and exported as a GL
 with the texture embedded. Two normalisations:
 
   footprint  max horizontal extent = 1 unit; the renderer scales by the building's
-             footprint in tiles (buildings).
-  height     height = 1 unit; the renderer scales by visual.scale (trees, rocks).
+             footprint in tiles (the miniature Hexagon tile set).
+  scale:F    multiply by a fixed factor F, the same for every asset of a pack family so
+             relative sizes are kept. CHARACTER_SCALE (1 / Rogue height) makes a KayKit
+             person 1 tile tall; use it for nature, resources and props.
+  height     height = 1 unit (legacy; a different factor per asset, avoid).
 
 Run inside Blender, headless:
 
@@ -25,15 +28,19 @@ HEX = r'C:\Dev\KayKit\KayKit_Medieval_Hexagon_Pack_1.0\Assets\gltf'
 FOREST = r'C:\Dev\KayKit\KayKit_Forest_Nature_Pack_1.0\Assets\gltf'
 OUT = r'C:\Dev\odal\packages\client\public\models'
 
+# KayKit characters are 2.18 units tall in their packs and one tile in Odal. Everything that
+# shares their world (Forest Nature, Resource Bits, props) is scaled by this same factor.
+CHARACTER_SCALE = 1 / 2.18
+
 DEFAULT_JOBS = [
     ('footprint', os.path.join(HEX, 'buildings', 'red', 'building_home_A_red.gltf'), os.path.join(OUT, 'home_a_red.glb')),
     ('footprint', os.path.join(HEX, 'buildings', 'blue', 'building_home_A_blue.gltf'), os.path.join(OUT, 'home_a_blue.glb')),
     ('footprint', os.path.join(HEX, 'buildings', 'green', 'building_home_A_green.gltf'), os.path.join(OUT, 'home_a_green.glb')),
     ('footprint', os.path.join(HEX, 'buildings', 'yellow', 'building_home_A_yellow.gltf'), os.path.join(OUT, 'home_a_yellow.glb')),
-    ('height', os.path.join(FOREST, 'Tree_1_C_Color1.gltf'), os.path.join(OUT, 'tree_1.glb')),
-    ('height', os.path.join(FOREST, 'Tree_2_C_Color1.gltf'), os.path.join(OUT, 'tree_2.glb')),
-    ('height', os.path.join(FOREST, 'Tree_3_C_Color1.gltf'), os.path.join(OUT, 'tree_3.glb')),
-    ('height', os.path.join(FOREST, 'Tree_4_C_Color1.gltf'), os.path.join(OUT, 'tree_4.glb')),
+    (f'scale:{CHARACTER_SCALE}', os.path.join(FOREST, 'Tree_1_C_Color1.gltf'), os.path.join(OUT, 'tree_1.glb')),
+    (f'scale:{CHARACTER_SCALE}', os.path.join(FOREST, 'Tree_2_C_Color1.gltf'), os.path.join(OUT, 'tree_2.glb')),
+    (f'scale:{CHARACTER_SCALE}', os.path.join(FOREST, 'Tree_3_C_Color1.gltf'), os.path.join(OUT, 'tree_3.glb')),
+    (f'scale:{CHARACTER_SCALE}', os.path.join(FOREST, 'Tree_4_C_Color1.gltf'), os.path.join(OUT, 'tree_4.glb')),
 ]
 
 
@@ -78,7 +85,12 @@ def convert(mode, src, out):
         v.co -= Vector((cx, cy, z0))
     extent = max(max(xs) - min(xs), max(ys) - min(ys))
     height = max(zs) - min(zs)
-    s = 1 / extent if mode == 'footprint' else 1 / height
+    if mode == 'footprint':
+        s = 1 / extent
+    elif mode.startswith('scale:'):
+        s = float(mode.split(':', 1)[1])
+    else:
+        s = 1 / height
     for v in obj.data.vertices:
         v.co *= s
 
