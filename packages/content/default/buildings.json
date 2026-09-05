@@ -23,7 +23,7 @@
     "size": { "w": 1, "h": 1 },
     "pop": 5,
     "hotkey": "H",
-    "visual": { "color": "#8d6e63", "height": 1.2 }
+    "visual": { "color": "#8d6e63", "height": 1.2, "model": "home_a_{team}.glb" }
   },
   {
     "id": "farm",

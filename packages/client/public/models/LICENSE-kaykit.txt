@@ -1,0 +1,12 @@
+Models derived from KayKit asset packs by Kay Lousberg (www.kaylousberg.com):
+KayKit Adventurers Character Pack 2.0, KayKit Character Animations 1.1,
+KayKit Medieval Hexagon Pack 1.0 and KayKit Forest Nature Pack 1.0.
+
+License: Creative Commons Zero (CC0), http://creativecommons.org/publicdomain/zero/1.0/
+Free for personal, educational and commercial use, no attribution required.
+Credit is given anyway: "Kay Lousberg, www.kaylousberg.com".
+
+The GLBs in this folder that come from these packs were assembled with
+tools/models/kaykit_character.py (character mesh + selected animation clips,
+cape recoloured as the "Team" material, scaled to 1 unit tall) and
+tools/models/kaykit_prop.py (buildings normalised to a 1x1 footprint, trees to 1 unit tall).

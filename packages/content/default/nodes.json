@@ -7,7 +7,12 @@
     "gatherTime": 4,
     "gatherAmount": 10,
     "spawn": { "kind": "forest", "clustersPer1000Tiles": 4.5, "radius": [3, 8], "perStart": 2 },
-    "visual": { "shape": "cone", "color": "#2e7d32" }
+    "visual": {
+      "shape": "cone",
+      "color": "#2e7d32",
+      "models": ["tree_1.glb", "tree_2.glb", "tree_3.glb", "tree_4.glb"],
+      "scale": 1.6
+    }
   },
   {
     "id": "stone_rock",
