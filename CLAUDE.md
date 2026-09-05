@@ -34,6 +34,8 @@ bun run check               # typecheck + lint + tests + content validation + sc
 bun run validate:content    # validate the default ruleset (or: bun packages/content/src/validate.ts <dir>)
 bun run schema:gen          # regenerate packages/content/schema/*.json after changing engine/src/tree.ts
 bun run tree:graph unit:soldier   # what leads to something (prerequisites + Mermaid); no arg = whole tree
+bun run model:worker        # regenerate the procedural labourer GLB (tools/models); KayKit conversions run in Blender
+#                             model viewer: http://localhost:5173/models.html?m=rogue.glb (needs dev:client)
 bun run build && bun start  # production: server serves the built client (no editor routes)
 bun run start:editor        # same, but with /dev/tree mounted so /editor.html works against the built client
 ```
@@ -63,4 +65,7 @@ bun run start:editor        # same, but with /dev/tree mounted so /editor.html w
 - Tests: `*.test.ts` next to the code, run with `bun test`. Engine tests use the default ruleset.
 - Coordinates: tiles are integers, positions are continuous with tile centre at `+0.5`. Game `y` is Three.js `z`.
 - Keep it simple. New resources/units/buildings need a reason in `docs/PLAN.md` first.
+- 3D models are data: GLBs in `packages/client/public/models`, referenced from `visual` blocks (CONTENT.md),
+  built by `tools/models/` (procedural TypeScript or Blender scripts over the CC0 KayKit packs). Missing model →
+  primitive fallback; never make the client depend on a file being there. Conventions in PLAN.md § M3.
 - No C# here; the SharpTools rules from the global config do not apply.
