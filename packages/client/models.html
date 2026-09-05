@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Odal — model viewer</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #1c2a1a;
+        color: #f1e6cf;
+        font:
+          13px system-ui,
+          sans-serif;
+      }
+      canvas {
+        display: block;
+      }
+      #info {
+        position: absolute;
+        left: 12px;
+        top: 10px;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 8px 10px;
+        border-radius: 4px;
+        line-height: 1.5;
+      }
+      #info input {
+        width: 220px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="info">
+      <div>Model: <input id="url" value="/models/worker.glb" /> <button id="load">Load</button></div>
+      <div id="stats"></div>
+      <div>
+        Clip:
+        <select id="clips" hidden></select>
+      </div>
+      <div>Drag to orbit · wheel to zoom · T toggles team colour · W wireframe · ?m=file.glb in the URL</div>
+    </div>
+    <script type="module" src="/src/models/main.ts"></script>
+  </body>
+</html>

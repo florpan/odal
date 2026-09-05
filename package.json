@@ -22,6 +22,7 @@
     "schema:gen": "bun run --cwd packages/content schema:gen",
     "schema:check": "bun run --cwd packages/content schema:check",
     "tree:graph": "bun packages/content/src/graph.ts",
+    "model:worker": "bun tools/models/worker.ts",
     "check": "bun run typecheck && bun run lint && bun test && bun run validate:content && bun run schema:check"
   },
   "devDependencies": {
