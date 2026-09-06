@@ -6,10 +6,36 @@ import type { Renderer } from './render/scene';
 import type { World } from './world';
 
 const DOUBLE_TAP_MS = 400;
+/** A finger held still this long is the touch equivalent of a right click. */
+const LONG_PRESS_MS = 450;
+/** Finger travel beyond this is a drag (pan), not a tap. */
+const TAP_SLOP_PX = 10;
+const ZOOM_MIN = 0.12;
+const ZOOM_MAX = 2.2;
+
+interface Touch {
+  id: number;
+  x: number;
+  y: number;
+  moved: boolean;
+  held: boolean;
+  timer: number;
+  cam: Vec2;
+}
+
+interface Pinch {
+  d0: number;
+  zoom0: number;
+  mid: Vec2;
+  cam: Vec2;
+}
 
 /**
- * Mouse and keyboard handling on the game canvas: selection, context commands,
+ * Mouse, keyboard and touch handling on the game canvas: selection, context commands,
  * camera, build placement, attack-move, control groups. Pure TS, no React.
+ *
+ * Touch: tap selects (and places in build / attack-move mode), a held finger is the
+ * right click (command), one-finger drag pans, two fingers pinch to zoom and pan.
  */
 export class Input {
   buildMode: string | null = null; // building id being placed
@@ -24,6 +50,9 @@ export class Input {
   private lastGroupTap = { n: -1, at: 0 };
   private selbox: HTMLDivElement;
   private unlisten: (() => void)[] = [];
+  private fingers = new Map<number, Vec2>();
+  private touch: Touch | null = null;
+  private pinch: Pinch | null = null;
 
   constructor(
     private world: World,
@@ -50,11 +79,12 @@ export class Input {
     on(c, 'pointerdown', (e) => this.onDown(e));
     on(window, 'pointermove', (e) => this.onMove(e));
     on(window, 'pointerup', (e) => this.onUp(e));
+    on(window, 'pointercancel', (e) => this.onUp(e));
     on(
       c,
       'wheel',
       (e) => {
-        renderer.zoom = Math.max(0.12, Math.min(2.2, renderer.zoom * (e.deltaY > 0 ? 1.12 : 0.89)));
+        this.setZoom(renderer.zoom * (e.deltaY > 0 ? 1.12 : 0.89));
         e.preventDefault();
       },
       { passive: false },
@@ -68,6 +98,17 @@ export class Input {
     for (const off of this.unlisten) off();
     this.unlisten = [];
     this.selbox.remove();
+    if (this.touch) clearTimeout(this.touch.timer);
+  }
+
+  private setZoom(z: number) {
+    this.renderer.zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z));
+  }
+
+  /** Drag the camera: screen pixels since the gesture started, from where the camera was then. */
+  private panFrom(cam: Vec2, dx: number, dy: number) {
+    const scale = 0.04 * this.renderer.zoom;
+    this.renderer.camTarget = { x: cam.x - dx * scale, y: cam.y - dy * scale };
   }
 
   // -------------------------------------------------------------------------
@@ -243,7 +284,132 @@ export class Input {
   // Events
   // -------------------------------------------------------------------------
 
+  /** Left click / tap while placing a building or aiming attack-move. True if the click was consumed. */
+  private modeClick(clientX: number, clientY: number, keepMode: boolean): boolean {
+    if (this.buildMode) {
+      const tile = this.ghostTile();
+      const builders = this.ownSelected('build');
+      if (tile && builders.length) {
+        this.send({ type: 'build', unitIds: builders, building: this.buildMode, x: tile.x, y: tile.y });
+        if (!keepMode) this.cancelMode();
+      }
+      return true;
+    }
+    if (this.attackMoveMode) {
+      this.attackMoveTo(clientX, clientY);
+      this.cancelMode();
+      return true;
+    }
+    return false;
+  }
+
+  /** Plain left click / tap: select what is under the pointer (shift toggles own units in and out). */
+  private clickSelect(clientX: number, clientY: number, shift: boolean) {
+    const st = this.world.state;
+    if (!st) return;
+    const pick = this.renderer.pickEntity(clientX, clientY);
+    if (pick?.kind === 'unit') {
+      const u = st.units[pick.id];
+      if (shift && u.owner === this.world.playerId) {
+        const cur = this.world.selectedUnits;
+        this.select(cur.includes(u.id) ? cur.filter((i) => i !== u.id) : [...cur, u.id], null);
+      } else {
+        this.select([u.id], null);
+      }
+    } else if (pick?.kind === 'building') {
+      this.select([], pick.id);
+    } else if (pick?.kind === 'node') {
+      this.select([], null, pick.id);
+    } else {
+      this.select([], null);
+    }
+  }
+
+  // --- touch ---------------------------------------------------------------
+
+  private onTouchDown(e: PointerEvent) {
+    this.fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (this.fingers.size === 1) {
+      if (this.touch) clearTimeout(this.touch.timer);
+      this.touch = {
+        id: e.pointerId,
+        x: e.clientX,
+        y: e.clientY,
+        moved: false,
+        held: false,
+        cam: { ...this.renderer.camTarget },
+        timer: window.setTimeout(() => this.longPress(), LONG_PRESS_MS),
+      };
+      return;
+    }
+    // A second finger: no tap or hold any more, pinch instead.
+    if (this.touch) {
+      clearTimeout(this.touch.timer);
+      this.touch.moved = true;
+    }
+    const [a, b] = [...this.fingers.values()];
+    this.pinch = {
+      d0: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)),
+      zoom0: this.renderer.zoom,
+      mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 },
+      cam: { ...this.renderer.camTarget },
+    };
+  }
+
+  private longPress() {
+    const t = this.touch;
+    if (!t || t.moved) return;
+    t.held = true;
+    navigator.vibrate?.(15);
+    if (this.buildMode || this.attackMoveMode) this.cancelMode();
+    else this.commandAt(t.x, t.y);
+  }
+
+  private onTouchMove(e: PointerEvent) {
+    if (!this.fingers.has(e.pointerId)) return;
+    this.fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (this.pinch && this.fingers.size >= 2) {
+      const [a, b] = [...this.fingers.values()];
+      const d = Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
+      this.setZoom(this.pinch.zoom0 * (this.pinch.d0 / d));
+      const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      this.panFrom(this.pinch.cam, mid.x - this.pinch.mid.x, mid.y - this.pinch.mid.y);
+      return;
+    }
+    const t = this.touch;
+    if (!t || t.id !== e.pointerId || t.held) return;
+    const dx = e.clientX - t.x;
+    const dy = e.clientY - t.y;
+    if (!t.moved && Math.hypot(dx, dy) > TAP_SLOP_PX) {
+      t.moved = true;
+      clearTimeout(t.timer);
+    }
+    if (t.moved) this.panFrom(t.cam, dx, dy);
+  }
+
+  private onTouchUp(e: PointerEvent) {
+    this.fingers.delete(e.pointerId);
+    if (this.pinch) {
+      if (this.fingers.size < 2) this.pinch = null;
+      if (this.fingers.size === 0) this.touch = null;
+      return;
+    }
+    const t = this.touch;
+    if (!t || t.id !== e.pointerId) return;
+    clearTimeout(t.timer);
+    this.touch = null;
+    if (t.moved || t.held || e.type === 'pointercancel') return;
+    this.mouse = { x: t.x, y: t.y };
+    if (!this.modeClick(t.x, t.y, false)) this.clickSelect(t.x, t.y, false);
+  }
+
+  // --- mouse ---------------------------------------------------------------
+
   private onDown(e: PointerEvent) {
+    if (e.pointerType !== 'mouse') {
+      this.onTouchDown(e);
+      return;
+    }
     this.mouse = { x: e.clientX, y: e.clientY };
     if (e.button === 1) {
       this.panStart = { x: e.clientX, y: e.clientY, cam: { ...this.renderer.camTarget } };
@@ -256,33 +422,19 @@ export class Input {
       return;
     }
     if (e.button !== 0) return;
-
-    if (this.buildMode) {
-      const tile = this.ghostTile();
-      const builders = this.ownSelected('build');
-      if (tile && builders.length) {
-        this.send({ type: 'build', unitIds: builders, building: this.buildMode, x: tile.x, y: tile.y });
-        if (!e.shiftKey) this.cancelMode();
-      }
-      return;
-    }
-    if (this.attackMoveMode) {
-      this.attackMoveTo(e.clientX, e.clientY);
-      this.cancelMode();
-      return;
-    }
+    if (this.modeClick(e.clientX, e.clientY, e.shiftKey)) return;
     this.dragStart = { x: e.clientX, y: e.clientY };
     this.dragging = false;
   }
 
   private onMove(e: PointerEvent) {
+    if (e.pointerType !== 'mouse') {
+      this.onTouchMove(e);
+      return;
+    }
     this.mouse = { x: e.clientX, y: e.clientY };
     if (this.panStart) {
-      const scale = 0.04 * this.renderer.zoom;
-      this.renderer.camTarget = {
-        x: this.panStart.cam.x - (e.clientX - this.panStart.x) * scale,
-        y: this.panStart.cam.y - (e.clientY - this.panStart.y) * scale,
-      };
+      this.panFrom(this.panStart.cam, e.clientX - this.panStart.x, e.clientY - this.panStart.y);
       return;
     }
     if (this.dragStart) {
@@ -304,6 +456,10 @@ export class Input {
   }
 
   private onUp(e: PointerEvent) {
+    if (e.pointerType !== 'mouse') {
+      this.onTouchUp(e);
+      return;
+    }
     if (e.button === 1) {
       this.panStart = null;
       return;
@@ -331,23 +487,7 @@ export class Input {
       this.select(e.shiftKey ? [...new Set([...this.world.selectedUnits, ...ids])] : ids, null);
       return;
     }
-
-    const pick = this.renderer.pickEntity(e.clientX, e.clientY);
-    if (pick?.kind === 'unit') {
-      const u = st.units[pick.id];
-      if (e.shiftKey && u.owner === this.world.playerId) {
-        const cur = this.world.selectedUnits;
-        this.select(cur.includes(u.id) ? cur.filter((i) => i !== u.id) : [...cur, u.id], null);
-      } else {
-        this.select([u.id], null);
-      }
-    } else if (pick?.kind === 'building') {
-      this.select([], pick.id);
-    } else if (pick?.kind === 'node') {
-      this.select([], null, pick.id);
-    } else {
-      this.select([], null);
-    }
+    this.clickSelect(e.clientX, e.clientY, e.shiftKey);
   }
 
   private onKey(e: KeyboardEvent) {

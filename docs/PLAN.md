@@ -263,6 +263,9 @@ texture per pack is the fix when size matters.
       mountains composed onto a grass tile as terrains scattered by `rules.map.features`. Verdict pending Christer.
 - [ ] The pack's sloped tiles on the steps, cliffs as terrain that costs more to climb (a `findPath` parameter)
 - [ ] Animations (walk, chop, attack), sound
+- [x] Touch controls (2026-09-07): tap selects, a held finger is the right click, one-finger drag pans, pinch
+      zooms; on coarse pointers or short windows the bottom HUD is a one-line strip that opens on tap and closes
+      after an action (`ui/screens/GameScreen.tsx` COMPACT_QUERY, `game/input.ts`). Box select has no touch form.
 - [ ] Flashier start screen, in-game help, settings dialog (all React)
 
 ### Ops

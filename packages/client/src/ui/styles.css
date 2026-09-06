@@ -30,6 +30,9 @@ button {
   display: block;
   width: 100%;
   height: 100%;
+  touch-action: none; /* the input layer handles pan, pinch and long press itself */
+  -webkit-touch-callout: none;
+  user-select: none;
 }
 .selbox {
   position: fixed;
@@ -127,8 +130,79 @@ button {
   bottom: 0;
   height: 190px;
   display: flex;
+  flex-direction: column;
   background: rgba(20, 16, 10, 0.9);
   border-top: 2px solid #6b4f2a;
+}
+.hud-panels {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.hud-toggle {
+  display: none;
+}
+
+/* Compact (touch or short landscape): a one-line strip that opens into a short, scrollable panel. */
+.hud.compact .help {
+  display: none;
+}
+.hud.compact .topbar {
+  gap: 12px;
+  padding: 0 8px;
+  font-size: 12px;
+  overflow-x: auto;
+}
+.hud.compact .hud-bottom {
+  height: 34px;
+  transition: height 0.15s ease-out;
+}
+.hud.compact .hud-bottom.open {
+  height: min(58vh, 250px);
+}
+.hud.compact .hud-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex: 0 0 32px;
+  padding: 0 12px;
+  background: none;
+  border: 0;
+  color: #f1e6cf;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.hud.compact .hud-toggle .chev {
+  color: #c9b58a;
+}
+.hud.compact .hud-bottom:not(.open) .hud-panels {
+  display: none;
+}
+.hud.compact .selection {
+  flex: 0 0 150px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.hud.compact .selection .desc {
+  display: none;
+}
+.hud.compact .actions {
+  padding: 6px;
+  gap: 6px;
+  overflow-y: auto;
+}
+.hud.compact .act {
+  min-width: 96px;
+  height: 40px;
+  font-size: 11px;
+}
+.hud.compact .minimap {
+  flex: 0 0 100px;
+  width: 100px;
+  height: 100px;
+  margin-right: 6px;
 }
 .selection {
   flex: 0 0 300px;
