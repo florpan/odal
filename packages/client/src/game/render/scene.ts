@@ -608,16 +608,19 @@ export class Renderer {
         const group = new THREE.Group();
         const color = state.players[b.owner]?.color ?? '#ffffff';
         const width = footprintWidth(b.r);
-        // Owner-coloured hex plate under the building, a touch wider than the footprint.
-        const plate = new THREE.Mesh(
-          this.geo.hex,
-          new THREE.MeshBasicMaterial({ color, transparent: true, opacity: isGhost ? 0.25 : 0.55 }),
-        );
-        plate.scale.set(width * 1.08, 0.02, width * 1.08);
-        plate.position.set(0, 0.015, 0);
-        group.add(plate);
-
         const { shape, color: bodyColor, height, glow, model } = def.visual;
+        // Owner-coloured hex plate only where nothing else shows the owner: primitives and remembered
+        // enemy ghosts. Pack models carry their team colour and the plate just cluttered the board.
+        if (!model || isGhost) {
+          const plate = new THREE.Mesh(
+            this.geo.hex,
+            new THREE.MeshBasicMaterial({ color, transparent: true, opacity: isGhost ? 0.25 : 0.55 }),
+          );
+          plate.scale.set(width * 1.08, 0.02, width * 1.08);
+          plate.position.set(0, 0.015, 0);
+          group.add(plate);
+        }
+
         const mat: THREE.Material = new THREE.MeshLambertMaterial({
           color: bodyColor,
           emissive: glow ?? 0x000000,

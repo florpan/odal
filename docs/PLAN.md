@@ -113,7 +113,7 @@ Three.js game, and a content editor page that shares the tree view with the game
 | Wall / Gate / Watchtower   | Gray block / dark wooden block / tall light-gray box |
 | Farm                       | Flat wheat-colored slab                              |
 | Ground                     | KayKit hex tiles: grass, water (lower), coast A–D    |
-| Ownership                  | Colored hex plate under every building               |
+| Ownership                  | Team-coloured models; a plate only under primitives  |
 | Under construction         | Building grows in height with progress               |
 | Remembered enemy building  | Translucent ghost until seen again                   |
 
