@@ -95,6 +95,8 @@ export const TerrainSchema = z
         height: z.number().default(0),
         /** GLB hex tile under /models/, one hex wide, top at y=0. */
         model: z.string().min(1).optional(),
+        /** Coast tiles by consecutive water edges (1..n), water side authored towards +z. */
+        shore: z.array(z.string().min(1)).min(1).optional(),
       })
       .strict(),
   })

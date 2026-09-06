@@ -65,8 +65,10 @@ export interface TerrainDef extends EntityDef {
   /**
    * `height`: where the tile's top sits relative to the ground plane (water below 0 makes a shore step).
    * `model`: a GLB hex tile under /models/ (one hex wide, top at y=0); without it a flat coloured hex is drawn.
+   * `shore`: tiles for a hex of this terrain that borders impassable terrain, by number of consecutive
+   * water edges (index 0 = one edge); authored with the water side centred on +z, the renderer turns them.
    */
-  visual: { color: string; height: number; model?: string };
+  visual: { color: string; height: number; model?: string; shore?: string[] };
 }
 
 export interface NodeDef extends EntityDef {

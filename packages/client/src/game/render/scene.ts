@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { HEX_R, buildingMaxHp, hexCentre, idx, unitMaxHp, worldSize } from '@odal/engine';
 import type { Building, GameState, RallyPoint, ResourceNode, TechTree, Unit, Vec2 } from '@odal/engine';
 import { ModelLibrary } from './models';
+import { tileOf } from './shore';
 
 // ---------------------------------------------------------------------------
 // The 3D scene. Everything in world coordinates is drawn here and nowhere
@@ -90,10 +91,15 @@ export class Renderer {
   private selectedBuilding: number | null = null;
   private ghost: THREE.Mesh | null = null;
   private rallyMarker: THREE.Group | null = null;
-  private ground: THREE.InstancedMesh | null = null;
+  /** Ground tiles, one InstancedMesh per tile file (or per terrain while its file loads). */
+  private ground: { mesh: THREE.InstancedMesh }[] = [];
+  private mapState: GameState | null = null;
   /** Per hex: 1 when its ground tile is shown (explored). Unexplored hexes are not drawn at all. */
   private shown: Uint8Array | null = null;
-  /** Per hex: y of the tile's top, from the terrain's `visual.height`. */
+  /** Per hex: which ground part and instance slot, its rotation, and the y of its top (`visual.height`). */
+  private tilePart: Int16Array | null = null;
+  private tileSlot: Int32Array | null = null;
+  private tileRot: Float32Array | null = null;
   private tileTop: Float32Array | null = null;
   private fog: { mesh: THREE.Mesh; tex: THREE.DataTexture; data: Uint8Array } | null = null;
   private raycaster = new THREE.Raycaster();
@@ -177,46 +183,33 @@ export class Renderer {
     this.setRallyMarker(null);
   }
 
-  /** Build the board for a map: one ground tile per hex, coloured and raised by its terrain. */
+  /**
+   * Build the board for a map: one ground tile per hex, from the terrain's GLB tile (or its shore
+   * variant along the coast) once loaded, a flat coloured hex puck until then. Tiles are hidden
+   * (scale 0) and appear as the player explores (updateFog).
+   */
   setMap(state: GameState) {
     const cols = state.width;
     const rows = state.height;
     this.cols = cols;
     this.rows = rows;
+    this.mapState = state;
     const size = worldSize(cols, rows);
     this.mapW = size.x;
     this.mapH = size.y;
-    if (this.ground) this.scene.remove(this.ground);
     if (this.fog) this.scene.remove(this.fog.mesh);
-
-    // The ground: one instanced hex puck per cell, top face at the terrain's height, colour varied a
-    // little per tile. Tiles start hidden (scale 0) and appear as the player explores (updateFog).
-    const ground = new THREE.InstancedMesh(
-      this.geo.tile,
-      new THREE.MeshLambertMaterial({ color: 0xffffff }),
-      cols * rows,
-    );
-    const terrain = state.tree.terrain;
-    const colors = terrain.map((t) => new THREE.Color(t.visual.color));
-    const hidden = new THREE.Matrix4().makeScale(0, 0, 0);
-    const col = new THREE.Color();
     this.shown = new Uint8Array(cols * rows);
-    this.tileTop = new Float32Array(cols * rows);
-    for (let y = 0; y < rows; y++) {
-      for (let x = 0; x < cols; x++) {
-        const i = y * cols + x;
-        const def = terrain[state.terrain[i]];
-        this.tileTop[i] = def.visual.height;
-        ground.setMatrixAt(i, hidden);
-        const v = 0.92 + (((x * 7 + y * 13) % 11) / 11) * 0.16; // stable per-tile variation
-        col.copy(colors[state.terrain[i]]).multiplyScalar(v);
-        ground.setColorAt(i, col);
-      }
+    this.buildGround(state);
+    const files = new Set<string>();
+    for (const t of state.tree.terrain) {
+      if (t.visual.model) files.add(t.visual.model);
+      for (const f of t.visual.shore ?? []) files.add(f);
     }
-    ground.instanceMatrix.needsUpdate = true;
-    if (ground.instanceColor) ground.instanceColor.needsUpdate = true;
-    this.ground = ground;
-    this.scene.add(ground);
+    if (files.size) {
+      void Promise.all([...files].map((f) => this.models.load(f))).then(() => {
+        if (this.mapState === state) this.buildGround(state);
+      });
+    }
 
     // Fog of war: a dark translucent sheet above everything, alpha from a cols×rows texture
     // (one texel per hex; odd rows are half a hex off, which the linear filter blurs away).
@@ -237,13 +230,94 @@ export class Renderer {
     this.camTarget = { x: size.x / 2, y: size.y / 2 };
   }
 
+  /**
+   * (Re)build the ground meshes: one InstancedMesh per tile file (or per terrain for pucks). Hexes
+   * already revealed stay revealed.
+   */
+  private buildGround(state: GameState) {
+    for (const part of this.ground) this.scene.remove(part.mesh);
+    this.ground = [];
+    const cols = state.width;
+    const rows = state.height;
+    const n = cols * rows;
+    const terrain = state.tree.terrain;
+    const colors = terrain.map((t) => new THREE.Color(t.visual.color));
+    this.tilePart = new Int16Array(n);
+    this.tileSlot = new Int32Array(n);
+    this.tileRot = new Float32Array(n);
+    this.tileTop = new Float32Array(n);
+
+    // Decide every hex's tile, grouping by file (or by terrain when the file is not loaded).
+    const groups = new Map<string, { index: number; file?: string; terrainIdx: number; hexes: number[] }>();
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const i = y * cols + x;
+        const terrainIdx = state.terrain[i];
+        const { model, rotation } = tileOf(state, x, y);
+        const usable = model && this.models.geometryOf(model) ? model : undefined;
+        const key = usable ? `m:${usable}` : `t:${terrainIdx}`;
+        let g = groups.get(key);
+        if (!g) {
+          g = { index: groups.size, file: usable, terrainIdx, hexes: [] };
+          groups.set(key, g);
+        }
+        this.tilePart[i] = g.index;
+        this.tileSlot[i] = g.hexes.length;
+        this.tileRot[i] = usable ? rotation : 0;
+        this.tileTop[i] = terrain[terrainIdx].visual.height;
+        g.hexes.push(i);
+      }
+    }
+    const hidden = new THREE.Matrix4().makeScale(0, 0, 0);
+    const col = new THREE.Color();
+    for (const g of groups.values()) {
+      const src = g.file ? this.models.geometryOf(g.file)! : null;
+      const mesh = new THREE.InstancedMesh(
+        src ? src.geometry : this.geo.tile,
+        src ? src.material : new THREE.MeshLambertMaterial({ color: 0xffffff }),
+        g.hexes.length,
+      );
+      for (let k = 0; k < g.hexes.length; k++) {
+        mesh.setMatrixAt(k, hidden);
+        if (!src) {
+          const i = g.hexes[k];
+          const v = 0.92 + ((((i % cols) * 7 + Math.floor(i / cols) * 13) % 11) / 11) * 0.16; // stable variation
+          mesh.setColorAt(k, col.copy(colors[g.terrainIdx]).multiplyScalar(v));
+        }
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+      // Instances start hidden, so the bounding sphere three.js computes on first render would be empty
+      // and the part culled for good once revealed; the board is always on screen anyway.
+      mesh.frustumCulled = false;
+      this.scene.add(mesh);
+      this.ground.push({ mesh });
+    }
+    // Re-reveal what the player has already explored.
+    if (this.shown) {
+      for (let i = 0; i < n; i++) if (this.shown[i]) this.revealTile(i);
+      for (const part of this.ground) part.mesh.instanceMatrix.needsUpdate = true;
+    }
+  }
+
+  /** Place hex `i`'s tile (it starts scaled to nothing). Caller flags the instance matrix for upload. */
+  private revealTile(i: number) {
+    if (!this.tilePart || !this.tileSlot || !this.tileRot || !this.tileTop) return;
+    const part = this.ground[this.tilePart[i]];
+    if (!part) return;
+    const c = hexCentre(i % this.cols, Math.floor(i / this.cols));
+    const isPuck = part.mesh.geometry === this.geo.tile;
+    const m = new THREE.Matrix4().makeRotationY(this.tileRot[i]);
+    m.setPosition(c.x, this.tileTop[i] - (isPuck ? 0.06 : 0), c.y);
+    part.mesh.setMatrixAt(this.tileSlot[i], m);
+  }
+
   /** Fog sheet alpha per hex, and ground tiles revealed as hexes become explored. */
   updateFog(vision: Uint8Array | null, explored: Uint8Array | null) {
     if (!this.fog) return;
     const { data, tex } = this.fog;
     const w = this.cols;
     const h = this.rows;
-    const m = new THREE.Matrix4();
     let revealed = false;
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
@@ -254,16 +328,14 @@ export class Renderer {
         data[o + 1] = 10;
         data[o + 2] = 6;
         data[o + 3] = alpha;
-        if (explored && explored[i] && this.ground && this.shown && this.tileTop && !this.shown[i]) {
-          const c = hexCentre(x, y);
-          m.makeTranslation(c.x, this.tileTop[i] - 0.06, c.y);
-          this.ground.setMatrixAt(i, m);
+        if (explored && explored[i] && this.shown && !this.shown[i]) {
+          this.revealTile(i);
           this.shown[i] = 1;
           revealed = true;
         }
       }
     }
-    if (revealed && this.ground) this.ground.instanceMatrix.needsUpdate = true;
+    if (revealed) for (const part of this.ground) part.mesh.instanceMatrix.needsUpdate = true;
     tex.needsUpdate = true;
   }
 
@@ -360,6 +432,8 @@ export class Renderer {
         for (const c of b.visual.model.includes('{team}') ? TEAM_VARIANTS : [''])
           void this.models.load(b.visual.model.replace('{team}', c));
     for (const n of tree.nodes) for (const f of n.visual.models ?? []) void this.models.load(f);
+    for (const t of tree.terrain)
+      for (const f of [t.visual.model, ...(t.visual.shore ?? [])]) if (f) void this.models.load(f);
   }
 
   /** "{team}" in a building model name → the KayKit colour variant nearest to the owner's colour. */

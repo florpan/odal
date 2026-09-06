@@ -10,6 +10,10 @@ with the texture embedded. Two normalisations:
              relative sizes are kept. CHARACTER_SCALE (1 / Rogue height) makes a KayKit
              person 1 tile tall; use it for nature, resources and props.
   height     height = 1 unit (legacy; a different factor per asset, avoid).
+  hex[:deg]  a Hexagon-pack ground tile: kept centred with its top face at y=0 (the pack
+             authors them that way, base below), scaled so flat-to-flat = 1 (one Odal hex),
+             optionally rotated `deg` about the vertical axis first. Coast tiles are rotated so
+             the water side is centred on +z (screen bottom); the renderer turns them from there.
 
 Run inside Blender, headless:
 
@@ -41,6 +45,14 @@ DEFAULT_JOBS = [
     (f'scale:{CHARACTER_SCALE}', os.path.join(FOREST, 'Tree_2_C_Color1.gltf'), os.path.join(OUT, 'tree_2.glb')),
     (f'scale:{CHARACTER_SCALE}', os.path.join(FOREST, 'Tree_3_C_Color1.gltf'), os.path.join(OUT, 'tree_3.glb')),
     (f'scale:{CHARACTER_SCALE}', os.path.join(FOREST, 'Tree_4_C_Color1.gltf'), os.path.join(OUT, 'tree_4.glb')),
+    # Ground tiles (terrain.json). Coast A-D have 1-4 consecutive water edges; their water is centred at
+    # Blender 300/270/300/330 degrees, so rotate by 270 minus that to put it at 270 (= +z in glTF).
+    ('hex', os.path.join(HEX, 'tiles', 'base', 'hex_grass.gltf'), os.path.join(OUT, 'hex_grass.glb')),
+    ('hex', os.path.join(HEX, 'tiles', 'base', 'hex_water.gltf'), os.path.join(OUT, 'hex_water.glb')),
+    ('hex:-30', os.path.join(HEX, 'tiles', 'coast', 'hex_coast_A.gltf'), os.path.join(OUT, 'hex_coast_1.glb')),
+    ('hex:0', os.path.join(HEX, 'tiles', 'coast', 'hex_coast_B.gltf'), os.path.join(OUT, 'hex_coast_2.glb')),
+    ('hex:-30', os.path.join(HEX, 'tiles', 'coast', 'hex_coast_C.gltf'), os.path.join(OUT, 'hex_coast_3.glb')),
+    ('hex:-60', os.path.join(HEX, 'tiles', 'coast', 'hex_coast_D.gltf'), os.path.join(OUT, 'hex_coast_4.glb')),
 ]
 
 
@@ -77,20 +89,31 @@ def convert(mode, src, out):
             bpy.data.objects.remove(o)
 
     # Centre the footprint on the origin, base at z=0 (Blender z-up), then normalise.
+    # Hex tiles keep their authored origin (top face at z=0) and only get scaled and turned.
     xs = [v.co.x for v in obj.data.vertices]
     ys = [v.co.y for v in obj.data.vertices]
     zs = [v.co.z for v in obj.data.vertices]
+    is_hex = mode == 'hex' or mode.startswith('hex:')
     cx, cy, z0 = (max(xs) + min(xs)) / 2, (max(ys) + min(ys)) / 2, min(zs)
-    for v in obj.data.vertices:
-        v.co -= Vector((cx, cy, z0))
+    if not is_hex:
+        for v in obj.data.vertices:
+            v.co -= Vector((cx, cy, z0))
     extent = max(max(xs) - min(xs), max(ys) - min(ys))
     height = max(zs) - min(zs)
     if mode == 'footprint':
         s = 1 / extent
     elif mode.startswith('scale:'):
         s = float(mode.split(':', 1)[1])
+    elif is_hex:
+        s = 1 / (max(xs) - min(xs))  # flat-to-flat width becomes one hex
     else:
         s = 1 / height
+    if is_hex and ':' in mode:
+        import math
+        from mathutils import Matrix
+        rot = Matrix.Rotation(math.radians(float(mode.split(':', 1)[1])), 4, 'Z')
+        for v in obj.data.vertices:
+            v.co = rot @ v.co
     for v in obj.data.vertices:
         v.co *= s
 

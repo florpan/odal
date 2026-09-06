@@ -34,6 +34,7 @@ export class ModelLibrary {
   private pending = new Map<string, Promise<void>>();
   private teamMats = new Map<string, THREE.MeshLambertMaterial>();
   private plainMats = new Map<string, THREE.MeshLambertMaterial>();
+  private geometries = new Map<string, { geometry: THREE.BufferGeometry; material: THREE.Material }>();
 
   /** Start loading; resolves (never rejects) when the file is usable or has failed. */
   load(file: string): Promise<void> {
@@ -107,7 +108,37 @@ export class ModelLibrary {
     return { root, meshes, mats, clips: t.clips };
   }
 
+  /**
+   * The first mesh of a loaded static model as one geometry (its transform baked in) and a
+   * shared Lambert material, for InstancedMesh use (ground tiles). Null while loading.
+   */
+  geometryOf(file: string): { geometry: THREE.BufferGeometry; material: THREE.Material } | null {
+    const cached = this.geometries.get(file);
+    if (cached) return cached;
+    const t = this.templates.get(file);
+    if (!t) return null;
+    let found: { geometry: THREE.BufferGeometry; material: THREE.Material } | null = null;
+    t.scene.updateMatrixWorld(true);
+    t.scene.traverse((o) => {
+      if (found || !(o instanceof THREE.Mesh)) return;
+      const geometry = o.geometry.clone();
+      geometry.applyMatrix4(o.matrixWorld);
+      const src = (Array.isArray(o.material) ? o.material[0] : o.material) as THREE.MeshStandardMaterial;
+      const key = `${file}:${src.name}`;
+      let m = this.plainMats.get(key);
+      if (!m) {
+        m = new THREE.MeshLambertMaterial({ color: src.color ?? 0xffffff, map: src.map ?? null });
+        this.plainMats.set(key, m);
+      }
+      found = { geometry, material: m };
+    });
+    if (found) this.geometries.set(file, found);
+    return found;
+  }
+
   dispose() {
+    for (const g of this.geometries.values()) g.geometry.dispose();
+    this.geometries.clear();
     for (const t of this.templates.values())
       t.scene.traverse((o) => {
         if (o instanceof THREE.Mesh) o.geometry.dispose();

@@ -108,7 +108,7 @@ Three.js game, and a content editor page that shares the tree view with the game
 | House / Library / Barracks | Brown / purple / dark red box                        |
 | Wall / Gate / Watchtower   | Gray block / dark wooden block / tall light-gray box |
 | Farm                       | Flat wheat-colored slab                              |
-| Ground                     | Board of flat hex pucks with seams, greens varied    |
+| Ground                     | KayKit hex tiles: grass, water (lower), coast A–D    |
 | Ownership                  | Colored hex plate under every building               |
 | Under construction         | Building grows in height with progress               |
 | Remembered enemy building  | Translucent ghost until seen again                   |
@@ -196,7 +196,9 @@ basic combat, multiplayer over WebSocket, minimap, HUD.
     the soldier, remaining buildings from the Hexagon pack, rocks from Resource Bits, one shared texture per
     pack instead of a copy in every GLB, softer shrink-with-amount for tree models.
 - [x] Terrain layer: `terrain.json`, island with water as the natural border, unexplored hexes hidden (2026-09-06)
-- [ ] KayKit hex tiles as ground (grass, coast, water), then per-hex stepped height
+- [x] KayKit hex tiles as ground: grass, water, coast A–D picked by consecutive water edges and turned
+      towards the sea (2026-09-06). Flat coloured pucks remain the fallback without the GLBs.
+- [ ] Per-hex stepped height (the pack's sloped tiles)
 - [ ] Animations (walk, chop, attack), sound
 - [ ] Flashier start screen, in-game help, settings dialog (all React)
 
@@ -211,7 +213,7 @@ basic combat, multiplayer over WebSocket, minimap, HUD.
 ## Open questions
 
 - ~~Hexagonal tiles?~~ Decided 2026-09-06: hex grid at person scale, board-game look (ADR 0008). Next on
-  the map: terrain layer (water, coast) for the island, per-hex stepped height, KayKit hex tiles as ground.
+  the map: per-hex stepped height. Terrain layer, island and KayKit ground tiles landed the same day.
 - Pathfinding styles per unit (a dumb heavy hitter that walks straight and needs micro)? Idea from
   2026-09-06, not decided. `pathfinding.ts` is built so this is a parameter on `findPath`, nothing more.
 
