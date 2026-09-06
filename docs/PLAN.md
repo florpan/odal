@@ -183,25 +183,29 @@ basic combat, multiplayer over WebSocket, minimap, HUD.
 The tree is built around what the KayKit Hexagon packs actually contain, so nothing is a placeholder.
 Ids stay stable where a building only changed its look (`farm` is the windmill, `library` the blacksmith).
 
-| Pack model                                  | Building       | Status                                              |
-| ------------------------------------------- | -------------- | --------------------------------------------------- |
-| townhall                                    | Town hall      | in: start, drop-off, workers                        |
-| home_A                                      | House          | in                                                  |
-| windmill                                    | Windmill       | in: wheat, crop rotation                            |
-| lumbermill, mine                            | drop-offs      | in; later per-resource drop-off and a gather bonus  |
-| market                                      | Market         | in: gold trickle; later trade                       |
-| blacksmith                                  | Blacksmith     | in: research                                        |
-| barracks                                    | Barracks       | in                                                  |
-| castle                                      | Castle         | in: late-game pop and soldiers                      |
-| tower_A / B / catapult / cannon, watchtower | Tower line     | tower_A in; upgrade-in-place command still to build |
-| church, shrine                              | healer, mage   | skipped for now (no ranged or healing yet)          |
-| archeryrange                                | Archer         | skipped for now (no ranged)                         |
-| stables                                     | Scout, speed   | later                                               |
-| workshop                                    | Siege          | later, with damage-by-target                        |
-| watermill                                   | Wheat by water | skipped (needs placement rules)                     |
-| well, tavern, docks, shipyard               | –              | no role yet                                         |
+| Pack model                                            | Building       | Status                                                                                                                           |
+| ----------------------------------------------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| townhall                                              | Town hall      | in: start, drop-off, workers                                                                                                     |
+| home_A                                                | House          | in                                                                                                                               |
+| windmill                                              | Windmill       | in: wheat, crop rotation                                                                                                         |
+| lumbermill, mine                                      | drop-offs      | in; later per-resource drop-off and a gather bonus                                                                               |
+| market                                                | Market         | in: gold trickle; later trade                                                                                                    |
+| blacksmith                                            | Blacksmith     | in: research                                                                                                                     |
+| barracks                                              | Barracks       | in                                                                                                                               |
+| castle                                                | Castle         | in: late-game pop and soldiers                                                                                                   |
+| tower_A / B / catapult / cannon, watchtower           | Tower line     | tower_A in; upgrade-in-place command still to build                                                                              |
+| church, shrine                                        | healer, mage   | in as test buildings (5 lumber, 3 s) until healing and mages exist                                                               |
+| archeryrange                                          | Archer         | in as test building until ranged exists                                                                                          |
+| stables                                               | Scout, speed   | in as test building                                                                                                              |
+| workshop                                              | Siege          | in as test building; siege needs damage-by-target                                                                                |
+| watermill                                             | Wheat by water | in as test building (needs placement rules to matter)                                                                            |
+| well, tavern, tent, docks, shipyard                   | –              | in as test buildings, no role yet                                                                                                |
+| wall_straight, gate, corner, fences, bridge (neutral) | walls          | in: wall and gate use the pack pieces; corner, fences and bridge as test buildings. Orienting walls to neighbours is still to do |
+| building_grain                                        | Grain field    | in as test building: wheat, cheaper than the windmill                                                                            |
+| scaffolding, destroyed                                | stages         | converted, not used: construction and ruin looks later                                                                           |
 
-Walls and gates keep primitives: the pack has no wall pieces. Units in the plan (worker with tools,
+Test buildings cost 5 lumber and take 3 s so the look can be checked in play; they get real prices when
+they get a role. Units in the plan (worker with tools,
 soldier with sword and shield, archer, healer, mage, berserker, scout, siege) come from the
 Adventurers characters plus hand props and the shared animation set; only the worker and soldier exist.
 Model files are 100–360 KB each because every one embeds its own copy of the atlas; sharing one

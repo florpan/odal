@@ -56,6 +56,19 @@ DEFAULT_JOBS = [
     for n in ['townhall', 'home_A', 'windmill', 'blacksmith', 'barracks', 'tower_A', 'lumbermill', 'mine', 'market', 'castle']
     for c in ['red', 'blue', 'green', 'yellow']
 ] + [
+    # The rest of the pack's team buildings, red only, as placeable test buildings until they get a role
+    # (then: four colours and "{team}").
+    ('scale:0.5', os.path.join(HEX, 'buildings', 'red', f'building_{n}_red.gltf'), os.path.join(OUT, f'{n.lower()}.glb'))
+    for n in ['archeryrange', 'church', 'shrine', 'stables', 'workshop', 'watermill', 'well', 'tavern', 'tower_B',
+              'tower_catapult', 'tower_cannon', 'watchtower', 'docks', 'shipyard', 'tent', 'home_B']
+] + [
+    # Neutral pieces: walls, gate, fences, a grain field, construction and ruin stages.
+    ('scale:0.5', os.path.join(HEX, 'buildings', 'neutral', f'{n}.gltf'), os.path.join(OUT, f'{out}.glb'))
+    for n, out in [('wall_straight', 'wall'), ('wall_straight_gate', 'gate'), ('wall_corner_A_outside', 'wall_corner'),
+                   ('fence_wood_straight', 'fence_wood'), ('fence_stone_straight', 'fence_stone'),
+                   ('building_grain', 'grain'), ('building_scaffolding', 'scaffolding'), ('building_destroyed', 'ruin'),
+                   ('building_bridge_A', 'bridge')]
+] + [
     (f'scale:{CHARACTER_SCALE}', os.path.join(FOREST, 'Tree_1_C_Color1.gltf'), os.path.join(OUT, 'tree_1.glb')),
     (f'scale:{CHARACTER_SCALE}', os.path.join(FOREST, 'Tree_2_C_Color1.gltf'), os.path.join(OUT, 'tree_2.glb')),
     (f'scale:{CHARACTER_SCALE}', os.path.join(FOREST, 'Tree_3_C_Color1.gltf'), os.path.join(OUT, 'tree_3.glb')),
