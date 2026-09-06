@@ -213,28 +213,37 @@ texture per pack is the fix when size matters.
 
 ### M3 — Looks
 
-- [ ] Replace primitives with low-poly models. **State on 2026-09-05:**
+- [ ] Replace primitives with low-poly models. **State on 2026-09-06 (evening):**
   - Data: `visual.model` on units and buildings, `visual.models` + `scale` on nodes (CONTENT.md). Anything
     missing falls back to the primitives, so the repo is playable without any GLB.
   - Renderer: `render/models.ts` loads once, clones skinned models with their skeleton, "Team" material in the
     owner colour, clips by task name (idle, walk, chop, mine, build, attack; hit and death reserved), units face
     their movement, buildings grow during construction, `{team}` picks the nearest KayKit colour variant.
   - Assets (CC0 KayKit, packs on Christer's machine in `C:\Dev\KayKit`, licence note in
-    `client/public/models`): worker = Rogue with eight clips (`tools/models/kaykit_character.py`), house =
-    home_A in four colours, trees = four Forest Nature C-trees (`tools/models/kaykit_prop.py`). The Blender
-    scripts run through the Blender MCP (start "Connect to Claude" in Blender's BlenderMCP sidebar tab first)
-    or headless with `blender -b -P`.
-  - Scale convention: one factor per pack family. Characters and nature use `CHARACTER_SCALE` (a KayKit
-    person = 1 tile); the miniature Hexagon tile set is fitted to our tile by footprint instead. Building
-    sizes still to be tuned (a 2×2 barracks should share the house's factor).
+    `client/public/models`): worker = Rogue with eight clips (`tools/models/kaykit_character.py`); every
+    building, the ground tiles, coast, forests, rocks, hills and mountains come from the Medieval Hexagon
+    EXTRA pack (`kaykit_prop.py` DEFAULT_JOBS and `kaykit_compose.py`); the four Forest Nature trees are
+    still converted but unused. The Blender scripts run headless with
+    `"C:/Program Files/Blender Foundation/Blender 5.0/blender.exe" -b -P <script>` (the MCP is optional).
+  - Scale convention: one factor per pack family. The whole Hexagon pack (tiles, buildings, decorations)
+    is at `scale:0.5`, so a pack tile is one hex and a house is half a hex, a castle a whole one. The
+    character uses `CHARACTER_SCALE` (a KayKit person = 1 hex tall) and therefore towers over the town
+    hall. **Open decision (Christer):** shrink the character to a Civ-style token, scale buildings up to
+    fill their hex (loses the house/castle hierarchy), or meet in the middle. Knobs: `CHARACTER_SCALE`,
+    the buildings' `scale:0.5`, `visual.height` per unit, `visual.scale` per node.
   - Colours: `kaykit_prop.py` has a `PALETTE` table that nudges pack swatches at export (the Hexagon grass
     was a lime with red ≈ green; now a touch greener). Sun light is neutral white so colour lives in the models.
     Small steps only, shadows and lighting are still to come. `kaykit_compose.py` builds whole-tile terrains.
   - Tooling: `tools/models/glb.ts` + `worker.ts` (procedural labourer, `bun run model:worker`, kept as a
     reference), `inspect.ts` (what is in a GLB), `models.html` viewer (`?m=file.glb`, plays clips).
-  - **Next:** tools in the worker's hands per clip (KayKit axe / pickaxe props on the hand slot), Knight as
-    the soldier, remaining buildings from the Hexagon pack, rocks from Resource Bits, one shared texture per
-    pack instead of a copy in every GLB, softer shrink-with-amount for tree models.
+  - Done 2026-09-06: hex grid, island terrain, ground tiles, relief, decorations, palette nudge, all pack
+    buildings in (12 real, 21 cheap test ones, see the M2 content plan), pack walls and gate, ownership
+    plate dropped under modelled buildings.
+  - **Next:** the scale decision above; tools in the worker's hands per clip (axe / pickaxe / hammer on the
+    hand slot); Knight with sword and shield as the soldier; walls turned to face their neighbours (same
+    trick as the coast tiles); an upgrade-in-place command for the tower line; construction scaffolding and
+    ruin stages from the pack; one shared texture per pack instead of a copy in every GLB (files are
+    100–360 KB each); the four-colour conversion of test buildings once they get a role.
 - [x] Terrain layer: `terrain.json`, island with water as the natural border, unexplored hexes hidden (2026-09-06)
 - [x] KayKit hex tiles as ground: grass, water, coast A–D picked by consecutive water edges and turned
       towards the sea (2026-09-06). Flat coloured pucks remain the fallback without the GLBs.
