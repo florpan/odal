@@ -95,7 +95,7 @@ describe('engine with the default tech tree', () => {
   test('relief: elevation is quantised noise, flat on water and shore, one step between neighbours', () => {
     const { rules } = DEFAULT_TREE;
     expect(rules.map.relief).toBeDefined();
-    const groundIdx = DEFAULT_TREE.terrain.findIndex((t) => t.id === rules.map.ground);
+    const waterIdx = DEFAULT_TREE.terrain.findIndex((t) => t.id === rules.map.island!.water);
     for (const seed of [1, 7, 42]) {
       const st = createGame(DEFAULT_TREE, seed);
       expect(st.elevation.length).toBe(st.width * st.height);
@@ -108,17 +108,37 @@ describe('engine with the default tech tree', () => {
         counts[e]++;
         const x = i % st.width;
         const y = Math.floor(i / st.width);
-        const land = st.terrain[i] === groundIdx;
+        const water = st.terrain[i] === waterIdx;
         let shore = false;
         for (const n of hexNeighbours(x, y)) {
           if (n.x < 0 || n.y < 0 || n.x >= st.width || n.y >= st.height) continue;
           const j = n.y * st.width + n.x;
-          if (st.terrain[j] !== groundIdx) shore = true;
+          if (st.terrain[j] === waterIdx) shore = true;
           expect(Math.abs(st.elevation[j] - e)).toBeLessThanOrEqual(1);
         }
-        if (!land || shore) expect(e).toBe(0);
+        if (water || shore) expect(e).toBe(0);
       }
       for (const c of counts) expect(c).toBeGreaterThan(0); // every level occurs
+    }
+  });
+
+  test('terrain features are scattered on land, carry no nodes, and impassable ones block', () => {
+    const { rules } = DEFAULT_TREE;
+    expect(rules.map.features.length).toBeGreaterThan(0);
+    const st = createGame(DEFAULT_TREE, 7);
+    const blocked = computeBlocked(st);
+    for (const f of rules.map.features) {
+      const idx = DEFAULT_TREE.terrain.findIndex((t) => t.id === f.terrain);
+      const hexes = st.terrain.map((t, i) => (t === idx ? i : -1)).filter((i) => i >= 0);
+      expect(hexes.length).toBeGreaterThan(0);
+      for (const i of hexes) {
+        expect(Object.values(st.nodes).some((n) => n.y * st.width + n.x === i)).toBe(false);
+        expect(blocked[i]).toBe(DEFAULT_TREE.terrain[idx].passable ? 0 : 1);
+        for (const s of st.starts)
+          expect(hexDistance(s, { x: i % st.width, y: Math.floor(i / st.width) })).toBeGreaterThan(
+            rules.startClearRadius,
+          );
+      }
     }
   });
 

@@ -199,6 +199,8 @@ basic combat, multiplayer over WebSocket, minimap, HUD.
 - [x] KayKit hex tiles as ground: grass, water, coast A–D picked by consecutive water edges and turned
       towards the sea (2026-09-06). Flat coloured pucks remain the fallback without the GLBs.
 - [x] Per-hex stepped height from seeded noise (`rules.map.relief`), everything on a hex rises with it (2026-09-06)
+- [x] Hexagon-pack decorations tried (2026-09-06): forest clusters as tree nodes, pack rocks as stone (scale 3), hills and
+      mountains composed onto a grass tile as terrains scattered by `rules.map.features`. Verdict pending Christer.
 - [ ] The pack's sloped tiles on the steps, cliffs as terrain that costs more to climb (a `findPath` parameter)
 - [ ] Animations (walk, chop, attack), sound
 - [ ] Flashier start screen, in-game help, settings dialog (all React)

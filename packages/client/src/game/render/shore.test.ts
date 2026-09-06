@@ -12,6 +12,7 @@ function flatMap(): GameState {
     height: 7,
     terrain: new Array<number>(49).fill(0),
     tree: {
+      rules: { map: { island: { water: 'water' } } },
       terrain: [
         { id: 'grass', passable: true, visual: { color: '#000000', height: 0, model: 'g.glb', shore: SHORE } },
         { id: 'water', passable: false, visual: { color: '#000000', height: 0, model: 'w.glb' } },

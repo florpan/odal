@@ -14,6 +14,29 @@
     "name": "Water",
     "desc": "The sea around the island. Nothing crosses it.",
     "passable": false,
-    "visual": { "color": "#2f6f9f", "height": -0.1, "model": "hex_water.glb" }
+    "visual": {
+      "color": "#2f6f9f",
+      "height": -0.1,
+      "model": "hex_water.glb"
+    }
+  },
+  {
+    "id": "hills",
+    "name": "Hills",
+    "desc": "Rolling ground. Walkable, nothing grows on it.",
+    "visual": {
+      "color": "#8a9a3c",
+      "model": "hex_hills_a.glb"
+    }
+  },
+  {
+    "id": "mountain",
+    "name": "Mountain",
+    "desc": "Bare rock. Nothing crosses it.",
+    "passable": false,
+    "visual": {
+      "color": "#8d8d8d",
+      "model": "hex_mountain_a_trees.glb"
+    }
   }
 ]

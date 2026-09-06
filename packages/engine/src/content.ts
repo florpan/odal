@@ -155,6 +155,12 @@ export interface Rules {
      * Purely a look for now; movement ignores it.
      */
     relief?: { levels: number; scale: number };
+    /**
+     * Clumps of other terrain scattered over the ground (hills, mountains): `per1000` clumps per 1000
+     * land hexes, each a random walk of `size` hexes. Nothing spawns on them; whether units cross
+     * them is the terrain's `passable`.
+     */
+    features: { terrain: string; per1000: number; size: [number, number] }[];
   };
   /** Every start slot gets each node type's `spawn.perStart` clusters/deposits within this radius. */
   homeRadius: number;

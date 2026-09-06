@@ -87,6 +87,44 @@
                     "levels"
                   ],
                   "additionalProperties": false
+                },
+                "features": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "terrain": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-z0-9_]*$"
+                      },
+                      "per1000": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "size": {
+                        "type": "array",
+                        "minItems": 2,
+                        "maxItems": 2,
+                        "items": [
+                          {
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          {
+                            "type": "integer",
+                            "minimum": 1
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "terrain",
+                      "per1000",
+                      "size"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "default": []
                 }
               },
               "required": [

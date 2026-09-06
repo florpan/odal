@@ -21,6 +21,8 @@ export interface GeneratedMap {
  *    becomes an island with a wandering coastline and `island.water` outside.
  * 1. `rules.map.starts` start slots on a ring around the centre, evenly spaced
  *    at a random rotation, on land. Players at the edges, the middle in between.
+ * 1b. Features: `rules.map.features` clumps of other terrain (hills, mountains)
+ *    random-walked over the ground, away from the start clearings.
  * 2. Home zones: every slot gets each node type's `spawn.perStart` clusters or
  *    deposits somewhere between the start clearing and `rules.homeRadius`.
  * 3. The per-1000-land-hexes scatter from each `spawn` rule, anywhere on land
@@ -48,11 +50,12 @@ export function generateMap(tree: TechTree, seed: number, w: number, h: number):
   const groundIdx = tree.terrain.findIndex((t) => t.id === rules.map.ground);
   const terrain: number[] = new Array<number>(w * h).fill(groundIdx);
   const island = rules.map.island;
+  const waterIdx = island ? tree.terrain.findIndex((t) => t.id === island.water) : -1;
+  const isWater = (i: number) => terrain[i] === waterIdx;
   /** How far inland (in world units, along each axis) the coast is guaranteed to be. */
   let landX = cx;
   let landY = cy;
   if (island) {
-    const waterIdx = tree.terrain.findIndex((t) => t.id === island.water);
     // Coastline: a radius of 1 - shore in normalised ellipse space, plus a few harmonics.
     const waves = [2, 3, 5, 7].map((k) => ({ k, amp: (0.4 + rng() * 0.6) / k, phase: rng() * TAU }));
     const coast = (a: number) => {
@@ -136,6 +139,30 @@ export function generateMap(tree: TechTree, seed: number, w: number, h: number):
   // The start hexes themselves stay free: the starting building goes there.
   for (const s of starts) occupied.add(s.y * w + s.x);
 
+  // 1b. Features: clumps of hills, mountains, ... on the ground, clear of the start clearings.
+  //     They join `occupied` so no node spawns on them.
+  const nearStart = (x: number, y: number) =>
+    starts.some((s) => hexDistance(s, { x, y }) <= rules.startClearRadius + 1);
+  for (const f of rules.map.features) {
+    const fIdx = tree.terrain.findIndex((t) => t.id === f.terrain);
+    const count = Math.round(f.per1000 * per1000);
+    for (let k = 0; k < count; k++) {
+      let x = 2 + Math.floor(rng() * (w - 4));
+      let y = 2 + Math.floor(rng() * (h - 4));
+      const n = f.size[0] + Math.floor(rng() * (f.size[1] - f.size[0] + 1));
+      for (let step = 0; step < n; step++) {
+        const i = y * w + x;
+        if (isLand(x, y) && !occupied.has(i) && !nearStart(x, y)) {
+          terrain[i] = fIdx;
+          occupied.add(i);
+        }
+        const next = hexNeighbours(x, y)[Math.floor(rng() * 6)];
+        x = next.x;
+        y = next.y;
+      }
+    }
+  }
+
   // 2. Home zones, placed first so they win the tiles. A cluster whose seed hex is
   //    already taken (water, or a deposit landing in a forest) is re-rolled a few times.
   const inner = rules.startClearRadius + 1;
@@ -182,7 +209,7 @@ export function generateMap(tree: TechTree, seed: number, w: number, h: number):
   //    water too, as a causeway).
   const byTile = new Map<number, number>();
   for (const id in nodes) byTile.set(nodes[id].y * w + nodes[id].x, Number(id));
-  const blockedAt = (i: number) => byTile.has(i) || terrain[i] !== groundIdx;
+  const blockedAt = (i: number) => byTile.has(i) || !tree.terrain[terrain[i]].passable;
   for (const s of starts) {
     if (reaches(blockedAt, w, h, s, centre)) continue;
     for (const t of hexLine(s, centre)) {
@@ -207,7 +234,7 @@ export function generateMap(tree: TechTree, seed: number, w: number, h: number):
     }
     // Thresholds at quantiles of the land values, so the mix of levels is the same on every map:
     // level 0 is the lowest 45%, the rest is shared out with the higher levels rarer.
-    const land = Array.from(values.filter((_, i) => terrain[i] === groundIdx)).sort((a, b) => a - b);
+    const land = Array.from(values.filter((_, i) => !isWater(i))).sort((a, b) => a - b);
     const weights = Array.from({ length: relief.levels }, (_, k) => relief.levels - k);
     const total = weights.reduce((a, b) => a + b, 0);
     const thresholds: number[] = [];
@@ -217,21 +244,17 @@ export function generateMap(tree: TechTree, seed: number, w: number, h: number):
       cum += (0.55 * wgt) / total;
     }
     for (let i = 0; i < w * h; i++) {
-      if (terrain[i] !== groundIdx) continue;
+      if (isWater(i)) continue;
       let level = 0;
       for (const t of thresholds) if (values[i] >= t) level++;
       elevation[i] = level;
     }
     // The beach is flat, and every slope is a single step.
     for (let i = 0; i < w * h; i++) {
-      if (terrain[i] !== groundIdx) continue;
+      if (isWater(i)) continue;
       const x = i % w;
       const y = Math.floor(i / w);
-      if (
-        hexNeighbours(x, y).some(
-          (n) => n.x >= 0 && n.y >= 0 && n.x < w && n.y < h && terrain[n.y * w + n.x] !== groundIdx,
-        )
-      )
+      if (hexNeighbours(x, y).some((n) => n.x >= 0 && n.y >= 0 && n.x < w && n.y < h && isWater(n.y * w + n.x)))
         elevation[i] = 0;
     }
     let changed = true;

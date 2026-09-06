@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 
 // ---------------------------------------------------------------------------
@@ -109,30 +110,40 @@ export class ModelLibrary {
   }
 
   /**
-   * The first mesh of a loaded static model as one geometry (its transform baked in) and a
-   * shared Lambert material, for InstancedMesh use (ground tiles). Null while loading.
+   * A loaded static model as one geometry (every mesh merged, transforms baked in) and one shared
+   * Lambert material (the first mesh's; ground tiles share a single texture), for InstancedMesh use.
+   * Null while loading.
    */
   geometryOf(file: string): { geometry: THREE.BufferGeometry; material: THREE.Material } | null {
     const cached = this.geometries.get(file);
     if (cached) return cached;
     const t = this.templates.get(file);
     if (!t) return null;
-    let found: { geometry: THREE.BufferGeometry; material: THREE.Material } | null = null;
+    const parts: THREE.BufferGeometry[] = [];
+    let material: THREE.Material | null = null;
     t.scene.updateMatrixWorld(true);
     t.scene.traverse((o) => {
-      if (found || !(o instanceof THREE.Mesh)) return;
-      const geometry = o.geometry.clone();
-      geometry.applyMatrix4(o.matrixWorld);
-      const src = (Array.isArray(o.material) ? o.material[0] : o.material) as THREE.MeshStandardMaterial;
-      const key = `${file}:${src.name}`;
-      let m = this.plainMats.get(key);
-      if (!m) {
-        m = new THREE.MeshLambertMaterial({ color: src.color ?? 0xffffff, map: src.map ?? null });
-        this.plainMats.set(key, m);
+      if (!(o instanceof THREE.Mesh)) return;
+      const g = o.geometry.clone();
+      g.applyMatrix4(o.matrixWorld);
+      // Merging needs identical attribute sets; drop what the first part does not have.
+      if (parts.length) for (const k of Object.keys(g.attributes)) if (!parts[0].attributes[k]) g.deleteAttribute(k);
+      parts.push(g);
+      if (!material) {
+        const src = (Array.isArray(o.material) ? o.material[0] : o.material) as THREE.MeshStandardMaterial;
+        const key = `${file}:${src.name}`;
+        let m = this.plainMats.get(key);
+        if (!m) {
+          m = new THREE.MeshLambertMaterial({ color: src.color ?? 0xffffff, map: src.map ?? null });
+          this.plainMats.set(key, m);
+        }
+        material = m;
       }
-      found = { geometry, material: m };
     });
-    if (found) this.geometries.set(file, found);
+    if (!parts.length || !material) return null;
+    const geometry = parts.length === 1 ? parts[0] : (mergeGeometries(parts, false) ?? parts[0]);
+    const found = { geometry, material };
+    this.geometries.set(file, found);
     return found;
   }
 

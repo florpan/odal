@@ -2,10 +2,11 @@ import { hexCentre, hexNeighbours } from '@odal/engine';
 import type { GameState } from '@odal/engine';
 
 // ---------------------------------------------------------------------------
-// Which ground tile a hex shows. A passable hex next to impassable terrain
-// (the coast) gets one of its terrain's `shore` tiles: the one for its longest
-// run of consecutive water edges, turned so the tile's water side (authored
-// towards +z, i.e. world angle 90°) faces the middle of that run.
+// Which ground tile a hex shows. A hex next to the island's water gets one of
+// its terrain's `shore` tiles: the one for its longest run of consecutive water
+// edges, turned so the tile's water side (authored towards +z, i.e. world angle
+// 90°) faces the middle of that run. Other impassable terrain (mountains) is not
+// a coast.
 // ---------------------------------------------------------------------------
 
 export interface Shore {
@@ -15,16 +16,16 @@ export interface Shore {
   angle: number;
 }
 
-/** The longest run of impassable neighbours around hex (x, y), or null if it has none or is impassable itself. */
+/** The longest run of water neighbours around hex (x, y), or null if it has none, is water itself, or the map has no water. */
 export function shoreOf(state: GameState, x: number, y: number): Shore | null {
   const { width: w, height: h } = state;
-  const defs = state.tree.terrain;
-  if (!defs[state.terrain[y * w + x]].passable) return null;
+  const waterId = state.tree.rules.map.island?.water;
+  if (!waterId) return null;
+  const waterIdx = state.tree.terrain.findIndex((t) => t.id === waterId);
+  if (state.terrain[y * w + x] === waterIdx) return null;
   const c = hexCentre(x, y);
   const ns = hexNeighbours(x, y);
-  const water = ns.map(
-    (n) => n.x >= 0 && n.y >= 0 && n.x < w && n.y < h && !defs[state.terrain[n.y * w + n.x]].passable,
-  );
+  const water = ns.map((n) => n.x >= 0 && n.y >= 0 && n.x < w && n.y < h && state.terrain[n.y * w + n.x] === waterIdx);
   if (!water.some(Boolean)) return null;
   if (water.every(Boolean)) return { run: 6, angle: 0 };
 

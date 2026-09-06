@@ -204,6 +204,17 @@ export const RulesSchema = z
           .object({ levels: z.number().int().min(1).max(4), scale: Positive.default(9) })
           .strict()
           .optional(),
+        features: z
+          .array(
+            z
+              .object({
+                terrain: Id,
+                per1000: NonNeg,
+                size: z.tuple([z.number().int().min(1), z.number().int().min(1)]),
+              })
+              .strict(),
+          )
+          .default([]),
       })
       .strict(),
     homeRadius: Positive.default(12),
@@ -357,6 +368,11 @@ export function validateTree(data: unknown): TreeValidation {
   checkRef('rules.map.ground', ids.terrain, t.rules.map.ground, 'terrain');
   const ground = t.terrain.find((x) => x.id === t.rules.map.ground);
   if (ground && !ground.passable) errors.push('rules.map.ground: the ground terrain must be passable');
+  t.rules.map.features.forEach((f, i) => {
+    checkRef(`rules.map.features[${i}].terrain`, ids.terrain, f.terrain, 'terrain');
+    if (f.terrain === t.rules.map.ground)
+      errors.push(`rules.map.features[${i}].terrain: must differ from rules.map.ground`);
+  });
   if (t.rules.map.island) {
     checkRef('rules.map.island.water', ids.terrain, t.rules.map.island.water, 'terrain');
     if (t.rules.map.island.water === t.rules.map.ground)

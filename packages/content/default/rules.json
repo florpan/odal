@@ -8,16 +8,47 @@
       "height": 96,
       "starts": 4,
       "ground": "grass",
-      "island": { "water": "water" },
-      "relief": { "levels": 2, "scale": 9 }
+      "island": {
+        "water": "water"
+      },
+      "relief": {
+        "levels": 2,
+        "scale": 9
+      },
+      "features": [
+        {
+          "terrain": "hills",
+          "per1000": 5,
+          "size": [3, 7]
+        },
+        {
+          "terrain": "mountain",
+          "per1000": 3,
+          "size": [2, 5]
+        }
+      ]
     },
     "homeRadius": 12,
-    "startResources": { "lumber": 60, "stone": 0, "iron": 0, "gold": 20, "wheat": 40 },
+    "startResources": {
+      "lumber": 60,
+      "stone": 0,
+      "iron": 0,
+      "gold": 20,
+      "wheat": 40
+    },
     "maxQueue": 5,
     "separationDist": 0.6,
     "startClearRadius": 4,
     "upkeepInterval": 60,
     "playerColors": ["#e53935", "#1e88e5", "#43a047", "#fdd835", "#8e24aa", "#fb8c00", "#00acc1", "#f06292"]
   },
-  "start": { "building": "campfire", "units": [{ "type": "worker", "count": 1 }] }
+  "start": {
+    "building": "campfire",
+    "units": [
+      {
+        "type": "worker",
+        "count": 1
+      }
+    ]
+  }
 }
