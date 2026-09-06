@@ -3,6 +3,8 @@ import { DEFAULT_TREE } from '@odal/content';
 import { makeBuilding, makeUnit } from './entities';
 import { addPlayer, createGame, emptyEvents, stepGame } from './game';
 import { computeBlocked } from './grid';
+import { hexCentre, hexDistance, worldToHex } from './hex';
+import { findPath } from './pathfinding';
 import type { PlayerCommand } from './protocol';
 import { buildingMaxHp, countUnits } from './queries';
 import type { GameState, ResourceNode } from './types';
@@ -16,12 +18,14 @@ function run(state: GameState, ticks: number, cmds: PlayerCommand[] = []) {
   for (let i = 1; i < ticks; i++) stepGame(state, [], DT);
 }
 
+/** Nearest node of a type to a world position. */
 function nearestNode(state: GameState, type: string, x: number, y: number): ResourceNode {
   let best: ResourceNode | null = null;
   let bestD = Infinity;
   for (const n of Object.values(state.nodes)) {
     if (n.type !== type) continue;
-    const d = Math.hypot(n.x - x, n.y - y);
+    const c = hexCentre(n.x, n.y);
+    const d = Math.hypot(c.x - x, c.y - y);
     if (d < bestD) {
       bestD = d;
       best = n;
@@ -48,11 +52,21 @@ describe('engine with the default tech tree', () => {
         for (const nd of DEFAULT_TREE.nodes) {
           if (nd.spawn.perStart === 0) continue;
           const near = Object.values(st.nodes).filter(
-            (n) => n.type === nd.id && Math.hypot(n.x - s.x, n.y - s.y) <= rules.homeRadius,
+            (n) => n.type === nd.id && hexDistance(n, s) <= rules.homeRadius + 1,
           );
           expect(near.length).toBeGreaterThan(0);
         }
       }
+    }
+  });
+
+  test('every start slot can reach the centre and every other start (forests never seal a player in)', () => {
+    for (const seed of [1, 2, 3, 7, 42, 99]) {
+      const st = createGame(DEFAULT_TREE, seed);
+      const blocked = computeBlocked(st);
+      const nav = { blocked, width: st.width, height: st.height };
+      const [first, ...rest] = st.starts;
+      for (const s of rest) expect(findPath(nav, first, s)).not.toBeNull();
     }
   });
 
@@ -79,8 +93,8 @@ describe('engine with the default tech tree', () => {
     const onSlot = (h: { x: number; y: number }) => state.starts.some((s) => s.x === h.x && s.y === h.y);
     expect(onSlot(homeA)).toBe(true);
     expect(onSlot(homeB)).toBe(true);
-    const d = Math.hypot(homeA.x - homeB.x, homeA.y - homeB.y);
-    for (const s of state.starts) expect(d).toBeGreaterThanOrEqual(Math.hypot(homeA.x - s.x, homeA.y - s.y) - 1e-9);
+    const d = hexDistance(homeA, homeB);
+    for (const s of state.starts) expect(d).toBeGreaterThanOrEqual(hexDistance(homeA, s));
   });
 
   test('joining gives the starting building and units', () => {
@@ -132,11 +146,12 @@ describe('engine with the default tech tree', () => {
     const state = createGame(DEFAULT_TREE, 7);
     const p = addPlayer(state, 'Alice', emptyEvents());
     const camp = Object.values(state.buildings)[0];
-    const tree = nearestNode(state, 'tree', camp.x, camp.y);
+    const campCentre = hexCentre(camp.x, camp.y);
+    const tree = nearestNode(state, 'tree', campCentre.x, campCentre.y);
     run(state, 120, [
       {
         playerId: p.id,
-        cmd: { type: 'setRally', buildingId: camp.id, target: { x: tree.x + 0.5, y: tree.y + 0.5, nodeId: tree.id } },
+        cmd: { type: 'setRally', buildingId: camp.id, target: { ...hexCentre(tree.x, tree.y), nodeId: tree.id } },
       },
       { playerId: p.id, cmd: { type: 'train', buildingId: camp.id, unit: 'worker' } },
     ]);
@@ -250,9 +265,9 @@ describe('engine with the default tech tree', () => {
     const homeB = Object.values(state.buildings).find((x) => x.owner === b.id)!;
     for (const u of Object.values(state.units)) if (u.owner === b.id) delete state.units[u.id];
     // Open ground around Bob's campfire so pathing is not part of the test.
-    for (const n of Object.values(state.nodes))
-      if (Math.hypot(n.x - homeB.x, n.y - homeB.y) < 14) delete state.nodes[n.id];
-    const s = makeUnit(state, a.id, soldierDef.id, homeB.x + homeB.w + 1.5, homeB.y + 0.5);
+    for (const n of Object.values(state.nodes)) if (hexDistance(n, homeB) < 14) delete state.nodes[n.id];
+    const hc = hexCentre(homeB.x, homeB.y);
+    const s = makeUnit(state, a.id, soldierDef.id, hc.x + 2, hc.y);
     const post = { x: s.x, y: s.y };
     const homeHp = homeB.hp;
 
@@ -277,7 +292,8 @@ describe('engine with the default tech tree', () => {
     const b = addPlayer(state, 'Bob', emptyEvents());
     const homeB = Object.values(state.buildings).find((x) => x.owner === b.id)!;
     for (const u of Object.values(state.units)) if (u.owner === b.id) delete state.units[u.id];
-    const s = makeUnit(state, a.id, soldierDef.id, homeB.x + homeB.w + 1.5, homeB.y + 0.5);
+    const hc = hexCentre(homeB.x, homeB.y);
+    const s = makeUnit(state, a.id, soldierDef.id, hc.x + 2, hc.y);
     const homeHp = homeB.hp;
     run(state, 60, [{ playerId: a.id, cmd: { type: 'attackMove', unitIds: [s.id], target: { x: s.x, y: s.y } } }]);
     expect(homeB.hp).toBeLessThan(homeHp);
@@ -290,13 +306,15 @@ describe('engine with the default tech tree', () => {
     const b = addPlayer(state, 'Bob', emptyEvents());
     const ua = Object.values(state.units).find((u) => u.owner === a.id)!;
     const ub = Object.values(state.units).find((u) => u.owner === b.id)!;
-    const tower = makeBuilding(state, a.id, towerDef.id, Math.floor(ua.x) + 2, Math.floor(ua.y));
+    const at = worldToHex(ua);
+    const tower = makeBuilding(state, a.id, towerDef.id, at.x + 2, at.y);
     tower.progress = 1;
     tower.hp = towerDef.hp;
     // Park Bob's worker just inside range and Alice's own worker out of the way.
-    ub.x = tower.x + 0.5 + towerDef.attack!.range - 1;
-    ub.y = tower.y + 0.5;
-    ua.x = tower.x - 3;
+    const tc = hexCentre(tower.x, tower.y);
+    ub.x = tc.x + towerDef.attack!.range - 1;
+    ub.y = tc.y;
+    ua.x = tc.x - 3;
     const before = ub.hp;
     run(state, Math.ceil(towerDef.attack!.attackTime * DEFAULT_TREE.rules.tickRate) + 2);
     expect(ub.hp).toBeLessThan(before);

@@ -1,6 +1,6 @@
 import { setTask } from '../ctx';
 import type { Ctx } from '../ctx';
-import { rectDistance, tileOf } from '../grid';
+import { footprintDistance, tileOf } from '../grid';
 import { unitDamage } from '../queries';
 import type { Building, Unit, UnitTask } from '../types';
 import { goTo, goToAdjacent } from './movement';
@@ -50,8 +50,8 @@ export function stepAttack(ctx: Ctx, u: Unit) {
   } else {
     target = state.buildings[task.targetId];
     if (!target || target.hp <= 0) return resume();
-    inRange = rectDistance(u, target.x, target.y, target.w, target.h) <= def.range + 0.3;
-    if (!inRange) r = goToAdjacent(ctx, u, target.x, target.y, target.w, target.h);
+    inRange = footprintDistance(u, target.x, target.y, target.r) <= def.range + 0.3;
+    if (!inRange) r = goToAdjacent(ctx, u, target.x, target.y, target.r);
   }
 
   if (!inRange) {
@@ -92,7 +92,7 @@ export function findEnemyInRange(
   for (const id in state.buildings) {
     const b = state.buildings[id];
     if (b.owner === from.owner || b.hp <= 0) continue;
-    const d = rectDistance(from, b.x, b.y, b.w, b.h) + 1; // prefer units over buildings
+    const d = footprintDistance(from, b.x, b.y, b.r) + 1; // prefer units over buildings
     if (d <= bestD) {
       bestD = d;
       best = { targetId: b.id, targetKind: 'building' };

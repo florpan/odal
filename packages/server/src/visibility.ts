@@ -36,7 +36,7 @@ function visibleBuildings(state: GameState, vision: Uint8Array, playerId: number
   const out: Building[] = [];
   for (const id in state.buildings) {
     const b = state.buildings[id];
-    if (b.owner === playerId || isBuildingVisible(vision, state.width, b.x, b.y, b.w, b.h)) out.push(b);
+    if (b.owner === playerId || isBuildingVisible(vision, state.width, b.x, b.y, b.r)) out.push(b);
   }
   return out;
 }

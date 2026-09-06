@@ -1,4 +1,5 @@
 import type { Ctx } from '../ctx';
+import { hexCentre } from '../hex';
 import type { Building } from '../types';
 import { findEnemyInRange } from './combat';
 
@@ -16,7 +17,7 @@ export function stepTower(ctx: Ctx, b: Building) {
     b.cooldown -= ctx.dt;
     return;
   }
-  const centre = { owner: b.owner, x: b.x + b.w / 2, y: b.y + b.h / 2 };
+  const centre = { owner: b.owner, ...hexCentre(b.x, b.y) };
   const enemy = findEnemyInRange(ctx, centre, def.attack.range);
   if (!enemy) return;
   const target = enemy.targetKind === 'unit' ? ctx.state.units[enemy.targetId] : ctx.state.buildings[enemy.targetId];

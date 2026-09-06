@@ -135,7 +135,11 @@ export const BuildingSchema = z
     ...producible,
     buildable: z.boolean().default(true),
     hp: Positive,
-    size: z.object({ w: z.number().int().min(1), h: z.number().int().min(1) }).strict(),
+    /** Footprint radius in hexes: 0 = one hex, 1 = seven. */
+    size: z
+      .object({ radius: z.number().int().min(0).default(0) })
+      .strict()
+      .default({ radius: 0 }),
     pop: NonNeg.default(0),
     trains: z.array(Id).default([]),
     researches: z.array(Id).default([]),
@@ -151,7 +155,7 @@ export const BuildingSchema = z
         color: Color,
         height: Positive.default(1),
         glow: Color.optional(),
-        /** GLB under /models/ with a 1×1 footprint; "{team}" → owner's nearest KayKit colour. */
+        /** GLB under /models/ filling one hex; "{team}" → owner's nearest KayKit colour. */
         model: z.string().min(1).optional(),
       })
       .strict(),

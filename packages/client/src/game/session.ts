@@ -1,4 +1,4 @@
-import { PROTOCOL_VERSION, idx } from '@odal/engine';
+import { hexCentre, PROTOCOL_VERSION, idx } from '@odal/engine';
 import type { Building, ServerMessage } from '@odal/engine';
 import { appStore, toggleOverlay } from '../app/store';
 import { Input } from './input';
@@ -138,7 +138,7 @@ export class GameSession {
     const home = Object.values(st.buildings).find(
       (b) => b.owner === this.world.playerId && b.type === st.tree.start.building,
     );
-    if (home) r.camTarget = { x: home.x + 0.5, y: home.y + 0.5 };
+    if (home) r.camTarget = hexCentre(home.x, home.y);
     this.syncScene();
   }
 

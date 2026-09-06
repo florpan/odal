@@ -54,26 +54,28 @@ in `content/schema/` (generated from the zod schemas by `bun run schema:gen`, us
 
 `engine/src/` is framework-free TypeScript that runs identically in Bun and in the browser.
 
-| File           | Responsibility                                                                                                                                                             |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `types.ts`     | Game state: `GameState`, `Unit`, `Building`, `Player`, `ResourceNode`, tasks. Plain data only.                                                                             |
-| `protocol.ts`  | `Command`, `ClientMessage`, `ServerMessage`, `Snapshot`, `PROTOCOL_VERSION`.                                                                                               |
-| `content.ts`   | The content type hierarchy: `EntityDef` → `ResourceDef`, `NodeDef`, `ProducibleDef` → `UnitDef`, `BuildingDef`, `TechDef`. Source of truth for what a ruleset can express. |
-| `tree.ts`      | zod schemas (asserted to match `content.ts`), `*Input` author types, `FILE_SCHEMAS`, `mergeFiles`, validation, `idx()` lookups, `formatCost`, `describeEffect`.            |
-| `techgraph.ts` | Dependency graph: `buildGraph`, `prerequisites`, `chainCost`, `findCycle`, `unobtainable`, `toMermaid`. Used by validation and by tree views.                              |
-| `game.ts`      | `createGame(tree, seed)`, `addPlayer`, `stepGame`. The only lifecycle entry points.                                                                                        |
-| `commands.ts`  | Turns a `PlayerCommand` into tasks/queue entries after validating it against the rules.                                                                                    |
-| `queries.ts`   | Read-only questions: affordability, population, unlocks, tech effect multipliers, spatial lookups. Used by engine, server and client UI.                                   |
-| `entities.ts`  | `makeUnit`, `makeBuilding`.                                                                                                                                                |
-| `ctx.ts`       | The per-tick `Ctx` (state, tree, defs, dt, events, blocked grids) and tiny helpers. `blockedFor(ctx, owner)` opens the owner's gates.                                      |
-| `grid.ts`      | Blocking grid (optionally per owner), adjacency, footprint checks, A* (8-directional, no corner cutting).                                                                  |
-| `mapgen.ts`    | Seeded map generation: start slots on a ring, per-start home resources, then each node type's `spawn` scatter (optionally centre-only).                                    |
-| `vision.ts`    | Fog of war: vision grids from a player's units and buildings.                                                                                                              |
-| `systems/`     | One behaviour per file, see below.                                                                                                                                         |
+| File             | Responsibility                                                                                                                                                              |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `types.ts`       | Game state: `GameState`, `Unit`, `Building`, `Player`, `ResourceNode`, tasks. Plain data only.                                                                              |
+| `protocol.ts`    | `Command`, `ClientMessage`, `ServerMessage`, `Snapshot`, `PROTOCOL_VERSION`.                                                                                                |
+| `content.ts`     | The content type hierarchy: `EntityDef` → `ResourceDef`, `NodeDef`, `ProducibleDef` → `UnitDef`, `BuildingDef`, `TechDef`. Source of truth for what a ruleset can express.  |
+| `tree.ts`        | zod schemas (asserted to match `content.ts`), `*Input` author types, `FILE_SCHEMAS`, `mergeFiles`, validation, `idx()` lookups, `formatCost`, `describeEffect`.             |
+| `techgraph.ts`   | Dependency graph: `buildGraph`, `prerequisites`, `chainCost`, `findCycle`, `unobtainable`, `toMermaid`. Used by validation and by tree views.                               |
+| `game.ts`        | `createGame(tree, seed)`, `addPlayer`, `stepGame`. The only lifecycle entry points.                                                                                         |
+| `commands.ts`    | Turns a `PlayerCommand` into tasks/queue entries after validating it against the rules.                                                                                     |
+| `queries.ts`     | Read-only questions: affordability, population, unlocks, tech effect multipliers, spatial lookups. Used by engine, server and client UI.                                    |
+| `entities.ts`    | `makeUnit`, `makeBuilding`.                                                                                                                                                 |
+| `ctx.ts`         | The per-tick `Ctx` (state, tree, defs, dt, events, blocked grids) and tiny helpers. `blockedFor(ctx, owner)` opens the owner's gates.                                       |
+| `hex.ts`         | Hex geometry (ADR 0008): offset ↔ axial coordinates, `hexCentre`, `worldToHex`, neighbours, distance, rings, areas, lines, `worldSize`. Pure math.                          |
+| `grid.ts`        | Blocking grid (optionally per owner), footprints (centre hex + radius), adjacency rings, placement checks, `footprintDistance`.                                             |
+| `pathfinding.ts` | A* over the hex grid behind one `findPath(nav, from, to)`. The only caller is `movement.ts`; per-unit pathing styles go in here as parameters.                              |
+| `mapgen.ts`      | Seeded map generation: start slots on a ring, per-start home resources, each node type's `spawn` scatter (optionally centre-only), then a corridor for any start sealed in. |
+| `vision.ts`      | Fog of war: vision grids from a player's units and buildings.                                                                                                               |
+| `systems/`       | One behaviour per file, see below.                                                                                                                                          |
 
 ### Tick order (`stepGame`)
 
-1. Apply this tick's commands (`commands.ts`). A placed building blocks its tiles immediately.
+1. Apply this tick's commands (`commands.ts`). A placed building blocks its hexes immediately.
 2. Recompute the blocked grid; per-owner grids (gates) are built lazily by `blockedFor`.
 3. `stepUnits` – per unit, dispatch on `task.kind`:
    idle → auto-acquire (combat); move/attackMove → movement (+ auto-acquire);
@@ -93,6 +95,15 @@ completed building, or a minimum living population. The same helpers drive the d
 Movement (`systems/movement.ts`) is a service other systems call (`goTo`, `goToAdjacent`); it is the only
 code that changes unit positions apart from separation. It paths on `blockedFor(ctx, unit.owner)`, so a
 player's own `passable` buildings are open to them and closed to everyone else.
+
+### Coordinates
+
+The map is a hex grid (ADR 0008, `hex.ts`). Tiles are `(col, row)` in odd-r offset coordinates and are
+stored `row * width + col`, so a `width × height` `Uint8Array` covers the map. Nodes and buildings sit on a
+hex (`x`, `y`); a building's footprint is its centre hex plus every hex within `r` steps. Units and every
+command target are continuous world positions: neighbouring hexes in a row are 1 unit apart, rows are
+`ROW_H` (≈ 0.866) apart, odd rows are shifted right by 0.5. Convert with `hexCentre(col, row)` and
+`worldToHex(pos)`; never add 0.5 by hand. `worldSize(width, height)` gives the map's extent in world units.
 
 Adding a system: new file in `systems/`, call it from `systems/index.ts` at the right point in the order,
 add a row to the table above, add a test in `game.test.ts`.

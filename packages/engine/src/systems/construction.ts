@@ -18,7 +18,7 @@ export function stepBuild(ctx: Ctx, u: Unit) {
     setTask(u, { kind: 'idle' });
     return;
   }
-  const r = goToAdjacent(ctx, u, b.x, b.y, b.w, b.h);
+  const r = goToAdjacent(ctx, u, b.x, b.y, b.r);
   if (r === 'unreachable') {
     setTask(u, { kind: 'idle' });
     return;

@@ -1,3 +1,4 @@
+import { hexArea, hexCentre, hexLine, hexNeighbours, worldSize, worldToHex } from './hex';
 import { mulberry32 } from './rng';
 import type { NodeDef, Spawn, TechTree } from './content';
 import type { ResourceNode, Vec2 } from './types';
@@ -18,7 +19,8 @@ export interface GeneratedMap {
  * 3. The per-1000-tiles scatter from each `spawn` rule, anywhere on the map or,
  *    with `zone: 'centre'`, only in the middle fifth (contested resources).
  *
- * Deterministic for a given tree, seed and size.
+ * Positions are hexes (offset coordinates); radii are in hexes. Deterministic
+ * for a given tree, seed and size.
  */
 export function generateMap(tree: TechTree, seed: number, w: number, h: number): GeneratedMap {
   const rng = mulberry32(seed);
@@ -28,6 +30,7 @@ export function generateMap(tree: TechTree, seed: number, w: number, h: number):
   let nextId = 1;
   const per1000 = (w * h) / 1000;
   const TAU = Math.PI * 2;
+  const size = worldSize(w, h);
 
   const place = (type: string, amount: number, x: number, y: number) => {
     if (x < 0 || y < 0 || x >= w || y >= h) return;
@@ -41,49 +44,61 @@ export function generateMap(tree: TechTree, seed: number, w: number, h: number):
   /** Blob that is dense in the middle and thins out towards the edge. */
   const forest = (def: NodeDef, sp: Spawn & { kind: 'forest' }, cx: number, cy: number) => {
     const r = sp.radius[0] + rng() * (sp.radius[1] - sp.radius[0]);
-    const ri = Math.ceil(r);
-    for (let dy = -ri; dy <= ri; dy++) {
-      for (let dx = -ri; dx <= ri; dx++) {
-        const d = Math.sqrt(dx * dx + dy * dy) / r;
-        if (d > 1) continue;
-        if (rng() < 1 - d * d * 0.85) place(def.id, def.amount, cx + dx, cy + dy);
-      }
+    const centre = hexCentre(cx, cy);
+    for (const t of hexArea(cx, cy, Math.ceil(r))) {
+      const c = hexCentre(t.x, t.y);
+      const d = Math.hypot(c.x - centre.x, c.y - centre.y) / r;
+      if (d > 1) continue;
+      if (rng() < 1 - d * d * 0.85) place(def.id, def.amount, t.x, t.y);
     }
   };
 
   /** A seed rock plus a short random walk of neighbours. */
   const deposit = (def: NodeDef, sp: Spawn & { kind: 'deposit' }, x: number, y: number) => {
-    const size = sp.size[0] + Math.floor(rng() * (sp.size[1] - sp.size[0] + 1));
-    for (let n = 0; n < size; n++) {
+    const count = sp.size[0] + Math.floor(rng() * (sp.size[1] - sp.size[0] + 1));
+    for (let n = 0; n < count; n++) {
       place(def.id, def.amount, x, y);
-      x += Math.floor(rng() * 3) - 1;
-      y += Math.floor(rng() * 3) - 1;
+      const next = hexNeighbours(x, y)[Math.floor(rng() * 6)];
+      x = next.x;
+      y = next.y;
     }
   };
 
   const spawnAt = (def: NodeDef, x: number, y: number) =>
     def.spawn.kind === 'forest' ? forest(def, def.spawn, x, y) : deposit(def, def.spawn, x, y);
 
+  /** The hex under a world position. */
+  const hexAt = (x: number, y: number) => worldToHex({ x, y });
+
   // 1. Start slots. The ring leaves room for a whole home zone inside the map edge.
   const starts: Vec2[] = [];
   const margin = rules.homeRadius + 2;
-  const rx = Math.max(4, w / 2 - margin);
-  const ry = Math.max(4, h / 2 - margin);
+  const rx = Math.max(4, size.x / 2 - margin);
+  const ry = Math.max(4, size.y / 2 - margin);
   const rot = rng() * TAU;
   for (let i = 0; i < rules.map.starts; i++) {
     const a = rot + (i / rules.map.starts) * TAU;
-    starts.push({ x: Math.round(w / 2 + Math.cos(a) * rx), y: Math.round(h / 2 + Math.sin(a) * ry) });
+    starts.push(hexAt(size.x / 2 + Math.cos(a) * rx, size.y / 2 + Math.sin(a) * ry));
   }
+  // The start hexes themselves stay free: the starting building goes there.
+  for (const s of starts) occupied.add(s.y * w + s.x);
 
-  // 2. Home zones, placed first so they win the tiles.
+  // 2. Home zones, placed first so they win the tiles. A cluster whose seed hex is
+  //    already taken (a deposit landing in a forest) is re-rolled a few times.
   const inner = rules.startClearRadius + 1;
   const outer = Math.max(inner + 1, rules.homeRadius);
   for (const s of starts) {
+    const c = hexCentre(s.x, s.y);
     for (const def of tree.nodes) {
       for (let k = 0; k < def.spawn.perStart; k++) {
-        const a = rng() * TAU;
-        const d = inner + rng() * (outer - inner);
-        spawnAt(def, Math.round(s.x + Math.cos(a) * d), Math.round(s.y + Math.sin(a) * d));
+        for (let tries = 0; tries < 8; tries++) {
+          const a = rng() * TAU;
+          const d = inner + rng() * (outer - inner);
+          const t = hexAt(c.x + Math.cos(a) * d, c.y + Math.sin(a) * d);
+          if (t.x < 0 || t.y < 0 || t.x >= w || t.y >= h || occupied.has(t.y * w + t.x)) continue;
+          spawnAt(def, t.x, t.y);
+          break;
+        }
       }
     }
   }
@@ -107,5 +122,42 @@ export function generateMap(tree: TechTree, seed: number, w: number, h: number):
     }
   }
 
+  // 4. Connectivity. On a hex grid a ring of trees is a real wall (no diagonal
+  //    gaps), so every start must be able to reach the map centre: any that
+  //    cannot gets a one-hex corridor carved straight towards it.
+  const centre = hexAt(size.x / 2, size.y / 2);
+  const byTile = new Map<number, number>();
+  for (const id in nodes) byTile.set(nodes[id].y * w + nodes[id].x, Number(id));
+  for (const s of starts) {
+    if (reaches(byTile, w, h, s, centre)) continue;
+    for (const t of hexLine(s, centre)) {
+      const id = byTile.get(t.y * w + t.x);
+      if (id === undefined) continue;
+      delete nodes[id];
+      byTile.delete(t.y * w + t.x);
+    }
+  }
+
   return { nodes, nextId, starts };
+}
+
+/** Flood fill over free hexes: can `from` walk to `to`? */
+function reaches(occupied: Map<number, number>, w: number, h: number, from: Vec2, to: Vec2): boolean {
+  const target = to.y * w + to.x;
+  if (occupied.has(target)) return false;
+  const seen = new Uint8Array(w * h);
+  const stack: Vec2[] = [from];
+  seen[from.y * w + from.x] = 1;
+  while (stack.length) {
+    const p = stack.pop()!;
+    if (p.y * w + p.x === target) return true;
+    for (const n of hexNeighbours(p.x, p.y)) {
+      if (n.x < 0 || n.y < 0 || n.x >= w || n.y >= h) continue;
+      const i = n.y * w + n.x;
+      if (seen[i] || occupied.has(i)) continue;
+      seen[i] = 1;
+      stack.push(n);
+    }
+  }
+  return false;
 }

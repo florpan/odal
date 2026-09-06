@@ -65,7 +65,7 @@ export interface NodeDef extends EntityDef {
   gatherAmount: number;
   spawn: Spawn;
   /**
-   * `models`: GLBs under /models/ at world scale (1 unit = 1 tile, base at y=0); one is picked per node
+   * `models`: GLBs under /models/ at world scale (a hex is about 1 unit wide, base at y=0); one is picked per node
    * by id. `scale` multiplies all of them equally (default 1). Without `models` the primitive is drawn.
    */
   visual: { shape: 'cone' | 'rock'; color: string; models?: string[]; scale?: number };
@@ -97,7 +97,8 @@ export interface UnitDef extends ProducibleDef {
 export interface BuildingDef extends ProducibleDef {
   buildable: boolean;
   hp: number;
-  size: { w: number; h: number };
+  /** Footprint: the centre hex plus every hex within `radius` steps (0 = one hex, 1 = seven). */
+  size: { radius: number };
   pop: number;
   trains: string[];
   researches: string[];
@@ -110,8 +111,8 @@ export interface BuildingDef extends ProducibleDef {
   vision: number;
   hotkey?: string;
   /**
-   * `model`: a GLB under /models/ authored with a 1×1 footprint and base at y=0, scaled to the
-   * building's footprint. `{team}` in the name is replaced by the owner's nearest KayKit colour
+   * `model`: a GLB under /models/ authored to fill one hex (about 1 unit wide) with its base at y=0,
+   * scaled up for larger footprints. `{team}` in the name is replaced by the owner's nearest KayKit colour
    * (red, blue, green, yellow). Without it the shape/color primitive is drawn.
    */
   visual: { shape: 'box' | 'cone'; color: string; height: number; glow?: string; model?: string };
@@ -124,7 +125,7 @@ export interface TechDef extends ProducibleDef {
 export interface Rules {
   tickRate: number;
   /** `starts`: start slots on a ring around the centre; players take the free one farthest from everyone. */
-  map: { width: number; height: number; starts: number };
+  map: { width: number; height: number; starts: number }; // hex columns and rows
   /** Every start slot gets each node type's `spawn.perStart` clusters/deposits within this radius. */
   homeRadius: number;
   startResources: Cost;

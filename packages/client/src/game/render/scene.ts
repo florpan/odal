@@ -1,13 +1,18 @@
 import * as THREE from 'three';
-import { buildingMaxHp, idx, unitMaxHp } from '@odal/engine';
+import { HEX_R, buildingMaxHp, hexCentre, idx, unitMaxHp, worldSize } from '@odal/engine';
 import type { Building, GameState, RallyPoint, ResourceNode, TechTree, Unit, Vec2 } from '@odal/engine';
 import { ModelLibrary } from './models';
 
 // ---------------------------------------------------------------------------
 // The 3D scene. Everything in world coordinates is drawn here and nowhere
 // else. Looks come from the tech tree's `visual` blocks, so new content
-// renders without code changes. Game y maps to Three.js z.
+// renders without code changes. Game y maps to Three.js z. The ground is a
+// board of hex tiles (see engine hex.ts); buildings and nodes sit on hex
+// centres, units move freely.
 // ---------------------------------------------------------------------------
+
+/** Footprint radius → width of the disc a building covers, in world units. */
+const footprintWidth = (radius: number) => 1 + 2 * radius;
 
 export interface Pick {
   kind: 'unit' | 'building' | 'node';
@@ -34,7 +39,7 @@ interface EntityView {
   mats: THREE.Material[];
   /** Model file still loading; swapped in by syncUnits / syncBuildings once ready. */
   wantModel?: string;
-  /** Buildings: uniform scale applied to a footprint-normalised model (min of w, h). */
+  /** Buildings: uniform scale applied to a one-hex model (the footprint's width in hexes). */
   modelScale?: number;
   /** Animation state for skinned models. `workClip` is what the task wants when standing still. */
   mixer?: THREE.AnimationMixer;
@@ -68,8 +73,12 @@ export class Renderer {
   readonly canvas: HTMLCanvasElement;
   camTarget: Vec2 = { x: 32, y: 32 };
   zoom = 1;
+  /** Map size in world units (for camera clamping and ground picking). */
   mapW = 64;
   mapH = 64;
+  /** Map size in hexes (columns, rows). */
+  private cols = 64;
+  private rows = 64;
 
   private models = new ModelLibrary();
   private nodeMeshes = new Map<number, THREE.Object3D>();
@@ -81,8 +90,7 @@ export class Renderer {
   private selectedBuilding: number | null = null;
   private ghost: THREE.Mesh | null = null;
   private rallyMarker: THREE.Group | null = null;
-  private ground: THREE.Mesh | null = null;
-  private grid: THREE.GridHelper | null = null;
+  private ground: THREE.InstancedMesh | null = null;
   private fog: { mesh: THREE.Mesh; tex: THREE.DataTexture; data: Uint8Array } | null = null;
   private raycaster = new THREE.Raycaster();
   private groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -98,6 +106,10 @@ export class Renderer {
     rock: new THREE.DodecahedronGeometry(0.38, 0),
     ring: new THREE.RingGeometry(0.42, 0.52, 28),
     particle: new THREE.BoxGeometry(0.16, 0.16, 0.16),
+    /** One ground tile: a flat hex puck, slightly smaller than the cell so the board shows its seams. */
+    tile: new THREE.CylinderGeometry(HEX_R * 0.96, HEX_R * 0.96, 0.12, 6),
+    /** A unit-height hex prism, scaled to footprint and height (ghost, building plates). */
+    hex: new THREE.CylinderGeometry(HEX_R, HEX_R, 1, 6),
   };
   private ringMat = new THREE.MeshBasicMaterial({ color: 0x9cff9c, side: THREE.DoubleSide });
   private ghostOk = new THREE.MeshBasicMaterial({ color: 0x66ff66, transparent: true, opacity: 0.45 });
@@ -161,46 +173,64 @@ export class Renderer {
     this.setRallyMarker(null);
   }
 
-  setMap(w: number, h: number) {
-    this.mapW = w;
-    this.mapH = h;
+  /** Build the board for a map of `cols` × `rows` hexes. */
+  setMap(cols: number, rows: number) {
+    this.cols = cols;
+    this.rows = rows;
+    const size = worldSize(cols, rows);
+    this.mapW = size.x;
+    this.mapH = size.y;
     if (this.ground) this.scene.remove(this.ground);
-    if (this.grid) this.scene.remove(this.grid);
     if (this.fog) this.scene.remove(this.fog.mesh);
 
-    this.ground = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshLambertMaterial({ color: 0x5b8a3c }));
-    this.ground.rotation.x = -Math.PI / 2;
-    this.ground.position.set(w / 2, 0, h / 2);
-    this.scene.add(this.ground);
+    // The ground: one instanced hex puck per cell, top face at y=0, greens varied a little per tile.
+    const ground = new THREE.InstancedMesh(
+      this.geo.tile,
+      new THREE.MeshLambertMaterial({ color: 0xffffff }),
+      cols * rows,
+    );
+    const m = new THREE.Matrix4();
+    const base = new THREE.Color(0x5b8a3c);
+    const col = new THREE.Color();
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const i = y * cols + x;
+        const c = hexCentre(x, y);
+        m.makeTranslation(c.x, -0.06, c.y);
+        ground.setMatrixAt(i, m);
+        const v = 0.92 + (((x * 7 + y * 13) % 11) / 11) * 0.16; // stable per-tile variation
+        col.copy(base).multiplyScalar(v);
+        ground.setColorAt(i, col);
+      }
+    }
+    ground.instanceMatrix.needsUpdate = true;
+    if (ground.instanceColor) ground.instanceColor.needsUpdate = true;
+    this.ground = ground;
+    this.scene.add(ground);
 
-    this.grid = new THREE.GridHelper(Math.max(w, h), Math.max(w, h), 0x4d7a32, 0x4d7a32);
-    this.grid.position.set(w / 2, 0.01, h / 2);
-    (this.grid.material as THREE.Material).transparent = true;
-    (this.grid.material as THREE.Material).opacity = 0.35;
-    this.scene.add(this.grid);
-
-    // Fog of war: a dark translucent sheet above everything, alpha from a w×h texture.
-    const data = new Uint8Array(w * h * 4);
-    const tex = new THREE.DataTexture(data, w, h, THREE.RGBAFormat);
+    // Fog of war: a dark translucent sheet above everything, alpha from a cols×rows texture
+    // (one texel per hex; odd rows are half a hex off, which the linear filter blurs away).
+    const data = new Uint8Array(cols * rows * 4);
+    const tex = new THREE.DataTexture(data, cols, rows, THREE.RGBAFormat);
     tex.magFilter = THREE.LinearFilter;
     tex.minFilter = THREE.LinearFilter;
     const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(w, h),
+      new THREE.PlaneGeometry(size.x, size.y),
       new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }),
     );
     mesh.rotation.x = -Math.PI / 2;
-    mesh.position.set(w / 2, 2.6, h / 2);
+    mesh.position.set(size.x / 2, 2.6, size.y / 2);
     mesh.renderOrder = 10;
     this.scene.add(mesh);
     this.fog = { mesh, tex, data };
-    this.camTarget = { x: w / 2, y: h / 2 };
+    this.camTarget = { x: size.x / 2, y: size.y / 2 };
   }
 
   updateFog(vision: Uint8Array | null, explored: Uint8Array | null) {
     if (!this.fog) return;
     const { data, tex } = this.fog;
-    const w = this.mapW;
-    const h = this.mapH;
+    const w = this.cols;
+    const h = this.rows;
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const i = y * w + x;
@@ -278,16 +308,17 @@ export class Renderer {
       }
       if (!mesh) {
         const inst = file ? this.models.instantiate(file, '#ffffff') : null;
+        const c = hexCentre(n.x, n.y);
         if (inst) {
           mesh = inst.root;
-          mesh.position.set(n.x + 0.5, 0, n.y + 0.5);
+          mesh.position.set(c.x, 0, c.y);
           mesh.rotation.y = ((n.id * 137) % 360) * (Math.PI / 180); // varied but stable
           mesh.userData = { kind: 'node', id: n.id, unit: def.visual.scale ?? 1 };
         } else {
           if (file) void this.models.load(file);
           const isCone = def.visual.shape === 'cone';
           mesh = new THREE.Mesh(isCone ? this.geo.cone : this.geo.rock, this.material(def.visual.color));
-          mesh.position.set(n.x + 0.5, isCone ? 0.65 : 0.3, n.y + 0.5);
+          mesh.position.set(c.x, isCone ? 0.65 : 0.3, c.y);
           if (!isCone) mesh.rotation.set(Math.random(), Math.random(), 0);
           mesh.userData = { kind: 'node', id: n.id, unit: 1, wantModel: file };
         }
@@ -295,7 +326,7 @@ export class Renderer {
         this.nodeMeshes.set(n.id, mesh);
       }
       mesh.scale.setScalar((mesh.userData.unit as number) * (0.55 + 0.45 * (n.amount / def.amount)));
-      mesh.visible = !explored || explored[n.y * this.mapW + n.x] === 1;
+      mesh.visible = !explored || explored[n.y * this.cols + n.x] === 1;
     }
   }
 
@@ -469,12 +500,14 @@ export class Renderer {
       if (!v) {
         const group = new THREE.Group();
         const color = state.players[b.owner]?.color ?? '#ffffff';
+        const width = footprintWidth(b.r);
+        // Owner-coloured hex plate under the building, a touch wider than the footprint.
         const plate = new THREE.Mesh(
-          new THREE.PlaneGeometry(b.w + 0.3, b.h + 0.3),
+          this.geo.hex,
           new THREE.MeshBasicMaterial({ color, transparent: true, opacity: isGhost ? 0.25 : 0.55 }),
         );
-        plate.rotation.x = -Math.PI / 2;
-        plate.position.set(0, 0.02, 0);
+        plate.scale.set(width * 1.08, 0.02, width * 1.08);
+        plate.position.set(0, 0.015, 0);
         group.add(plate);
 
         const { shape, color: bodyColor, height, glow, model } = def.visual;
@@ -487,8 +520,8 @@ export class Renderer {
         });
         const geometry =
           shape === 'cone'
-            ? new THREE.ConeGeometry(Math.min(b.w, b.h) * 0.4, height, 8)
-            : this.box(b.w * 0.9, height, b.h * 0.9);
+            ? new THREE.ConeGeometry(width * 0.4, height, 8)
+            : this.box(width * 0.8, height, width * 0.8);
         const body = new THREE.Mesh(geometry, mat);
         if (glow && !isGhost) {
           const light = new THREE.PointLight(glow, 12, 8);
@@ -496,10 +529,11 @@ export class Renderer {
           body.add(light);
         }
         group.add(body);
-        const bar = this.makeBar(Math.max(b.w, b.h) * 0.9);
+        const bar = this.makeBar(width * 0.9);
         group.add(bar.group);
         group.userData = { kind: 'building', id: b.id } satisfies Pick;
-        group.position.set(b.x + b.w / 2, 0, b.y + b.h / 2);
+        const centre = hexCentre(b.x, b.y);
+        group.position.set(centre.x, 0, centre.y);
         this.scene.add(group);
         v = {
           group,
@@ -507,7 +541,7 @@ export class Renderer {
           meshes: [body],
           mats: [mat],
           wantModel: model && !isGhost ? this.teamVariant(model, color) : undefined,
-          modelScale: Math.min(b.w, b.h),
+          modelScale: width,
           workClip: 'idle',
           speed: 0,
           bar,
@@ -570,11 +604,13 @@ export class Renderer {
       if (key[0] === 'b') {
         const b = buildings[buildingId!];
         if (b) {
-          ring.position.set(b.x + b.w / 2, 0.03, b.y + b.h / 2);
-          ring.scale.setScalar(Math.max(b.w, b.h) * 1.4);
+          const c = hexCentre(b.x, b.y);
+          ring.position.set(c.x, 0.03, c.y);
+          ring.scale.setScalar(footprintWidth(b.r) * 1.4);
         }
       } else if (key[0] === 'n' && node) {
-        ring.position.set(node.x + 0.5, 0.03, node.y + 0.5);
+        const c = hexCentre(node.x, node.y);
+        ring.position.set(c.x, 0.03, c.y);
         ring.scale.setScalar(1.3);
       }
     }
@@ -599,28 +635,31 @@ export class Renderer {
     this.rallyMarker.position.set(rally.x, 0, rally.y);
   }
 
-  private ghostDef: { w: number; h: number; height: number } | null = null;
+  private ghostHeight = 1;
 
+  /** A translucent hex prism the size of the building's footprint, following the mouse in build mode. */
   setGhost(building: string | null, state?: GameState) {
     if (this.ghost) {
       this.scene.remove(this.ghost);
       this.ghost = null;
-      this.ghostDef = null;
     }
     if (!building || !state) return;
     const def = idx(state.tree).buildings[building];
     if (!def) return;
-    this.ghostDef = { w: def.size.w, h: def.size.h, height: def.visual.height };
-    this.ghost = new THREE.Mesh(this.box(def.size.w * 0.9, def.visual.height, def.size.h * 0.9), this.ghostOk);
+    const width = footprintWidth(def.size.radius);
+    this.ghostHeight = def.visual.height;
+    this.ghost = new THREE.Mesh(this.geo.hex, this.ghostOk);
+    this.ghost.scale.set(width, def.visual.height, width);
     this.ghost.visible = false;
     this.scene.add(this.ghost);
   }
 
+  /** Show the ghost centred on hex (tx, ty). */
   updateGhost(tx: number, ty: number, valid: boolean) {
-    if (!this.ghost || !this.ghostDef) return;
-    const { w, h, height } = this.ghostDef;
+    if (!this.ghost) return;
+    const c = hexCentre(tx, ty);
     this.ghost.visible = true;
-    this.ghost.position.set(tx + w / 2, height / 2, ty + h / 2);
+    this.ghost.position.set(c.x, this.ghostHeight / 2, c.y);
     this.ghost.material = valid ? this.ghostOk : this.ghostBad;
   }
 

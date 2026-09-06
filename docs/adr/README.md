@@ -26,3 +26,4 @@ What becomes easier, what becomes harder, what we gave up.
 | [0005](0005-engine-systems-split.md)             | Engine split into one system per file with a fixed tick order                                               |
 | [0006](0006-typed-content-requirements-graph.md) | Typed content, uniform requirements, upkeep as data, derived tech graph (content format superseded by 0007) |
 | [0007](0007-json-content-and-editor.md)          | Rulesets are JSON with generated JSON Schema; graphical tree editor and in-game tree screen                 |
+| [0008](0008-hex-grid.md)                         | Hex grid at person scale with a board-game look; footprints are a hex radius; pathfinding is a service      |

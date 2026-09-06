@@ -5,7 +5,7 @@ import type { Building, GameMessage, GameState, Player, RallyPoint, ResourceNode
 // a message shape changes; the client refuses to play on a mismatch.
 // ---------------------------------------------------------------------------
 
-export const PROTOCOL_VERSION = 4;
+export const PROTOCOL_VERSION = 5;
 
 /** What a player can ask the simulation to do. Validated by the engine, never trusted. */
 export type Command =

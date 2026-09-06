@@ -119,7 +119,6 @@ export function template(files: Files, file: ListFile): Entity {
         name: 'New building',
         time: 20,
         hp: 100,
-        size: { w: 1, h: 1 },
         visual: { color: '#8d6e63', height: 1 },
       };
     case 'techs':

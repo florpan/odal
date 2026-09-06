@@ -63,7 +63,9 @@ bun run start:editor        # same, but with /dev/tree mounted so /editor.html w
 
 - Prettier + ESLint config at the root; `bun run format` before committing.
 - Tests: `*.test.ts` next to the code, run with `bun test`. Engine tests use the default ruleset.
-- Coordinates: tiles are integers, positions are continuous with tile centre at `+0.5`. Game `y` is Three.js `z`.
+- Coordinates: the map is a hex grid (ADR 0008, `engine/src/hex.ts`). Tiles are `(col, row)` offset coordinates,
+  positions are continuous world units (a hex is ~1 wide). Convert with `hexCentre`/`worldToHex`, never by hand.
+  Game `y` is Three.js `z`.
 - Keep it simple. New resources/units/buildings need a reason in `docs/PLAN.md` first.
 - 3D models are data: GLBs in `packages/client/public/models`, referenced from `visual` blocks (CONTENT.md),
   built by `tools/models/` (procedural TypeScript or Blender scripts over the CC0 KayKit packs). Missing model →

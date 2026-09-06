@@ -2,7 +2,7 @@ import { unitMaxHp } from './queries';
 import { idx } from './tree';
 import type { Building, GameState, Unit } from './types';
 
-/** Creates a building at construction progress 0 (callers set progress = 1 for pre-built ones). */
+/** Creates a building centred on hex (x, y) at construction progress 0 (callers set progress = 1 for pre-built ones). */
 export function makeBuilding(state: GameState, owner: number, type: string, x: number, y: number): Building {
   const def = idx(state.tree).buildings[type];
   const b: Building = {
@@ -11,8 +11,7 @@ export function makeBuilding(state: GameState, owner: number, type: string, x: n
     type,
     x,
     y,
-    w: def.size.w,
-    h: def.size.h,
+    r: def.size.radius,
     hp: 1,
     progress: 0,
     queue: [],

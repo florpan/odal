@@ -29,7 +29,7 @@ export function stepHarvest(ctx: Ctx, u: Unit) {
       setTask(u, { kind: 'idle' });
       return;
     }
-    const r = goToAdjacent(ctx, u, drop.x, drop.y, drop.w, drop.h);
+    const r = goToAdjacent(ctx, u, drop.x, drop.y, drop.r);
     if (r === 'unreachable') setTask(u, { kind: 'idle' });
     if (r !== 'arrived') return;
     player.resources[u.carry.type] = (player.resources[u.carry.type] ?? 0) + u.carry.amount;
@@ -62,7 +62,7 @@ export function stepHarvest(ctx: Ctx, u: Unit) {
   }
 
   if (task.phase === 'toNode') {
-    const r = goToAdjacent(ctx, u, node.x, node.y, 1, 1);
+    const r = goToAdjacent(ctx, u, node.x, node.y, 0);
     if (r === 'unreachable') {
       setTask(u, { kind: 'idle' });
       return;
@@ -75,7 +75,7 @@ export function stepHarvest(ctx: Ctx, u: Unit) {
   }
 
   // gathering
-  if (!isAdjacentTo(u, node.x, node.y, 1, 1)) {
+  if (!isAdjacentTo(u, node.x, node.y, 0)) {
     task.phase = 'toNode';
     return;
   }

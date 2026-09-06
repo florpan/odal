@@ -1,5 +1,6 @@
 import type { TechTree } from './content';
 import { computeBlocked } from './grid';
+import { worldSize } from './hex';
 import type { TreeIndex } from './tree';
 import type { GameState, TickEvents, Unit, UnitTask, Vec2 } from './types';
 
@@ -48,8 +49,9 @@ export function setTask(u: Unit, task: UnitTask) {
 }
 
 export function clampToMap(state: GameState, p: Vec2): Vec2 {
+  const size = worldSize(state.width, state.height);
   return {
-    x: Math.max(0.5, Math.min(state.width - 0.5, p.x)),
-    y: Math.max(0.5, Math.min(state.height - 0.5, p.y)),
+    x: Math.max(0.5, Math.min(size.x - 0.5, p.x)),
+    y: Math.max(0.5, Math.min(size.y - 0.5, p.y)),
   };
 }

@@ -1,6 +1,8 @@
 import { clampToMap, say, setTask } from './ctx';
 import type { Ctx } from './ctx';
 import { makeBuilding } from './entities';
+import { stampFootprint } from './grid';
+import { hexCentre } from './hex';
 import type { PlayerCommand } from './protocol';
 import {
   buildingUnlocked,
@@ -55,7 +57,7 @@ export function applyCommand(ctx: Ctx, pc: PlayerCommand) {
       const resource = defs.nodes[node.type].resource;
       for (const u of units) {
         if (!hasAbility(tree, u, 'harvest')) {
-          setTask(u, { kind: 'move', target: { x: node.x + 0.5, y: node.y + 0.5 } });
+          setTask(u, { kind: 'move', target: hexCentre(node.x, node.y) });
           continue;
         }
         const goDropFirst = !!u.carry && u.carry.type !== resource;
@@ -97,7 +99,7 @@ export function applyCommand(ctx: Ctx, pc: PlayerCommand) {
       pay(player.resources, def.cost);
       const b = makeBuilding(state, player.id, cmd.building, cmd.x, cmd.y);
       // Mark the footprint blocked right away so later commands this tick see it.
-      for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) ctx.blocked[y * state.width + x] = 1;
+      stampFootprint(ctx.blocked, state.width, state.height, b.x, b.y, b.r, 1);
       for (const u of builders) setTask(u, { kind: 'build', buildingId: b.id });
       break;
     }
@@ -116,7 +118,10 @@ export function applyCommand(ctx: Ctx, pc: PlayerCommand) {
         if (hasAbility(tree, u, 'attack')) {
           setTask(u, { kind: 'attack', targetId: cmd.targetId, targetKind: cmd.targetKind });
         } else {
-          setTask(u, { kind: 'move', target: { x: target.x, y: target.y } });
+          setTask(u, {
+            kind: 'move',
+            target: cmd.targetKind === 'unit' ? { x: target.x, y: target.y } : hexCentre(target.x, target.y),
+          });
         }
       }
       break;

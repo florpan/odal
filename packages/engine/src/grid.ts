@@ -1,19 +1,27 @@
+import { hexArea, hexCentre, hexDistance, hexRing, worldToHex } from './hex';
 import { idx } from './tree';
 import type { GameState, Vec2 } from './types';
 
 // ---------------------------------------------------------------------------
-// Tile grid helpers: blocking, adjacency, placement and A* pathfinding.
+// Tile grid helpers: blocking, adjacency and placement on the hex grid.
+// A footprint is a centre hex plus every hex within `radius` steps (radius 0
+// is a single hex). Pathfinding lives in pathfinding.ts.
 // ---------------------------------------------------------------------------
 
+/** The hex a world position is in. */
 export function tileOf(p: Vec2): Vec2 {
-  return { x: Math.floor(p.x), y: Math.floor(p.y) };
+  return worldToHex(p);
 }
 
 export function inBounds(w: number, h: number, x: number, y: number): boolean {
   return x >= 0 && y >= 0 && x < w && y < h;
 }
 
-/** 1 = blocked (tree, rock or building footprint), 0 = walkable. */
+/** Every hex of a footprint centred on (x, y) with the given radius. */
+export function footprintTiles(x: number, y: number, radius: number): Vec2[] {
+  return hexArea(x, y, radius);
+}
+
 /**
  * Tiles nothing can walk through: nodes and buildings. With `forOwner`, that
  * player's `passable` buildings (gates) are left open, so pathfinding for their
@@ -30,35 +38,36 @@ export function computeBlocked(state: GameState, forOwner?: number): Uint8Array 
   for (const id in state.buildings) {
     const b = state.buildings[id];
     if (forOwner !== undefined && b.owner === forOwner && defs[b.type].passable) continue;
-    for (let y = b.y; y < b.y + b.h; y++) {
-      for (let x = b.x; x < b.x + b.w; x++) {
-        if (inBounds(w, h, x, y)) g[y * w + x] = 1;
-      }
-    }
+    stampFootprint(g, w, h, b.x, b.y, b.r, 1);
   }
   return g;
+}
+
+/** Set every tile of a footprint to `value` in a w×h grid. */
+export function stampFootprint(
+  grid: Uint8Array,
+  w: number,
+  h: number,
+  x: number,
+  y: number,
+  radius: number,
+  value: number,
+) {
+  for (const t of footprintTiles(x, y, radius)) if (inBounds(w, h, t.x, t.y)) grid[t.y * w + t.x] = value;
 }
 
 export function isWalkable(blocked: Uint8Array, w: number, h: number, x: number, y: number): boolean {
   return inBounds(w, h, x, y) && blocked[y * w + x] === 0;
 }
 
-/** The ring of tiles surrounding a rectangular footprint. */
-export function adjacentTiles(x: number, y: number, w: number, h: number): Vec2[] {
-  const out: Vec2[] = [];
-  for (let ty = y - 1; ty <= y + h; ty++) {
-    for (let tx = x - 1; tx <= x + w; tx++) {
-      const inside = tx >= x && tx < x + w && ty >= y && ty < y + h;
-      if (!inside) out.push({ x: tx, y: ty });
-    }
-  }
-  return out;
+/** The ring of tiles surrounding a footprint. */
+export function adjacentTiles(x: number, y: number, radius: number): Vec2[] {
+  return hexRing(x, y, radius + 1);
 }
 
-/** True if the position's tile touches the footprint (Chebyshev distance 1). */
-export function isAdjacentTo(pos: Vec2, x: number, y: number, w: number, h: number): boolean {
-  const t = tileOf(pos);
-  return t.x >= x - 1 && t.x <= x + w && t.y >= y - 1 && t.y <= y + h;
+/** True if the position's hex touches the footprint (or is inside it). */
+export function isAdjacentTo(pos: Vec2, x: number, y: number, radius: number): boolean {
+  return hexDistance(tileOf(pos), { x, y }) <= radius + 1;
 }
 
 /** Closest (by straight-line distance) walkable tile from a candidate list. */
@@ -73,8 +82,9 @@ export function nearestWalkableTile(
   let bestD = Infinity;
   for (const c of candidates) {
     if (!isWalkable(blocked, w, h, c.x, c.y)) continue;
-    const dx = c.x + 0.5 - from.x;
-    const dy = c.y + 0.5 - from.y;
+    const cc = hexCentre(c.x, c.y);
+    const dx = cc.x - from.x;
+    const dy = cc.y - from.y;
     const d = dx * dx + dy * dy;
     if (d < bestD) {
       bestD = d;
@@ -91,18 +101,11 @@ export function findFreeTileNear(
   h: number,
   x: number,
   y: number,
-  fw: number,
-  fh: number,
+  radius: number,
   maxRing = 6,
 ): Vec2 | null {
-  for (let r = 1; r <= maxRing; r++) {
-    for (let ty = y - r; ty <= y + fh - 1 + r; ty++) {
-      for (let tx = x - r; tx <= x + fw - 1 + r; tx++) {
-        const onRing = tx === x - r || tx === x + fw - 1 + r || ty === y - r || ty === y + fh - 1 + r;
-        if (!onRing) continue;
-        if (isWalkable(blocked, w, h, tx, ty)) return { x: tx, y: ty };
-      }
-    }
+  for (let r = radius + 1; r <= radius + maxRing; r++) {
+    for (const t of hexRing(x, y, r)) if (isWalkable(blocked, w, h, t.x, t.y)) return t;
   }
   return null;
 }
@@ -113,134 +116,18 @@ export function canPlaceFootprint(
   h: number,
   x: number,
   y: number,
-  fw: number,
-  fh: number,
+  radius: number,
 ): boolean {
-  for (let ty = y; ty < y + fh; ty++) {
-    for (let tx = x; tx < x + fw; tx++) {
-      if (!isWalkable(blocked, w, h, tx, ty)) return false;
-    }
-  }
+  for (const t of footprintTiles(x, y, radius)) if (!isWalkable(blocked, w, h, t.x, t.y)) return false;
   return true;
 }
 
-/** Distance from a point to the nearest point of a tile rectangle. */
-export function rectDistance(p: Vec2, x: number, y: number, w: number, h: number): number {
-  const cx = Math.max(x, Math.min(p.x, x + w));
-  const cy = Math.max(y, Math.min(p.y, y + h));
-  return Math.hypot(p.x - cx, p.y - cy);
-}
-
-// ---------------------------------------------------------------------------
-// A* over the tile grid, 8-directional, no corner cutting.
-// Returns the list of tile centres to walk through (start excluded, goal included),
-// or null if the goal is unreachable. The start tile may be blocked (e.g. a unit
-// standing where a building was just placed) and is always allowed.
-// ---------------------------------------------------------------------------
-
-const DIRS = [
-  [1, 0, 1],
-  [-1, 0, 1],
-  [0, 1, 1],
-  [0, -1, 1],
-  [1, 1, Math.SQRT2],
-  [1, -1, Math.SQRT2],
-  [-1, 1, Math.SQRT2],
-  [-1, -1, Math.SQRT2],
-] as const;
-
-export function findPath(
-  blocked: Uint8Array,
-  w: number,
-  h: number,
-  sx: number,
-  sy: number,
-  tx: number,
-  ty: number,
-): Vec2[] | null {
-  if (!inBounds(w, h, sx, sy) || !inBounds(w, h, tx, ty)) return null;
-  if (sx === tx && sy === ty) return [];
-  if (blocked[ty * w + tx]) return null;
-
-  const n = w * h;
-  const g = new Float32Array(n).fill(Infinity);
-  const f = new Float32Array(n);
-  const came = new Int32Array(n).fill(-1);
-  const closed = new Uint8Array(n);
-  const heap: number[] = [];
-
-  const heur = (x: number, y: number) => {
-    const dx = Math.abs(x - tx);
-    const dy = Math.abs(y - ty);
-    return Math.max(dx, dy) + (Math.SQRT2 - 1) * Math.min(dx, dy);
-  };
-  const push = (i: number) => {
-    heap.push(i);
-    let c = heap.length - 1;
-    while (c > 0) {
-      const p = (c - 1) >> 1;
-      if (f[heap[p]] <= f[heap[c]]) break;
-      [heap[p], heap[c]] = [heap[c], heap[p]];
-      c = p;
-    }
-  };
-  const pop = (): number => {
-    const top = heap[0];
-    const last = heap.pop()!;
-    if (heap.length) {
-      heap[0] = last;
-      let c = 0;
-      for (;;) {
-        const l = c * 2 + 1;
-        const r = l + 1;
-        let m = c;
-        if (l < heap.length && f[heap[l]] < f[heap[m]]) m = l;
-        if (r < heap.length && f[heap[r]] < f[heap[m]]) m = r;
-        if (m === c) break;
-        [heap[m], heap[c]] = [heap[c], heap[m]];
-        c = m;
-      }
-    }
-    return top;
-  };
-
-  const start = sy * w + sx;
-  const goal = ty * w + tx;
-  g[start] = 0;
-  f[start] = heur(sx, sy);
-  push(start);
-
-  while (heap.length) {
-    const cur = pop();
-    if (cur === goal) {
-      const path: Vec2[] = [];
-      let i = cur;
-      while (i !== start) {
-        path.push({ x: (i % w) + 0.5, y: Math.floor(i / w) + 0.5 });
-        i = came[i];
-      }
-      path.reverse();
-      return path;
-    }
-    if (closed[cur]) continue;
-    closed[cur] = 1;
-    const cx = cur % w;
-    const cy = (cur - cx) / w;
-    for (const [dx, dy, cost] of DIRS) {
-      const nx = cx + dx;
-      const ny = cy + dy;
-      if (!inBounds(w, h, nx, ny)) continue;
-      const ni = ny * w + nx;
-      if (blocked[ni] || closed[ni]) continue;
-      if (dx !== 0 && dy !== 0 && (blocked[cy * w + nx] || blocked[ny * w + cx])) continue;
-      const ng = g[cur] + cost;
-      if (ng < g[ni]) {
-        g[ni] = ng;
-        came[ni] = cur;
-        f[ni] = ng + heur(nx, ny);
-        push(ni);
-      }
-    }
-  }
-  return null;
+/**
+ * Distance from a world position to the edge of a footprint, treating the
+ * footprint as a disc: inradius 0.5 for a single hex, one hex more per ring.
+ * Zero inside.
+ */
+export function footprintDistance(p: Vec2, x: number, y: number, radius: number): number {
+  const c = hexCentre(x, y);
+  return Math.max(0, Math.hypot(p.x - c.x, p.y - c.y) - 0.5 - radius);
 }

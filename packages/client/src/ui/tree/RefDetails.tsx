@@ -69,7 +69,10 @@ export function RefDetails({ tree, ref, status }: RefDetailsProps) {
           <>
             <dt>Stats</dt>
             <dd>
-              {building.hp} HP · {building.size.w}×{building.size.h}
+              {building.hp} HP ·{' '}
+              {building.size.radius === 0
+                ? '1 hex'
+                : `${3 * building.size.radius * (building.size.radius + 1) + 1} hexes`}
               {building.pop ? ` · +${building.pop} pop` : ''}
               {building.produces
                 ? ` · +${building.produces.amount} ${i.resources[building.produces.resource]?.name.toLowerCase()} / ${building.produces.interval}s`

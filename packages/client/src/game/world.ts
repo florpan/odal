@@ -113,7 +113,7 @@ export class World {
     for (const id in this.lastSeen) {
       if (st.buildings[id]) continue;
       const g = this.lastSeen[id];
-      if (isBuildingVisible(vision, st.width, g.x, g.y, g.w, g.h)) delete this.lastSeen[id];
+      if (isBuildingVisible(vision, st.width, g.x, g.y, g.r)) delete this.lastSeen[id];
       else this.ghosts[id] = g;
     }
   }

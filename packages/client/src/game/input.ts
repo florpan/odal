@@ -1,4 +1,4 @@
-import { canPlaceBuilding, computeBlocked, idx } from '@odal/engine';
+import { canPlaceBuilding, computeBlocked, hexCentre, idx, worldToHex } from '@odal/engine';
 import type { Ability, Command, Vec2 } from '@odal/engine';
 import { appStore, toggleOverlay } from '../app/store';
 import type { Net } from './net';
@@ -125,13 +125,14 @@ export class Input {
     this.onChange();
   }
 
+  /** The hex under the mouse, where the building being placed would be centred. */
   private ghostTile(): Vec2 | null {
     const st = this.world.state;
     if (!this.buildMode || !st) return null;
     const g = this.renderer.pickGround(this.mouse.x, this.mouse.y);
     if (!g) return null;
-    const def = idx(st.tree).buildings[this.buildMode];
-    return { x: Math.floor(g.x - (def.size.w - 1) / 2), y: Math.floor(g.y - (def.size.h - 1) / 2) };
+    const t = worldToHex(g);
+    return t.x >= 0 && t.y >= 0 && t.x < st.width && t.y < st.height ? t : null;
   }
 
   stop() {
@@ -182,7 +183,7 @@ export class Input {
       this.send({
         type: 'setRally',
         buildingId: ownBuilding,
-        target: node ? { x: node.x + 0.5, y: node.y + 0.5, nodeId: node.id } : g,
+        target: node ? { ...hexCentre(node.x, node.y), nodeId: node.id } : g,
       });
       return;
     }
@@ -194,7 +195,7 @@ export class Input {
       if (harvesters.length) this.send({ type: 'harvest', unitIds: harvesters, nodeId: pick.id });
       if (others.length) {
         const n = st.nodes[pick.id];
-        if (n) this.send({ type: 'move', unitIds: others, target: { x: n.x + 0.5, y: n.y + 0.5 } });
+        if (n) this.send({ type: 'move', unitIds: others, target: hexCentre(n.x, n.y) });
       }
       return;
     }
@@ -203,8 +204,7 @@ export class Input {
       if (target && target.owner !== this.world.playerId) {
         if (pick.kind === 'building' && !st.buildings[pick.id]) {
           // Remembered (fogged) building: go there and fight whatever is around.
-          const b = target as { x: number; y: number; w: number; h: number };
-          const p = { x: b.x + b.w / 2, y: b.y + b.h / 2 };
+          const p = hexCentre(target.x, target.y);
           if (others.length) this.send({ type: 'attackMove', unitIds: others, target: p });
           if (harvesters.length) this.send({ type: 'move', unitIds: harvesters, target: p });
           return;
@@ -215,7 +215,7 @@ export class Input {
       if (pick.kind === 'building' && target && 'progress' in target && target.progress < 1 && builders.length) {
         this.send({ type: 'assist', unitIds: builders, buildingId: pick.id });
         const rest = all.filter((id) => !builders.includes(id));
-        if (rest.length) this.send({ type: 'move', unitIds: rest, target: { x: target.x, y: target.y } });
+        if (rest.length) this.send({ type: 'move', unitIds: rest, target: hexCentre(target.x, target.y) });
         return;
       }
     }

@@ -1,4 +1,5 @@
-import { canPlaceFootprint, rectDistance } from './grid';
+import { canPlaceFootprint, footprintDistance } from './grid';
+import { hexCentre } from './hex';
 import type { Ability, Effect, EffectType, Requirement, TechTree } from './content';
 import { idx } from './tree';
 import type { Building, GameState, Player, ResourceNode, Resources, Unit, Vec2 } from './types';
@@ -175,6 +176,7 @@ export function techUnlocked(state: GameState, player: Player, tech: string): bo
 // Spatial
 // ---------------------------------------------------------------------------
 
+/** True when the building's footprint, centred on hex (x, y), is free. */
 export function canPlaceBuilding(
   state: GameState,
   blocked: Uint8Array,
@@ -183,7 +185,7 @@ export function canPlaceBuilding(
   y: number,
 ): boolean {
   const def = idx(state.tree).buildings[building];
-  return !!def && canPlaceFootprint(blocked, state.width, state.height, x, y, def.size.w, def.size.h);
+  return !!def && canPlaceFootprint(blocked, state.width, state.height, x, y, def.size.radius);
 }
 
 export function findNearbyNode(state: GameState, from: Vec2, type: string, radius: number): ResourceNode | null {
@@ -192,7 +194,8 @@ export function findNearbyNode(state: GameState, from: Vec2, type: string, radiu
   for (const id in state.nodes) {
     const n = state.nodes[id];
     if (n.type !== type) continue;
-    const d = (n.x + 0.5 - from.x) ** 2 + (n.y + 0.5 - from.y) ** 2;
+    const c = hexCentre(n.x, n.y);
+    const d = (c.x - from.x) ** 2 + (c.y - from.y) ** 2;
     if (d < bestD) {
       bestD = d;
       best = n;
@@ -208,7 +211,7 @@ export function nearestDropOff(state: GameState, u: Unit): Building | null {
   for (const id in state.buildings) {
     const b = state.buildings[id];
     if (b.owner !== u.owner || b.progress < 1 || !defs[b.type].dropOff) continue;
-    const d = rectDistance(u, b.x, b.y, b.w, b.h);
+    const d = footprintDistance(u, b.x, b.y, b.r);
     if (d < bestD) {
       bestD = d;
       best = b;

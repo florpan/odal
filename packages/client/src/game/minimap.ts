@@ -1,3 +1,4 @@
+import { hexCentre, worldSize } from '@odal/engine';
 import type { Vec2 } from '@odal/engine';
 import type { Renderer } from './render/scene';
 import type { World } from './world';
@@ -73,14 +74,17 @@ export function drawMinimap(
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(scratch!, 0, 0, cw, ch);
 
-  const sx = cw / w;
-  const sy = ch / h;
+  const size = worldSize(w, h);
+  const sx = cw / size.x;
+  const sy = ch / size.y;
   const buildings = world.renderBuildings();
   for (const id in buildings) {
     const b = buildings[id];
+    const c = hexCentre(b.x, b.y);
+    const half = (b.r + 0.5) * sx + 1;
     ctx.fillStyle = st.players[b.owner]?.color ?? '#fff';
     ctx.globalAlpha = st.buildings[id] ? 1 : 0.5;
-    ctx.fillRect(b.x * sx - 1, b.y * sy - 1, b.w * sx + 2, b.h * sy + 2);
+    ctx.fillRect(c.x * sx - half, c.y * sy - half, half * 2, half * 2);
   }
   ctx.globalAlpha = 1;
   for (const id in st.units) {
@@ -101,5 +105,6 @@ export function drawMinimap(
 export function minimapToWorld(world: World, x01: number, y01: number): Vec2 | null {
   const st = world.state;
   if (!st) return null;
-  return { x: x01 * st.width, y: y01 * st.height };
+  const size = worldSize(st.width, st.height);
+  return { x: x01 * size.x, y: y01 * size.y };
 }

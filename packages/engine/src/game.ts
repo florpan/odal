@@ -2,6 +2,7 @@ import { applyCommand } from './commands';
 import type { Ctx } from './ctx';
 import { makeBuilding, makeUnit } from './entities';
 import { computeBlocked, findFreeTileNear } from './grid';
+import { hexCentre, hexDistance } from './hex';
 import { generateMap } from './mapgen';
 import type { PlayerCommand } from './protocol';
 import { mulberry32 } from './rng';
@@ -39,7 +40,7 @@ export function addPlayer(state: GameState, name: string, events: TickEvents): P
   const others = Object.values(state.buildings).filter((b) => b.type === tree.start.building);
   const startDef = defs.buildings[tree.start.building];
 
-  const distToOthers = (p: Vec2) => others.reduce((m, o) => Math.min(m, Math.hypot(o.x - p.x, o.y - p.y)), 1000);
+  const distToOthers = (p: Vec2) => others.reduce((m, o) => Math.min(m, hexDistance(o, p)), 1000);
   const free = state.starts.filter((s) => distToOthers(s) >= tree.rules.homeRadius);
   let best: Vec2 = { x: Math.floor(state.width / 2), y: Math.floor(state.height / 2) };
   if (free.length) {
@@ -61,7 +62,7 @@ export function addPlayer(state: GameState, name: string, events: TickEvents): P
   // Clear a circle around the start so there is room to build.
   for (const key in state.nodes) {
     const n = state.nodes[key];
-    if (Math.hypot(n.x - best.x, n.y - best.y) <= tree.rules.startClearRadius) {
+    if (hexDistance(n, best) <= tree.rules.startClearRadius) {
       delete state.nodes[key];
       events.nodesRemoved.push(n.id);
     }
@@ -85,11 +86,12 @@ export function addPlayer(state: GameState, name: string, events: TickEvents): P
   const blocked = computeBlocked(state);
   for (const s of tree.start.units) {
     for (let i = 0; i < s.count; i++) {
-      const spawn = findFreeTileNear(blocked, state.width, state.height, home.x, home.y, home.w, home.h) ?? {
+      const spawn = findFreeTileNear(blocked, state.width, state.height, home.x, home.y, home.r) ?? {
         x: best.x + 1,
         y: best.y,
       };
-      const u = makeUnit(state, id, s.type, spawn.x + 0.5, spawn.y + 0.5);
+      const c = hexCentre(spawn.x, spawn.y);
+      const u = makeUnit(state, id, s.type, c.x, c.y);
       // Spread several starting units out a little so separation doesn't have to.
       u.x += (i % 3) * 0.3;
     }

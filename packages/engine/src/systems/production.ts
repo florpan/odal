@@ -2,6 +2,7 @@ import { say, setTask } from '../ctx';
 import type { Ctx } from '../ctx';
 import { makeUnit } from '../entities';
 import { findFreeTileNear } from '../grid';
+import { hexCentre } from '../hex';
 import { hasAbility, popAlive, popCap, produceRate } from '../queries';
 import type { Building } from '../types';
 
@@ -34,9 +35,10 @@ export function stepBuilding(ctx: Ctx, b: Building) {
   if (item.kind === 'unit') {
     const udef = defs.units[item.type];
     if (popAlive(state, b.owner) + udef.pop > popCap(state, b.owner)) return; // wait for housing
-    const tile = findFreeTileNear(ctx.blocked, state.width, state.height, b.x, b.y, b.w, b.h);
+    const tile = findFreeTileNear(ctx.blocked, state.width, state.height, b.x, b.y, b.r);
     if (!tile) return;
-    const unit = makeUnit(state, b.owner, item.type, tile.x + 0.5, tile.y + 0.5);
+    const c = hexCentre(tile.x, tile.y);
+    const unit = makeUnit(state, b.owner, item.type, c.x, c.y);
     if (b.rally) {
       const node = b.rally.nodeId !== undefined ? state.nodes[b.rally.nodeId] : undefined;
       if (node && hasAbility(ctx.tree, unit, 'harvest')) {

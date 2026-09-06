@@ -6,7 +6,6 @@
     "buildable": false,
     "time": 0,
     "hp": 200,
-    "size": { "w": 1, "h": 1 },
     "pop": 5,
     "trains": ["worker"],
     "dropOff": true,
@@ -20,7 +19,6 @@
     "cost": { "lumber": 25 },
     "time": 15,
     "hp": 150,
-    "size": { "w": 1, "h": 1 },
     "pop": 5,
     "hotkey": "H",
     "visual": { "color": "#8d6e63", "height": 1.2, "model": "home_a_{team}.glb" }
@@ -32,7 +30,6 @@
     "cost": { "lumber": 20 },
     "time": 15,
     "hp": 100,
-    "size": { "w": 2, "h": 2 },
     "produces": { "resource": "wheat", "amount": 4, "interval": 8 },
     "hotkey": "F",
     "visual": { "color": "#d4b04a", "height": 0.25 }
@@ -44,7 +41,6 @@
     "cost": { "lumber": 40, "gold": 10 },
     "time": 25,
     "hp": 200,
-    "size": { "w": 2, "h": 2 },
     "researches": ["ironworking", "sharp_axes", "crop_rotation", "steel_weapons", "masonry"],
     "hotkey": "L",
     "visual": { "color": "#7e57c2", "height": 1.6 }
@@ -56,7 +52,6 @@
     "cost": { "lumber": 50, "iron": 20 },
     "time": 30,
     "hp": 300,
-    "size": { "w": 2, "h": 2 },
     "trains": ["soldier"],
     "requires": [{ "type": "tech", "id": "ironworking" }],
     "hotkey": "B",
@@ -70,7 +65,6 @@
     "cost": { "stone": 10 },
     "time": 8,
     "hp": 250,
-    "size": { "w": 1, "h": 1 },
     "vision": 3,
     "hotkey": "R",
     "visual": { "color": "#7b7b7b", "height": 1.1 }
@@ -82,7 +76,6 @@
     "cost": { "stone": 15, "lumber": 10 },
     "time": 12,
     "hp": 300,
-    "size": { "w": 1, "h": 1 },
     "passable": true,
     "requires": [{ "type": "tech", "id": "masonry" }],
     "vision": 3,
@@ -97,7 +90,6 @@
     "cost": { "stone": 40, "lumber": 20 },
     "time": 30,
     "hp": 400,
-    "size": { "w": 1, "h": 1 },
     "attack": { "damage": 6, "range": 6, "attackTime": 1.5 },
     "requires": [{ "type": "tech", "id": "masonry" }],
     "vision": 11,

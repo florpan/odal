@@ -1,5 +1,6 @@
 import type { Ctx } from '../ctx';
-import { isWalkable } from '../grid';
+import { isWalkable, tileOf } from '../grid';
+import { worldSize } from '../hex';
 import type { GameState, Unit } from '../types';
 
 // ---------------------------------------------------------------------------
@@ -41,9 +42,11 @@ export function separateUnits(ctx: Ctx) {
 }
 
 function nudge(state: GameState, blocked: Uint8Array, u: Unit, dx: number, dy: number) {
-  const nx = Math.max(0.1, Math.min(state.width - 0.1, u.x + dx));
-  const ny = Math.max(0.1, Math.min(state.height - 0.1, u.y + dy));
-  if (isWalkable(blocked, state.width, state.height, Math.floor(nx), Math.floor(ny))) {
+  const size = worldSize(state.width, state.height);
+  const nx = Math.max(0.1, Math.min(size.x - 0.1, u.x + dx));
+  const ny = Math.max(0.1, Math.min(size.y - 0.1, u.y + dy));
+  const t = tileOf({ x: nx, y: ny });
+  if (isWalkable(blocked, state.width, state.height, t.x, t.y)) {
     u.x = nx;
     u.y = ny;
   }

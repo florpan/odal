@@ -51,16 +51,18 @@ be a strategy rather than a chore: wall, gate, watchtower and Masonry at launch.
 
 ### Buildings
 
-| Building   | Cost                | Size | Effect                                                                 | Requires    |
-| ---------- | ------------------- | ---- | ---------------------------------------------------------------------- | ----------- |
-| Campfire   | —                   | 1×1  | Start building. Drop-off point. Trains workers. +5 pop. Not buildable. | —           |
-| House      | 25 lumber           | 1×1  | +5 population cap.                                                     | —           |
-| Farm       | 20 lumber           | 2×2  | +4 wheat every 8 s.                                                    | —           |
-| Library    | 40 lumber, 10 gold  | 2×2  | Research.                                                              | —           |
-| Barracks   | 50 lumber, 20 iron  | 2×2  | Trains soldiers.                                                       | Ironworking |
-| Wall       | 10 stone            | 1×1  | Blocks everyone. 250 HP.                                               | —           |
-| Gate       | 15 stone, 10 lumber | 1×1  | Wall segment the owner's units walk through. 300 HP.                   | Masonry     |
-| Watchtower | 40 stone, 20 lumber | 1×1  | Vision 11, shoots 6 damage every 1.5 s within 6 tiles. 400 HP.         | Masonry     |
+Every building occupies one hex (ADR 0008: board-game scale, a tile represents what is on it).
+
+| Building   | Cost                | Effect                                                                 | Requires    |
+| ---------- | ------------------- | ---------------------------------------------------------------------- | ----------- |
+| Campfire   | —                   | Start building. Drop-off point. Trains workers. +5 pop. Not buildable. | —           |
+| House      | 25 lumber           | +5 population cap.                                                     | —           |
+| Farm       | 20 lumber           | +4 wheat every 8 s.                                                    | —           |
+| Library    | 40 lumber, 10 gold  | Research.                                                              | —           |
+| Barracks   | 50 lumber, 20 iron  | Trains soldiers.                                                       | Ironworking |
+| Wall       | 10 stone            | Blocks everyone. 250 HP.                                               | —           |
+| Gate       | 15 stone, 10 lumber | Wall segment the owner's units walk through. 300 HP.                   | Masonry     |
+| Watchtower | 40 stone, 20 lumber | Vision 11, shoots 6 damage every 1.5 s within 6 hexes. 400 HP.         | Masonry     |
 
 ### Units
 
@@ -81,10 +83,11 @@ be a strategy rather than a chore: wall, gate, watchtower and Masonry at launch.
 
 ### Map
 
-64×64 tiles from a seed: forest blobs, stone, iron and gold deposits, densities per node type in
-`nodes.json`. Each new player is placed as far as possible from existing campfires and the area around
-their campfire is cleared. Trees, rocks and buildings block movement; units path around them (A*,
-8-directional). Gates are open for their owner's units only. Units push each other apart but don't block.
+A hex grid (`rules.map`, 96×96 hexes by default) from a seed: forest blobs, stone, iron and gold deposits,
+densities per node type in `nodes.json`. Each new player is placed as far as possible from existing
+campfires and the area around their campfire is cleared; every start is guaranteed a path to the centre.
+Trees, rocks and buildings block movement; units path around them (hex A*, six neighbours). Gates are open
+for their owner's units only. Units push each other apart but don't block.
 
 ## Architecture
 
@@ -104,7 +107,8 @@ Three.js game, and a content editor page that shares the tree view with the game
 | House / Library / Barracks | Brown / purple / dark red box                        |
 | Wall / Gate / Watchtower   | Gray block / dark wooden block / tall light-gray box |
 | Farm                       | Flat wheat-colored slab                              |
-| Ownership                  | Colored plate under every building                   |
+| Ground                     | Board of flat hex pucks with seams, greens varied    |
+| Ownership                  | Colored hex plate under every building               |
 | Under construction         | Building grows in height with progress               |
 | Remembered enemy building  | Translucent ghost until seen again                   |
 
@@ -204,8 +208,10 @@ basic combat, multiplayer over WebSocket, minimap, HUD.
 
 ## Open questions
 
-- Hexagonal tiles? Raised after the first playtest. Touches grid, pathfinding, building footprints (rect
-  w×h today), rendering and the editor; only worth it with a gameplay reason (e.g. no diagonal cheese).
+- ~~Hexagonal tiles?~~ Decided 2026-09-06: hex grid at person scale, board-game look (ADR 0008). Next on
+  the map: terrain layer (water, coast) for the island, per-hex stepped height, KayKit hex tiles as ground.
+- Pathfinding styles per unit (a dumb heavy hitter that walks straight and needs micro)? Idea from
+  2026-09-06, not decided. `pathfinding.ts` is built so this is a parameter on `findPath`, nothing more.
 
 - Population is a hard cap and wheat is consumed as upkeep (both, as of 2026-09-04). Still undecided: what
   happens when a player cannot pay upkeep. Options: units lose HP, units stop fighting, production halts.

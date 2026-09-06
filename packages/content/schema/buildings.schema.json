@@ -110,20 +110,16 @@
           "size": {
             "type": "object",
             "properties": {
-              "w": {
+              "radius": {
                 "type": "integer",
-                "minimum": 1
-              },
-              "h": {
-                "type": "integer",
-                "minimum": 1
+                "minimum": 0,
+                "default": 0
               }
             },
-            "required": [
-              "w",
-              "h"
-            ],
-            "additionalProperties": false
+            "additionalProperties": false,
+            "default": {
+              "radius": 0
+            }
           },
           "pop": {
             "type": "number",
@@ -250,7 +246,6 @@
           "name",
           "time",
           "hp",
-          "size",
           "visual"
         ],
         "additionalProperties": false
