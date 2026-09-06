@@ -28,7 +28,9 @@ import sys
 import bpy
 from mathutils import Vector
 
-HEX = r'C:\Dev\KayKit\KayKit_Medieval_Hexagon_Pack_1.0\Assets\gltf'
+# The EXTRA pack (itch.io, CC0 like the free one) is a superset of the free pack: same tiles and nature,
+# plus units, more buildings, props and three alternate atlases (Summer, Fall, Winter) in its Textures dir.
+HEX = r'C:\Dev\KayKit\KayKit_Medieval_Hexagon_Pack_1.0_EXTRA\Assets\gltf'
 FOREST = r'C:\Dev\KayKit\KayKit_Forest_Nature_Pack_1.0\Assets\gltf'
 OUT = r'C:\Dev\odal\packages\client\public\models'
 
