@@ -14,6 +14,7 @@ const TEAM_COLOURS = ['#e53935', '#1e88e5', '#43a047', '#fdd835', '#8e24aa'];
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(innerWidth, innerHeight);
 renderer.setPixelRatio(devicePixelRatio);
+renderer.toneMapping = THREE.AgXToneMapping; // same as the game (render/scene.ts) and Blender's default view
 document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();

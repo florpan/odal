@@ -190,7 +190,8 @@ def convert(mode, src, out):
     for v in obj.data.vertices:
         v.co *= s
 
-    remap_palette(images_of(obj))
+    # Textures go out exactly as the pack ships them. remap_palette(images_of(obj)) is kept as a tool for
+    # deliberate swatch swaps; it is not part of the normal export.
     bpy.ops.object.select_all(action='DESELECT')
     obj.select_set(True)
     bpy.context.view_layer.objects.active = obj

@@ -2,8 +2,8 @@
 
 A terrain's `visual.model` is a whole tile (top face at y=0, one hex wide), but the pack's hills and
 mountains are props that sit on a tile. This joins hex_grass + the prop, forces a single material slot
-(the pack shares one texture; a second slot would export as a second primitive), applies the palette
-nudges from kaykit_prop.py and scales flat-to-flat to one hex.
+(the pack shares one texture; a second slot would export as a second primitive) and scales flat-to-flat
+to one hex. The texture goes out untouched.
 
     blender -b -P tools/models/kaykit_compose.py            # everything in JOBS
 """
@@ -48,7 +48,6 @@ def compose(deco, out):
         obj.data.materials.pop(index=len(obj.data.materials) - 1)
     for v in obj.data.vertices:
         v.co *= 0.5  # flat-to-flat 2 -> 1 hex, top face stays at z=0
-    kp.remap_palette(kp.images_of(obj))
     bpy.ops.object.select_all(action='DESELECT')
     obj.select_set(True)
     path = os.path.join(OUT, out)

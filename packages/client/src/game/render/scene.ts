@@ -136,6 +136,9 @@ export class Renderer {
     this.canvas = canvas;
     this.gl = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.gl.setPixelRatio(Math.min(2, window.devicePixelRatio));
+    // AgX is Blender's default view transform: the KayKit atlas reads the same here as in Blender
+    // (soft, slightly desaturated highlights) instead of clipping to full-saturation lime and red.
+    this.gl.toneMapping = THREE.AgXToneMapping;
     this.scene.background = new THREE.Color(0x060a06); // same as unexplored fog, so the map edge stays invisible
     this.camera = new THREE.PerspectiveCamera(50, 1, 0.5, 300);
 
