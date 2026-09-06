@@ -54,7 +54,7 @@ export class Input {
       c,
       'wheel',
       (e) => {
-        renderer.zoom = Math.max(0.4, Math.min(2.2, renderer.zoom * (e.deltaY > 0 ? 1.12 : 0.89)));
+        renderer.zoom = Math.max(0.12, Math.min(2.2, renderer.zoom * (e.deltaY > 0 ? 1.12 : 0.89)));
         e.preventDefault();
       },
       { passive: false },
