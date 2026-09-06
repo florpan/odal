@@ -226,24 +226,31 @@ texture per pack is the fix when size matters.
     still converted but unused. The Blender scripts run headless with
     `"C:/Program Files/Blender Foundation/Blender 5.0/blender.exe" -b -P <script>` (the MCP is optional).
   - Scale convention: one factor per pack family. The whole Hexagon pack (tiles, buildings, decorations)
-    is at `scale:0.5`, so a pack tile is one hex and a house is half a hex, a castle a whole one. The
-    character uses `CHARACTER_SCALE` (a KayKit person = 1 hex tall) and therefore towers over the town
-    hall. **Open decision (Christer):** shrink the character to a Civ-style token, scale buildings up to
-    fill their hex (loses the house/castle hierarchy), or meet in the middle. Knobs: `CHARACTER_SCALE`,
-    the buildings' `scale:0.5`, `visual.height` per unit, `visual.scale` per node.
-  - Colours: textures go out of the converters untouched (`kaykit_prop.py` keeps a `remap_palette` tool, no
-    longer called; the grass nudge tried on 2026-09-06 made the whole board lime). The renderer uses AgX tone
-    mapping, Blender's default view transform, so the pack reads as it does in Blender instead of clipping
-    to saturated lime and red under the 1.4 sun + 0.9 hemisphere. The Hexagon pack's seasonal atlases live
-    in `client/public/models/atlas/`; `?atlas=summer|fall|winter` on the game or the model viewer swaps them
-    in at load (`render/models.ts`, materials named `hexagons_medieval`). Sun light is neutral white so colour
-    lives in the models. Shadows and lighting are still to come. `kaykit_compose.py` builds whole-tile terrains.
+    is at `scale:0.5`, so a pack tile is one hex and a house is half a hex, a castle a whole one.
+    Characters are exported 1 unit tall and sized by `visual.height`: **decided 2026-09-07: a person is
+    0.3 hex** (Warcraft II proportions: half a house, a third of the town hall; the pack's own figure is
+    0.17, too small to click). Buildings stay one hex each (`size.radius` exists per building if a castle
+    ever needs seven). Units are free agents inside the hex grid: continuous positions, separation 0.35,
+    and a work stance (`movement.ts` `stance`) that moves a working unit from its hex centre to the edge
+    facing its tree, wall or target. Selection ring, HP bar and carried load scale with `visual.width`.
+    Still to do for the small character: path smoothing (string pulling) so walks are straight lines
+    rather than centre-to-centre hops.
+  - Colours: the exports carry the Hexagon pack's **Summer** atlas (`kaykit_prop.ATLAS`, chosen 2026-09-07;
+    `remap_palette` is kept as a tool, no longer called: the grass nudge tried on 2026-09-06 made the whole
+    board lime). The renderer uses AgX tone mapping, Blender's default view transform, so the pack reads as
+    it does in Blender instead of clipping to saturated lime and red under the 1.4 sun + 0.9 hemisphere.
+    The four atlases also live in `client/public/models/atlas/`; `?atlas=default|fall|winter` on the game
+    or the model viewer swaps them in at load (`render/models.ts`, materials named `hexagons_medieval`).
+    Sun light is neutral white so colour lives in the models. Shadows: one 2048 PCF shadow map on the sun,
+    following the camera target with an extent tied to the zoom. `kaykit_compose.py` builds whole-tile
+    terrains. Water: the pack's water surface is 0.1 below a tile top in both the water and the coast
+    tiles, so the water terrain has no extra `visual.height` offset.
   - Tooling: `tools/models/glb.ts` + `worker.ts` (procedural labourer, `bun run model:worker`, kept as a
     reference), `inspect.ts` (what is in a GLB), `models.html` viewer (`?m=file.glb`, plays clips).
   - Done 2026-09-06: hex grid, island terrain, ground tiles, relief, decorations, palette nudge, all pack
     buildings in (12 real, 21 cheap test ones, see the M2 content plan), pack walls and gate, ownership
     plate dropped under modelled buildings.
-  - **Next:** the scale decision above; tools in the worker's hands per clip (axe / pickaxe / hammer on the
+  - **Next:** path smoothing; tools in the worker's hands per clip (axe / pickaxe / hammer on the
     hand slot); Knight with sword and shield as the soldier; walls turned to face their neighbours (same
     trick as the coast tiles); an upgrade-in-place command for the tower line; construction scaffolding and
     ruin stages from the pack; one shared texture per pack instead of a copy in every GLB (files are

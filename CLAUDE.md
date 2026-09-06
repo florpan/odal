@@ -36,7 +36,7 @@ bun run schema:gen          # regenerate packages/content/schema/*.json after ch
 bun run tree:graph unit:soldier   # what leads to something (prerequisites + Mermaid); no arg = whole tree
 bun run model:worker        # regenerate the procedural labourer GLB (tools/models); KayKit conversions run in Blender
 #                             model viewer: http://localhost:5173/models.html?m=rogue.glb (needs dev:client)
-#                             ?atlas=summer|fall|winter (game or viewer) swaps the Hexagon pack's seasonal texture
+#                             ?atlas=default|fall|winter (game or viewer) swaps the Hexagon pack's texture (exports carry Summer)
 bun run build && bun start  # production: server serves the built client (no editor routes)
 bun run start:editor        # same, but with /dev/tree mounted so /editor.html works against the built client
 ```

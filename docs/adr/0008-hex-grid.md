@@ -23,8 +23,11 @@ vision, fog, minimap) is unchanged. Neighbours and distances go through axial co
 (`engine/src/hex.ts`). Neighbouring centres in a row are 1 world unit apart, so a hex is about one unit
 wide and speeds, ranges and radii in the tech tree keep meaning "about one hex".
 
-Scale is the board-game kind: a hex is a person, or a building, or a tree. A tile represents what is on
-it rather than its true size, so a character and a house are about the same size. Footprints are a hex
+Scale is the board-game kind: a hex is a building, or a tree, or a field. A tile represents what is on
+it rather than its true size. *Amended 2026-09-07:* people are not tile-sized. A character is 0.3 hex
+tall, moves on continuous positions inside the hex grid (several per hex, kept apart by separation),
+and takes a work stance at the edge of its hex facing its work. The hex remains the unit of terrain,
+placement, pathfinding and vision. Footprints are a hex
 radius (`size.radius`: 0 = one hex, 1 = seven) and every current building is radius 0.
 
 Pathfinding is a service: `pathfinding.ts` exposes one `findPath(nav, from, to)` over a `NavGrid`, and
