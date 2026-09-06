@@ -38,6 +38,12 @@ OUT = r'C:\Dev\odal\packages\client\public\models'
 # shares their world (Forest Nature, Resource Bits, props) is scaled by this same factor.
 CHARACTER_SCALE = 1 / 2.18
 
+# The Hexagon pack's texture for every exported GLB. The pack ships one atlas ("hexagons_medieval.png",
+# referenced by every model) and three seasonal recolours with the same layout in tiles/base. Summer is
+# Odal's look (decided 2026-09-07); None keeps the pack's default. The client can still swap at runtime
+# for comparison (?atlas=default|summer|fall|winter, see client render/models.ts).
+ATLAS = os.path.join(HEX, 'tiles', 'base', 'hexagons_medieval_Summer.png')
+
 # Colour nudges applied to a pack's palette texture at export, as sRGB bytes: {(r, g, b): (r, g, b)}. The
 # KayKit textures are flat-colour atlases, so a swatch is matched by value (within TOLERANCE) and replaced
 # everywhere it is used. Empty on purpose: a nudge of the Hexagon grass (224,227,127 -> 196,226,116) made
@@ -107,6 +113,25 @@ def remap_palette(images):
             img.pixels = px.reshape(-1).tolist()
             img.pack()
             print(f'palette: {img.name}: {changed} texels remapped')
+
+
+def use_atlas(obj):
+    """Point every Hexagon-pack material of `obj` at ATLAS so the export embeds that image instead."""
+    if not ATLAS:
+        return
+    atlas = None
+    for m in obj.data.materials:
+        if not m or not m.node_tree:
+            continue
+        for node in m.node_tree.nodes:
+            if node.type != 'TEX_IMAGE' or not node.image:
+                continue
+            if not os.path.basename(node.image.filepath).lower().startswith('hexagons_medieval'):
+                continue
+            if atlas is None:
+                atlas = bpy.data.images.load(ATLAS, check_existing=True)
+                atlas.name = 'hexagons_medieval'
+            node.image = atlas
 
 
 def images_of(obj):
@@ -190,8 +215,9 @@ def convert(mode, src, out):
     for v in obj.data.vertices:
         v.co *= s
 
-    # Textures go out exactly as the pack ships them. remap_palette(images_of(obj)) is kept as a tool for
-    # deliberate swatch swaps; it is not part of the normal export.
+    # Textures go out as the pack ships them (ATLAS picks which of the pack's own atlases).
+    # remap_palette(images_of(obj)) is kept as a tool for deliberate swatch swaps; not part of the export.
+    use_atlas(obj)
     bpy.ops.object.select_all(action='DESELECT')
     obj.select_set(True)
     bpy.context.view_layer.objects.active = obj

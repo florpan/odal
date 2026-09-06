@@ -17,12 +17,13 @@ import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.j
 
 /**
  * The Medieval Hexagon pack ships one atlas ("hexagons_medieval", embedded in every GLB it produced) and
- * three seasonal recolours of it with identical layout. A season name here swaps the map on every
- * material that uses the atlas, at load time, so seasons can be compared without re-exporting.
- * Dev knob: `?atlas=summer` on the game or the model viewer.
+ * three seasonal recolours of it with identical layout. The exports carry Summer (kaykit_prop.ATLAS);
+ * a season name here swaps the map on every material that uses the atlas, at load time, so the
+ * others can be compared without re-exporting. Dev knob: `?atlas=default|fall|winter` on the game
+ * or the model viewer.
  */
 export const HEX_ATLAS_MATERIAL = 'hexagons_medieval';
-export const HEX_ATLAS_SEASONS = ['summer', 'fall', 'winter'] as const;
+export const HEX_ATLAS_SEASONS = ['default', 'summer', 'fall', 'winter'] as const;
 export type HexAtlasSeason = (typeof HEX_ATLAS_SEASONS)[number];
 
 export function hexAtlasSeason(value: string | null | undefined): HexAtlasSeason | undefined {
