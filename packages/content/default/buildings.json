@@ -9,7 +9,7 @@
     "pop": 5,
     "trains": ["worker"],
     "dropOff": true,
-    "vision": 9,
+    "vision": 7,
     "visual": {
       "color": "#8d6e63",
       "height": 1.2,

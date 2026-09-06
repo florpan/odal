@@ -1,9 +1,10 @@
 import { setTask } from '../ctx';
 import type { Ctx } from '../ctx';
 import { footprintDistance, tileOf } from '../grid';
+import { hexCentre } from '../hex';
 import { unitDamage } from '../queries';
 import type { Building, Unit, UnitTask } from '../types';
-import { goTo, goToAdjacent } from './movement';
+import { goTo, goToAdjacent, stance } from './movement';
 import type { GoResult } from './movement';
 
 // ---------------------------------------------------------------------------
@@ -61,6 +62,7 @@ export function stepAttack(ctx: Ctx, u: Unit) {
 
   u.path = [];
   u.goal = null;
+  if (task.targetKind === 'building') stance(ctx, u, hexCentre(target.x, target.y));
   if (u.cooldown > 0) return;
   target.hp -= unitDamage(ctx.tree, state.players[u.owner], u.type);
   u.cooldown = def.attackTime;

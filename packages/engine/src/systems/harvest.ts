@@ -1,9 +1,10 @@
 import { say, setTask } from '../ctx';
 import type { Ctx } from '../ctx';
 import { isAdjacentTo } from '../grid';
+import { hexCentre } from '../hex';
 import { findNearbyNode, gatherRate, nearestDropOff } from '../queries';
 import type { Unit } from '../types';
-import { goToAdjacent } from './movement';
+import { goToAdjacent, stance } from './movement';
 
 const NODE_SEARCH_RADIUS = 12;
 
@@ -79,6 +80,7 @@ export function stepHarvest(ctx: Ctx, u: Unit) {
     task.phase = 'toNode';
     return;
   }
+  stance(ctx, u, hexCentre(node.x, node.y));
   const def = defs.nodes[node.type];
   task.progress += dt * gatherRate(ctx.tree, player, def.resource);
   if (task.progress < def.gatherTime) return;

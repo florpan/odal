@@ -10,10 +10,10 @@
     "damage": 2,
     "range": 1,
     "aggro": 0,
-    "vision": 6,
+    "vision": 5,
     "upkeep": {},
     "abilities": ["harvest", "build", "attack"],
-    "visual": { "width": 0.4, "height": 0.5, "model": "rogue.glb" }
+    "visual": { "width": 0.2, "height": 0.3, "model": "rogue.glb" }
   },
   {
     "id": "soldier",
@@ -28,9 +28,9 @@
     "damage": 8,
     "range": 1.2,
     "aggro": 6,
-    "vision": 6,
+    "vision": 5,
     "upkeep": { "wheat": 1 },
     "abilities": ["attack"],
-    "visual": { "width": 0.5, "height": 1.2, "helmet": true }
+    "visual": { "width": 0.22, "height": 0.36, "helmet": true }
   }
 ]

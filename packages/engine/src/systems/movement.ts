@@ -4,7 +4,7 @@ import { adjacentTiles, findFreeTileNear, isAdjacentTo, isWalkable, nearestWalka
 import { hexCentre } from '../hex';
 import { findPath } from '../pathfinding';
 import { unitSpeed } from '../queries';
-import type { Unit } from '../types';
+import type { Unit, Vec2 } from '../types';
 
 // ---------------------------------------------------------------------------
 // Movement: walking units along A* paths. Other systems call goTo/goToAdjacent
@@ -12,6 +12,37 @@ import type { Unit } from '../types';
 // ---------------------------------------------------------------------------
 
 export type GoResult = 'arrived' | 'moving' | 'unreachable';
+
+/** How far a working unit stands from its hex centre, towards its work (inside the hex: the inradius is 0.5). */
+const STANCE = 0.32;
+
+/**
+ * Work stance: a unit that has arrived next to its work drifts from the centre of its hex towards
+ * `target` (a world point), so it stands at the edge facing the tree, wall or enemy building instead
+ * of in the middle of the tile. Purely visual: it never leaves the hex, and work does not wait for it.
+ */
+export function stance(ctx: Ctx, u: Unit, target: Vec2) {
+  const t = tileOf(u);
+  const c = hexCentre(t.x, t.y);
+  const dx = target.x - c.x;
+  const dy = target.y - c.y;
+  const d = Math.hypot(dx, dy);
+  if (d < 1e-6) return;
+  const px = c.x + (dx / d) * STANCE;
+  const py = c.y + (dy / d) * STANCE;
+  const ex = px - u.x;
+  const ey = py - u.y;
+  const e = Math.hypot(ex, ey);
+  if (e < 1e-4) return;
+  const step = unitSpeed(ctx.tree, ctx.state.players[u.owner], u.type) * ctx.dt;
+  if (e <= step) {
+    u.x = px;
+    u.y = py;
+  } else {
+    u.x += (ex / e) * step;
+    u.y += (ey / e) * step;
+  }
+}
 
 /** Walk towards a hex, (re)computing the path when needed. */
 export function goTo(ctx: Ctx, u: Unit, tx: number, ty: number): GoResult {

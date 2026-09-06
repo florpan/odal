@@ -1,8 +1,9 @@
 import { say, setTask } from '../ctx';
 import type { Ctx } from '../ctx';
+import { hexCentre } from '../hex';
 import { buildSpeed, buildingMaxHp } from '../queries';
 import type { Unit } from '../types';
-import { goToAdjacent } from './movement';
+import { goToAdjacent, stance } from './movement';
 
 // ---------------------------------------------------------------------------
 // Construction: a builder standing next to an unfinished building adds
@@ -24,6 +25,7 @@ export function stepBuild(ctx: Ctx, u: Unit) {
     return;
   }
   if (r !== 'arrived') return;
+  stance(ctx, u, hexCentre(b.x, b.y));
 
   const def = defs.buildings[b.type];
   const owner = state.players[u.owner];

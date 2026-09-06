@@ -16,7 +16,6 @@
     "passable": false,
     "visual": {
       "color": "#2f6f9f",
-      "height": -0.1,
       "model": "hex_water.glb"
     }
   },

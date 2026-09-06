@@ -242,7 +242,7 @@ describe('engine with the default tech tree', () => {
     b.x = a.x;
     b.y = a.y;
     run(state, 20);
-    expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThan(0.5);
+    expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThan(DEFAULT_TREE.rules.separationDist * 0.9);
   });
 
   test('research applies its effect: sharpened axes speeds up lumber', () => {

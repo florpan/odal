@@ -15,6 +15,12 @@ import { tileOf } from './shore';
 
 /** Footprint radius → width of the disc a building covers, in world units. */
 const footprintWidth = (radius: number) => 1 + 2 * radius;
+
+/** Everything solid casts and receives the sun's shadow (bars, rings, fog and ghosts do not). */
+const shadowed = (m: THREE.Object3D) => {
+  m.castShadow = true;
+  m.receiveShadow = true;
+};
 /** World units per elevation step (`state.elevation`). Two steps stay within a KayKit tile's 0.5 thickness. */
 const HEIGHT_STEP = 0.2;
 
@@ -45,6 +51,8 @@ interface EntityView {
   wantModel?: string;
   /** Buildings: uniform scale applied to a one-hex model (the footprint's width in hexes). */
   modelScale?: number;
+  /** Units: selection ring scale, from the unit's visual width. */
+  ringScale?: number;
   /** Animation state for skinned models. `workClip` is what the task wants when standing still. */
   mixer?: THREE.AnimationMixer;
   clips?: Record<string, THREE.AnimationClip>;
@@ -73,10 +81,13 @@ interface Particle {
 export class Renderer {
   readonly scene = new THREE.Scene();
   readonly camera: THREE.PerspectiveCamera;
+  private sun: THREE.DirectionalLight;
+  private shadowHalf = 0;
   readonly gl: THREE.WebGLRenderer;
   readonly canvas: HTMLCanvasElement;
   camTarget: Vec2 = { x: 32, y: 32 };
-  zoom = 1;
+  /** Camera distance factor (wheel). 0.2 shows about ten hexes across: a person and a house are readable. */
+  zoom = 0.2;
   /** Map size in world units (for camera clamping and ground picking). */
   mapW = 64;
   mapH = 64;
@@ -141,13 +152,24 @@ export class Renderer {
     // AgX is Blender's default view transform: the KayKit atlas reads the same here as in Blender
     // (soft, slightly desaturated highlights) instead of clipping to full-saturation lime and red.
     this.gl.toneMapping = THREE.AgXToneMapping;
+    this.gl.shadowMap.enabled = true;
+    this.gl.shadowMap.type = THREE.PCFSoftShadowMap;
     this.scene.background = new THREE.Color(0x060a06); // same as unexplored fog, so the map edge stays invisible
     this.camera = new THREE.PerspectiveCamera(50, 1, 0.5, 300);
 
     this.scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x3d5a2a, 0.9));
     const sun = new THREE.DirectionalLight(0xffffff, 1.4); // neutral: colour comes from the models, not the light
     sun.position.set(20, 40, 10);
-    this.scene.add(sun);
+    // One shadow map that follows the camera target (update()); its extent tracks the zoom so the
+    // texels stay fine when close and the whole view is still covered when far.
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.bias = -0.0004;
+    sun.shadow.normalBias = 0.02;
+    sun.shadow.camera.near = 1;
+    sun.shadow.camera.far = 120;
+    this.scene.add(sun, sun.target);
+    this.sun = sun;
 
     this.fit();
     this.resize = new ResizeObserver(() => this.fit());
@@ -297,6 +319,8 @@ export class Renderer {
       // Instances start hidden, so the bounding sphere three.js computes on first render would be empty
       // and the part culled for good once revealed; the board is always on screen anyway.
       mesh.frustumCulled = false;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
       this.scene.add(mesh);
       this.ground.push({ mesh });
     }
@@ -421,6 +445,7 @@ export class Renderer {
         const gy = this.groundY(c.x, c.y);
         if (inst) {
           mesh = inst.root;
+          for (const m of inst.meshes) shadowed(m);
           mesh.position.set(c.x, gy, c.y);
           mesh.rotation.y = ((n.id * 137) % 360) * (Math.PI / 180); // varied but stable
           mesh.userData = { kind: 'node', id: n.id, unit: def.visual.scale ?? 1 };
@@ -428,6 +453,7 @@ export class Renderer {
           if (file) void this.models.load(file);
           const isCone = def.visual.shape === 'cone';
           mesh = new THREE.Mesh(isCone ? this.geo.cone : this.geo.rock, this.material(def.visual.color));
+          shadowed(mesh);
           mesh.position.set(c.x, gy + (isCone ? 0.65 : 0.3), c.y);
           if (!isCone) mesh.rotation.set(Math.random(), Math.random(), 0);
           mesh.userData = { kind: 'node', id: n.id, unit: 1, wantModel: file };
@@ -477,6 +503,7 @@ export class Renderer {
     v.group.remove(v.body);
     inst.root.scale.setScalar(height);
     inst.root.rotation.y = v.body.rotation.y;
+    for (const m of inst.meshes) shadowed(m);
     v.group.add(inst.root);
     v.body = inst.root;
     v.meshes = inst.meshes;
@@ -544,18 +571,23 @@ export class Renderer {
         const { width, height, helmet, model } = def.visual;
         const mat = this.material(color);
         const body = new THREE.Mesh(this.box(width, height, width), mat);
+        shadowed(body);
         body.position.y = height / 2;
         group.add(body);
         if (helmet && !model) {
           const head = new THREE.Mesh(this.geo.head, this.material(0x3a3a3a));
-          head.position.y = height + 0.11;
+          head.scale.setScalar(height);
+          head.position.y = height * 1.11;
           group.add(head);
         }
+        // Carried load, HP bar and selection ring are sized from the unit's visual size (a person is
+        // a fraction of a hex; the ring geometry is one hex across at scale 1).
         const carry = new THREE.Mesh(this.geo.carry, this.material(0xffffff));
-        carry.position.y = height + 0.3;
+        carry.scale.setScalar(Math.max(0.35, height));
+        carry.position.y = height * 1.3;
         carry.visible = false;
         group.add(carry);
-        const bar = this.makeBar(0.8);
+        const bar = this.makeBar(Math.max(0.3, width * 1.6));
         group.add(bar.group);
         group.userData = { kind: 'unit', id: u.id } satisfies Pick;
         group.position.set(u.x, this.groundY(u.x, u.y), u.y);
@@ -569,7 +601,8 @@ export class Renderer {
           workClip: 'idle',
           speed: def.speed,
           bar,
-          barHeight: height + 0.55,
+          barHeight: height + 0.2,
+          ringScale: Math.max(0.45, width * 2.4),
           maxHp: def.hp,
           lastHp: u.hp,
           flashUntil: 0,
@@ -643,6 +676,7 @@ export class Renderer {
           light.position.set(0, height + 0.4, 0);
           body.add(light);
         }
+        shadowed(body);
         group.add(body);
         const bar = this.makeBar(width * 0.9);
         group.add(bar.group);
@@ -727,6 +761,9 @@ export class Renderer {
         const c = hexCentre(node.x, node.y);
         ring.position.set(c.x, this.groundY(c.x, c.y) + 0.03, c.y);
         ring.scale.setScalar(1.3);
+      } else if (key[0] === 'u') {
+        const v = this.units.get(Number(key.slice(1)));
+        if (v) ring.scale.setScalar(v.ringScale ?? 1);
       }
     }
   }
@@ -844,6 +881,18 @@ export class Renderer {
     }
 
     const dist = 26 * this.zoom;
+    this.sun.position.set(this.camTarget.x + 20, 40, this.camTarget.y + 10);
+    this.sun.target.position.set(this.camTarget.x, 0, this.camTarget.y);
+    const half = Math.min(40, Math.max(4, 14 * this.zoom + 3));
+    if (half !== this.shadowHalf) {
+      this.shadowHalf = half;
+      const sc = this.sun.shadow.camera;
+      sc.left = -half;
+      sc.right = half;
+      sc.top = half;
+      sc.bottom = -half;
+      sc.updateProjectionMatrix();
+    }
     this.camera.position.set(this.camTarget.x, dist * 0.85, this.camTarget.y + dist * 0.6);
     this.camera.lookAt(this.camTarget.x, 0, this.camTarget.y);
   }

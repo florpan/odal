@@ -37,7 +37,7 @@
       "wheat": 40
     },
     "maxQueue": 5,
-    "separationDist": 0.6,
+    "separationDist": 0.35,
     "startClearRadius": 4,
     "upkeepInterval": 60,
     "playerColors": ["#e53935", "#1e88e5", "#43a047", "#fdd835", "#8e24aa", "#fb8c00", "#00acc1", "#f06292"]
