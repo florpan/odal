@@ -140,7 +140,7 @@ export class Renderer {
     this.camera = new THREE.PerspectiveCamera(50, 1, 0.5, 300);
 
     this.scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x3d5a2a, 0.9));
-    const sun = new THREE.DirectionalLight(0xfff2d6, 1.4);
+    const sun = new THREE.DirectionalLight(0xffffff, 1.4); // neutral: colour comes from the models, not the light
     sun.position.set(20, 40, 10);
     this.scene.add(sun);
 

@@ -190,6 +190,9 @@ basic combat, multiplayer over WebSocket, minimap, HUD.
   - Scale convention: one factor per pack family. Characters and nature use `CHARACTER_SCALE` (a KayKit
     person = 1 tile); the miniature Hexagon tile set is fitted to our tile by footprint instead. Building
     sizes still to be tuned (a 2×2 barracks should share the house's factor).
+  - Colours: `kaykit_prop.py` has a `PALETTE` table that nudges pack swatches at export (the Hexagon grass
+    was a lime with red ≈ green; now a touch greener). Sun light is neutral white so colour lives in the models.
+    Small steps only, shadows and lighting are still to come. `kaykit_compose.py` builds whole-tile terrains.
   - Tooling: `tools/models/glb.ts` + `worker.ts` (procedural labourer, `bun run model:worker`, kept as a
     reference), `inspect.ts` (what is in a GLB), `models.html` viewer (`?m=file.glb`, plays clips).
   - **Next:** tools in the worker's hands per clip (KayKit axe / pickaxe props on the hand slot), Knight as

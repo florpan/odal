@@ -36,6 +36,16 @@ OUT = r'C:\Dev\odal\packages\client\public\models'
 # shares their world (Forest Nature, Resource Bits, props) is scaled by this same factor.
 CHARACTER_SCALE = 1 / 2.18
 
+# Colour nudges applied to a pack's palette texture at export, as sRGB bytes. The KayKit textures are
+# flat-colour atlases, so a swatch is matched by value (within TOLERANCE) and replaced everywhere it is
+# used: tiles, hill and mountain tops, building bases. The Hexagon pack's grass is a pale lime with red
+# about equal to green, which reads yellow under any white light; this pulls it a little towards green.
+# Keep the steps small: shadows and lighting are still to come and shift the overall feel too.
+PALETTE = {
+    (224, 227, 127): (196, 226, 116),  # grass
+}
+TOLERANCE = 6
+
 DEFAULT_JOBS = [
     ('footprint', os.path.join(HEX, 'buildings', 'red', 'building_home_A_red.gltf'), os.path.join(OUT, 'home_a_red.glb')),
     ('footprint', os.path.join(HEX, 'buildings', 'blue', 'building_home_A_blue.gltf'), os.path.join(OUT, 'home_a_blue.glb')),
@@ -53,7 +63,45 @@ DEFAULT_JOBS = [
     ('hex:0', os.path.join(HEX, 'tiles', 'coast', 'hex_coast_B.gltf'), os.path.join(OUT, 'hex_coast_2.glb')),
     ('hex:-30', os.path.join(HEX, 'tiles', 'coast', 'hex_coast_C.gltf'), os.path.join(OUT, 'hex_coast_3.glb')),
     ('hex:-60', os.path.join(HEX, 'tiles', 'coast', 'hex_coast_D.gltf'), os.path.join(OUT, 'hex_coast_4.glb')),
+] + [
+    # Hexagon-pack decorations at tile scale (they sit on a tile; see kaykit_compose.py for whole-tile ones).
+    ('scale:0.5', os.path.join(HEX, 'decoration', 'nature', f'{n}.gltf'), os.path.join(OUT, f'hex_{n.lower()}.glb'))
+    for n in ['tree_single_A', 'tree_single_B', 'trees_A_small', 'trees_A_medium', 'trees_A_large', 'trees_B_small',
+              'trees_B_medium', 'trees_B_large', 'rock_single_A', 'rock_single_B', 'rock_single_C', 'rock_single_D',
+              'rock_single_E']
 ]
+
+
+def remap_palette(images):
+    """Replace PALETTE swatches in the given images (in place, packed so the export carries the change)."""
+    if not PALETTE:
+        return
+    import numpy as np
+    for img in images:
+        px = np.array(img.pixels[:], dtype=np.float32).reshape(-1, 4)  # linear floats
+        srgb = np.rint(np.clip(px[:, :3], 0, 1) ** (1 / 2.2) * 255)
+        changed = 0
+        for src, dst in PALETTE.items():
+            mask = np.all(np.abs(srgb - np.array(src)) <= TOLERANCE, axis=1)
+            n = int(mask.sum())
+            if n:
+                px[mask, :3] = (np.array(dst, dtype=np.float32) / 255) ** 2.2
+                changed += n
+        if changed:
+            img.pixels = px.reshape(-1).tolist()
+            img.pack()
+            print(f'palette: {img.name}: {changed} texels remapped')
+
+
+def images_of(obj):
+    out = []
+    for m in obj.data.materials:
+        if not m or not m.node_tree:
+            continue
+        for node in m.node_tree.nodes:
+            if node.type == 'TEX_IMAGE' and node.image and node.image not in out:
+                out.append(node.image)
+    return out
 
 
 def reset_scene():
@@ -117,6 +165,7 @@ def convert(mode, src, out):
     for v in obj.data.vertices:
         v.co *= s
 
+    remap_palette(images_of(obj))
     bpy.ops.object.select_all(action='DESELECT')
     obj.select_set(True)
     bpy.context.view_layer.objects.active = obj
