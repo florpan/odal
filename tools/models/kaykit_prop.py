@@ -38,14 +38,12 @@ OUT = r'C:\Dev\odal\packages\client\public\models'
 # shares their world (Forest Nature, Resource Bits, props) is scaled by this same factor.
 CHARACTER_SCALE = 1 / 2.18
 
-# Colour nudges applied to a pack's palette texture at export, as sRGB bytes. The KayKit textures are
-# flat-colour atlases, so a swatch is matched by value (within TOLERANCE) and replaced everywhere it is
-# used: tiles, hill and mountain tops, building bases. The Hexagon pack's grass is a pale lime with red
-# about equal to green, which reads yellow under any white light; this pulls it a little towards green.
-# Keep the steps small: shadows and lighting are still to come and shift the overall feel too.
-PALETTE = {
-    (224, 227, 127): (196, 226, 116),  # grass
-}
+# Colour nudges applied to a pack's palette texture at export, as sRGB bytes: {(r, g, b): (r, g, b)}. The
+# KayKit textures are flat-colour atlases, so a swatch is matched by value (within TOLERANCE) and replaced
+# everywhere it is used. Empty on purpose: a nudge of the Hexagon grass (224,227,127 -> 196,226,116) made
+# the whole board lime, since tiles, hill tops and building bases share the atlas. Prefer the pack's own
+# seasonal atlases (tiles/base/hexagons_medieval_{Summer,Fall,Winter}.png) over tinting.
+PALETTE: dict[tuple[int, int, int], tuple[int, int, int]] = {}
 TOLERANCE = 6
 
 DEFAULT_JOBS = [
