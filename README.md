@@ -1,7 +1,7 @@
 # Odal
 
 A simple browser-based multiplayer RTS: harvest lumber, iron, gold and wheat, build a village around your
-campfire, research, and fight. Inspired by Warcraft II. Every rule is data in a tech tree.
+town hall, research, and fight. Inspired by Warcraft II. Every rule is data in a tech tree.
 
 _Odal_ (Old Norse óðal): inherited land, held and defended by a family. Your village around the fire is
 exactly that.
@@ -35,7 +35,7 @@ honours `PORT`, `EMPTY_ROOM_TTL_MS` and `TREE_DIR`. The editor routes are never 
 | Command        | Right click: ground = move, tree/rock = harvest, enemy = attack, own unfinished building = help build                     |
 | Attack-move    | A, then click. Fighters engage anything they meet on the way. Idle fighters only defend against units that come close     |
 | Control groups | Ctrl+1–9 saves the selection, 1–9 recalls it, press twice to center the camera                                            |
-| Rally point    | Select a campfire or barracks and right-click the ground or a resource. New workers auto-harvest a rallied resource       |
+| Rally point    | Select a town hall or barracks and right-click the ground or a resource. New workers auto-harvest a rallied resource      |
 | Build          | Select workers, press the building's hotkey (H F L B) or use the buttons, click to place. Shift-click to place several    |
 | Stop           | S                                                                                                                         |
 | Camera         | Arrow keys / W D X, middle-drag, mouse wheel, click minimap                                                               |

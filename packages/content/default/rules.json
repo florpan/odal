@@ -43,7 +43,7 @@
     "playerColors": ["#e53935", "#1e88e5", "#43a047", "#fdd835", "#8e24aa", "#fb8c00", "#00acc1", "#f06292"]
   },
   "start": {
-    "building": "campfire",
+    "building": "townhall",
     "units": [
       {
         "type": "worker",

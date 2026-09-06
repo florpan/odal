@@ -49,10 +49,13 @@ PALETTE = {
 TOLERANCE = 6
 
 DEFAULT_JOBS = [
-    ('footprint', os.path.join(HEX, 'buildings', 'red', 'building_home_A_red.gltf'), os.path.join(OUT, 'home_a_red.glb')),
-    ('footprint', os.path.join(HEX, 'buildings', 'blue', 'building_home_A_blue.gltf'), os.path.join(OUT, 'home_a_blue.glb')),
-    ('footprint', os.path.join(HEX, 'buildings', 'green', 'building_home_A_green.gltf'), os.path.join(OUT, 'home_a_green.glb')),
-    ('footprint', os.path.join(HEX, 'buildings', 'yellow', 'building_home_A_yellow.gltf'), os.path.join(OUT, 'home_a_yellow.glb')),
+    # Hexagon-pack buildings, one per hex at the pack's own proportions (a house is small, a castle
+    # fills the tile). Four team colours each; the tree refers to them as "<name>_{team}.glb".
+] + [
+    ('scale:0.5', os.path.join(HEX, 'buildings', c, f'building_{n}_{c}.gltf'), os.path.join(OUT, f'{n.lower()}_{c}.glb'))
+    for n in ['townhall', 'home_A', 'windmill', 'blacksmith', 'barracks', 'tower_A', 'lumbermill', 'mine', 'market', 'castle']
+    for c in ['red', 'blue', 'green', 'yellow']
+] + [
     (f'scale:{CHARACTER_SCALE}', os.path.join(FOREST, 'Tree_1_C_Color1.gltf'), os.path.join(OUT, 'tree_1.glb')),
     (f'scale:{CHARACTER_SCALE}', os.path.join(FOREST, 'Tree_2_C_Color1.gltf'), os.path.join(OUT, 'tree_2.glb')),
     (f'scale:{CHARACTER_SCALE}', os.path.join(FOREST, 'Tree_3_C_Color1.gltf'), os.path.join(OUT, 'tree_3.glb')),
@@ -133,10 +136,19 @@ def convert(mode, src, out):
     if len(meshes) > 1:
         bpy.ops.object.join()
     obj = bpy.context.active_object
+    # KayKit packs share one texture per pack; joined parts leave duplicate material slots that would
+    # export as separate primitives. Keep slot 0 for every face when the slots all use the same image.
+    imgs = {id(next((nd.image for nd in m.node_tree.nodes if nd.type == 'TEX_IMAGE' and nd.image), None))
+            for m in obj.data.materials if m and m.node_tree}
+    if len(obj.data.materials) > 1 and len(imgs) == 1:
+        for poly in obj.data.polygons:
+            poly.material_index = 0
+        while len(obj.data.materials) > 1:
+            obj.data.materials.pop(index=len(obj.data.materials) - 1)
     obj.name = os.path.splitext(os.path.basename(out))[0]
-    for o in imported:
-        if o.type != 'MESH' and o.name in bpy.data.objects:
-            bpy.data.objects.remove(o)
+    # Joining removed the other mesh objects; drop whatever else the import brought (empties, lights).
+    for o in [o for o in bpy.data.objects if o is not obj]:
+        bpy.data.objects.remove(o)
 
     # Centre the footprint on the origin, base at z=0 (Blender z-up), then normalise.
     # Hex tiles keep their authored origin (top face at z=0) and only get scaled and turned.

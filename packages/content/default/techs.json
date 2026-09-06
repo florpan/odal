@@ -11,7 +11,7 @@
   {
     "id": "crop_rotation",
     "name": "Crop Rotation",
-    "desc": "Farms grow wheat 50% faster.",
+    "desc": "Windmills grind wheat 50% faster.",
     "cost": { "gold": 20, "lumber": 20 },
     "time": 15,
     "effects": [{ "type": "produceRate", "building": "farm", "multiplier": 1.5 }]

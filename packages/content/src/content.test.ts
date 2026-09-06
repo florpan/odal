@@ -47,9 +47,9 @@ describe('default ruleset', () => {
 describe('validator', () => {
   test('reports dangling references with a path', () => {
     const broken = clone();
-    broken.buildings.find((b) => b.id === 'campfire')!.trains!.push('dragon');
+    broken.buildings.find((b) => b.id === 'townhall')!.trains!.push('dragon');
     const { errors } = validateTree(broken);
-    expect(errors.some((e) => e.includes('buildings.campfire.trains') && e.includes('dragon'))).toBe(true);
+    expect(errors.some((e) => e.includes('buildings.townhall.trains') && e.includes('dragon'))).toBe(true);
   });
 
   test('rejects techs nobody can research', () => {
@@ -75,9 +75,9 @@ describe('validator', () => {
 
   test('rejects a unit requiring a building that does not exist', () => {
     const broken = clone();
-    broken.units[0].requires = [{ type: 'building', id: 'castle' }];
+    broken.units[0].requires = [{ type: 'building', id: 'dragon_lair' }];
     const { errors } = validateTree(broken);
-    expect(errors.some((e) => e.includes('units.worker.requires') && e.includes('castle'))).toBe(true);
+    expect(errors.some((e) => e.includes('units.worker.requires') && e.includes('dragon_lair'))).toBe(true);
   });
 
   test('accepts population requirements and author notes', () => {

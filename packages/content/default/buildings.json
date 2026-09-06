@@ -1,99 +1,257 @@
 [
   {
-    "id": "campfire",
-    "name": "Campfire",
+    "id": "townhall",
+    "name": "Town hall",
     "desc": "The heart of the village. Trains workers and receives harvested resources.",
     "buildable": false,
     "time": 0,
-    "hp": 200,
+    "hp": 400,
     "pop": 5,
     "trains": ["worker"],
     "dropOff": true,
     "vision": 9,
-    "visual": { "shape": "cone", "color": "#ff6f1f", "height": 0.8, "glow": "#ff4500" }
+    "visual": {
+      "color": "#8d6e63",
+      "height": 1.2,
+      "model": "townhall_{team}.glb"
+    }
   },
   {
     "id": "house",
     "name": "House",
     "desc": "+5 population.",
-    "cost": { "lumber": 25 },
+    "cost": {
+      "lumber": 25
+    },
     "time": 15,
     "hp": 150,
     "pop": 5,
     "hotkey": "H",
-    "visual": { "color": "#8d6e63", "height": 1.2, "model": "home_a_{team}.glb" }
+    "visual": {
+      "color": "#8d6e63",
+      "height": 1.2,
+      "model": "home_a_{team}.glb"
+    }
   },
   {
     "id": "farm",
-    "name": "Farm",
-    "desc": "Grows 4 wheat every 8 seconds.",
-    "cost": { "lumber": 20 },
+    "name": "Windmill",
+    "desc": "Grinds 4 wheat every 8 seconds. Researches crop rotation.",
+    "cost": {
+      "lumber": 20
+    },
     "time": 15,
     "hp": 100,
-    "produces": { "resource": "wheat", "amount": 4, "interval": 8 },
+    "produces": {
+      "resource": "wheat",
+      "amount": 4,
+      "interval": 8
+    },
     "hotkey": "F",
-    "visual": { "color": "#d4b04a", "height": 0.25 }
+    "visual": {
+      "color": "#d4b04a",
+      "height": 1.4,
+      "model": "windmill_{team}.glb"
+    },
+    "researches": ["crop_rotation"]
+  },
+  {
+    "id": "lumbermill",
+    "name": "Lumber mill",
+    "desc": "Receives lumber, stone and iron. Build it by the woods to shorten the walk.",
+    "notes": "A drop-off, nothing more, until per-resource drop-offs exist. Reason: the townhall is the only drop-off and hauls get long on a 96-hex island.",
+    "cost": {
+      "lumber": 40
+    },
+    "time": 20,
+    "hp": 200,
+    "dropOff": true,
+    "hotkey": "L",
+    "visual": {
+      "color": "#8d6e63",
+      "height": 1.2,
+      "model": "lumbermill_{team}.glb"
+    }
+  },
+  {
+    "id": "mine",
+    "name": "Mine",
+    "desc": "Receives stone and iron. Build it by the rocks.",
+    "notes": "Same as the lumber mill for now; later a per-resource drop-off and a mining speed bonus.",
+    "cost": {
+      "lumber": 40
+    },
+    "time": 20,
+    "hp": 250,
+    "dropOff": true,
+    "hotkey": "M",
+    "visual": {
+      "color": "#6d6d6d",
+      "height": 1.0,
+      "model": "mine_{team}.glb"
+    }
+  },
+  {
+    "id": "market",
+    "name": "Market",
+    "desc": "Trade brings 2 gold every 12 seconds.",
+    "notes": "Gold without a deposit, slowly. Later: trade one resource for another.",
+    "cost": {
+      "lumber": 40,
+      "gold": 10
+    },
+    "time": 25,
+    "hp": 200,
+    "hotkey": "E",
+    "produces": {
+      "resource": "gold",
+      "amount": 2,
+      "interval": 12
+    },
+    "visual": {
+      "color": "#c9a227",
+      "height": 1.0,
+      "model": "market_{team}.glb"
+    }
   },
   {
     "id": "library",
-    "name": "Library",
-    "desc": "Researches technology.",
-    "cost": { "lumber": 40, "gold": 10 },
+    "name": "Blacksmith",
+    "desc": "Researches tools, weapons and masonry.",
+    "cost": {
+      "lumber": 40,
+      "gold": 10
+    },
     "time": 25,
     "hp": 200,
-    "researches": ["ironworking", "sharp_axes", "crop_rotation", "steel_weapons", "masonry"],
-    "hotkey": "L",
-    "visual": { "color": "#7e57c2", "height": 1.6 }
+    "researches": ["ironworking", "sharp_axes", "steel_weapons", "masonry"],
+    "hotkey": "K",
+    "visual": {
+      "color": "#7e57c2",
+      "height": 1.0,
+      "model": "blacksmith_{team}.glb"
+    }
   },
   {
     "id": "barracks",
     "name": "Barracks",
     "desc": "Trains soldiers.",
-    "cost": { "lumber": 50, "iron": 20 },
+    "cost": {
+      "lumber": 50,
+      "iron": 20
+    },
     "time": 30,
     "hp": 300,
     "trains": ["soldier"],
-    "requires": [{ "type": "tech", "id": "ironworking" }],
+    "requires": [
+      {
+        "type": "tech",
+        "id": "ironworking"
+      }
+    ],
     "hotkey": "B",
-    "visual": { "color": "#9c2f2f", "height": 1.4 }
+    "visual": {
+      "color": "#8b1e1e",
+      "height": 1.6,
+      "model": "barracks_{team}.glb"
+    }
+  },
+  {
+    "id": "castle",
+    "name": "Castle",
+    "desc": "Seat of power. +10 population, trains soldiers, hard to bring down.",
+    "notes": "The late-game goal to build towards. Requires masonry.",
+    "cost": {
+      "stone": 120,
+      "lumber": 80
+    },
+    "time": 90,
+    "hp": 1200,
+    "pop": 10,
+    "trains": ["soldier"],
+    "vision": 10,
+    "hotkey": "C",
+    "requires": [
+      {
+        "type": "tech",
+        "id": "masonry"
+      }
+    ],
+    "visual": {
+      "color": "#9e9e9e",
+      "height": 2.0,
+      "model": "castle_{team}.glb"
+    }
   },
   {
     "id": "wall",
     "name": "Wall",
     "desc": "A stone wall segment. Blocks everyone.",
     "notes": "Cheap per tile so enclosing a base is a real option, but pure stone so it forces a quarry. Available from the start: the first stone sink.",
-    "cost": { "stone": 10 },
+    "cost": {
+      "stone": 10
+    },
     "time": 8,
     "hp": 250,
     "vision": 3,
     "hotkey": "R",
-    "visual": { "color": "#7b7b7b", "height": 1.1 }
+    "visual": {
+      "color": "#7b7b7b",
+      "height": 1.1
+    }
   },
   {
     "id": "gate",
     "name": "Gate",
     "desc": "A wall segment your own units can walk through.",
-    "cost": { "stone": 15, "lumber": 10 },
+    "cost": {
+      "stone": 15,
+      "lumber": 10
+    },
     "time": 12,
     "hp": 300,
     "passable": true,
-    "requires": [{ "type": "tech", "id": "masonry" }],
+    "requires": [
+      {
+        "type": "tech",
+        "id": "masonry"
+      }
+    ],
     "vision": 3,
     "hotkey": "G",
-    "visual": { "color": "#5d4a3a", "height": 1.3 }
+    "visual": {
+      "color": "#5d4a3a",
+      "height": 1.3
+    }
   },
   {
     "id": "tower",
     "name": "Watchtower",
     "desc": "Sees far and shoots enemies that come within 6 tiles.",
     "notes": "Damage per second is below a soldier's, so a tower alone never wins a fight; it buys time and vision.",
-    "cost": { "stone": 40, "lumber": 20 },
+    "cost": {
+      "stone": 40,
+      "lumber": 20
+    },
     "time": 30,
     "hp": 400,
-    "attack": { "damage": 6, "range": 6, "attackTime": 1.5 },
-    "requires": [{ "type": "tech", "id": "masonry" }],
+    "attack": {
+      "damage": 6,
+      "range": 6,
+      "attackTime": 1.5
+    },
+    "requires": [
+      {
+        "type": "tech",
+        "id": "masonry"
+      }
+    ],
     "vision": 11,
     "hotkey": "T",
-    "visual": { "color": "#9e9e9e", "height": 2.4 }
+    "visual": {
+      "color": "#9e9e9e",
+      "height": 2.4,
+      "model": "tower_a_{team}.glb"
+    }
   }
 ]

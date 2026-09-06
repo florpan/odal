@@ -178,7 +178,7 @@ describe('engine with the default tech tree', () => {
     expect(p.resources).toEqual({ ...DEFAULT_TREE.rules.startResources });
   });
 
-  test('worker harvests lumber and drops it at the campfire', () => {
+  test('worker harvests lumber and drops it at the town hall', () => {
     const state = createGame(DEFAULT_TREE, 7);
     const p = addPlayer(state, 'Alice', emptyEvents());
     const worker = Object.values(state.units)[0];
@@ -205,7 +205,7 @@ describe('engine with the default tech tree', () => {
     expect(p.resources.wheat).toBeGreaterThan(wheatBefore);
   });
 
-  test('campfire trains a worker', () => {
+  test('the town hall trains a worker', () => {
     const state = createGame(DEFAULT_TREE, 7);
     const p = addPlayer(state, 'Alice', emptyEvents());
     const camp = Object.values(state.buildings)[0];
@@ -274,7 +274,7 @@ describe('engine with the default tech tree', () => {
   });
 
   test('a unit with an unmet requirement cannot be trained', () => {
-    // A ruleset where the campfire can train soldiers; the soldier itself still requires Ironworking.
+    // A ruleset where the town hall can train soldiers; the soldier itself still requires Ironworking.
     const tree = structuredClone(DEFAULT_TREE);
     tree.buildings.find((b) => b.id === tree.start.building)!.trains.push('soldier');
     const state = createGame(tree, 7);
@@ -336,7 +336,7 @@ describe('engine with the default tech tree', () => {
     const b = addPlayer(state, 'Bob', emptyEvents());
     const homeB = Object.values(state.buildings).find((x) => x.owner === b.id)!;
     for (const u of Object.values(state.units)) if (u.owner === b.id) delete state.units[u.id];
-    // Open ground around Bob's campfire so pathing is not part of the test.
+    // Open ground around Bob's town hall so pathing is not part of the test.
     for (const n of Object.values(state.nodes)) if (hexDistance(n, homeB) < 14) delete state.nodes[n.id];
     const hc = hexCentre(homeB.x, homeB.y);
     const s = makeUnit(state, a.id, soldierDef.id, hc.x + 2, hc.y);

@@ -13,7 +13,7 @@ gameplay first.
 
 ## Core loop
 
-1. Workers harvest resources from the map and carry them back to the campfire.
+1. Workers harvest resources from the map and carry them back to the town hall.
 2. Resources pay for buildings; workers construct them.
 3. Buildings unlock production (units) and research (technology).
 4. Research unlocks better buildings and improvements; buildings unlock units and research in turn.
@@ -42,7 +42,7 @@ reason.
 | Gold     | Gold rocks (rarer deposits)          | Research             |                                                                                                                                    |
 | Wheat    | **Farms** (built, produce over time) | Unit count           | Every unit costs wheat and soldiers eat wheat as upkeep. Forces you to dedicate space to farming.                                  |
 
-Start: 60 lumber, 0 stone, 0 iron, 20 gold, 40 wheat. One campfire, one worker.
+Start: 60 lumber, 0 stone, 0 iron, 20 gold, 40 wheat. One town hall, one worker.
 
 Why stone (decided 2026-09-04): lumber, wheat and to a degree gold are mandatory, so they create no
 decision. Stone is the first resource a player can choose to ignore. That choice, and the worker
@@ -53,16 +53,20 @@ be a strategy rather than a chore: wall, gate, watchtower and Masonry at launch.
 
 Every building occupies one hex (ADR 0008: board-game scale, a tile represents what is on it).
 
-| Building   | Cost                | Effect                                                                 | Requires    |
-| ---------- | ------------------- | ---------------------------------------------------------------------- | ----------- |
-| Campfire   | —                   | Start building. Drop-off point. Trains workers. +5 pop. Not buildable. | —           |
-| House      | 25 lumber           | +5 population cap.                                                     | —           |
-| Farm       | 20 lumber           | +4 wheat every 8 s.                                                    | —           |
-| Library    | 40 lumber, 10 gold  | Research.                                                              | —           |
-| Barracks   | 50 lumber, 20 iron  | Trains soldiers.                                                       | Ironworking |
-| Wall       | 10 stone            | Blocks everyone. 250 HP.                                               | —           |
-| Gate       | 15 stone, 10 lumber | Wall segment the owner's units walk through. 300 HP.                   | Masonry     |
-| Watchtower | 40 stone, 20 lumber | Vision 11, shoots 6 damage every 1.5 s within 6 hexes. 400 HP.         | Masonry     |
+| Building    | Cost                 | Effect                                                                 | Requires    |
+| ----------- | -------------------- | ---------------------------------------------------------------------- | ----------- |
+| Town hall   | —                    | Start building. Drop-off point. Trains workers. +5 pop. Not buildable. | —           |
+| House       | 25 lumber            | +5 population cap.                                                     | —           |
+| Windmill    | 20 lumber            | +4 wheat every 8 s. Researches crop rotation.                          | —           |
+| Lumber mill | 40 lumber            | Drop-off, to shorten hauls from the woods.                             | —           |
+| Mine        | 40 lumber            | Drop-off, to shorten hauls from the rocks.                             | —           |
+| Market      | 40 lumber, 10 gold   | +2 gold every 12 s.                                                    | —           |
+| Blacksmith  | 40 lumber, 10 gold   | Researches tools, weapons and masonry.                                 | —           |
+| Barracks    | 50 lumber, 20 iron   | Trains soldiers.                                                       | Ironworking |
+| Castle      | 120 stone, 80 lumber | +10 pop, trains soldiers, 1200 HP.                                     | Masonry     |
+| Wall        | 10 stone             | Blocks everyone. 250 HP.                                               | —           |
+| Gate        | 15 stone, 10 lumber  | Wall segment the owner's units walk through. 300 HP.                   | Masonry     |
+| Watchtower  | 40 stone, 20 lumber  | Vision 11, shoots 6 damage every 1.5 s within 6 hexes. 400 HP.         | Masonry     |
 
 ### Units
 
@@ -86,7 +90,7 @@ Every building occupies one hex (ADR 0008: board-game scale, a tile represents w
 A hex grid (`rules.map`, 96×96 hexes by default) from a seed: an island with a wandering coastline and
 impassable water around it (terrain is data, `terrain.json`), forest blobs, stone, iron and gold deposits,
 densities per node type in `nodes.json`. Each new player is placed as far as possible from existing
-campfires and the area around their campfire is cleared; every start is guaranteed a path to the centre.
+town halls and the area around their town hall is cleared; every start is guaranteed a path to the centre.
 Trees, rocks and buildings block movement; units path around them (hex A*, six neighbours). Gates are open
 for their owner's units only. Units push each other apart but don't block.
 
@@ -104,7 +108,7 @@ Three.js game, and a content editor page that shares the tree view with the game
 | Soldier                    | Taller box in player color with a dark "helmet"      |
 | Tree                       | Green cone (shrinks as it is harvested)              |
 | Stone / iron / gold        | Gray / steel / yellow rock (dodecahedron)            |
-| Campfire                   | Glowing orange cone with a point light               |
+| Town hall, other buildings | KayKit Hexagon buildings in the owner's colour       |
 | House / Library / Barracks | Brown / purple / dark red box                        |
 | Wall / Gate / Watchtower   | Gray block / dark wooden block / tall light-gray box |
 | Farm                       | Flat wheat-colored slab                              |
@@ -152,7 +156,7 @@ basic combat, multiplayer over WebSocket, minimap, HUD.
 - [ ] Gathering depth, next candidates: per-resource drop-off buildings (lumber mill, quarry) so distance
       matters; contested deposits placed between players; a second tier of gathering techs
 - [ ] Simple AI opponent for solo play and balancing
-- [ ] Win condition: destroy all enemy campfires
+- [ ] Win condition: destroy all enemy town halls
 - [ ] Balance pass with real opponents, using the editor
 
 ### Playtest feedback 2026-09-05 (first real match, one player vs an empty base)
@@ -173,6 +177,35 @@ basic combat, multiplayer over WebSocket, minimap, HUD.
 - [x] **Controls overview** in game (F1 / ?), building hotkeys read from the tree.
 - [ ] **Camera:** edge scrolling, follow selected unit, jump to last event. Deferred to the graphics milestone.
 - [ ] **Map rotation** (Q/E in 90° steps, or free orbit). Deferred to the graphics milestone.
+
+### M2 content plan (2026-09-06): buildings from the Hexagon pack
+
+The tree is built around what the KayKit Hexagon packs actually contain, so nothing is a placeholder.
+Ids stay stable where a building only changed its look (`farm` is the windmill, `library` the blacksmith).
+
+| Pack model                                  | Building       | Status                                              |
+| ------------------------------------------- | -------------- | --------------------------------------------------- |
+| townhall                                    | Town hall      | in: start, drop-off, workers                        |
+| home_A                                      | House          | in                                                  |
+| windmill                                    | Windmill       | in: wheat, crop rotation                            |
+| lumbermill, mine                            | drop-offs      | in; later per-resource drop-off and a gather bonus  |
+| market                                      | Market         | in: gold trickle; later trade                       |
+| blacksmith                                  | Blacksmith     | in: research                                        |
+| barracks                                    | Barracks       | in                                                  |
+| castle                                      | Castle         | in: late-game pop and soldiers                      |
+| tower_A / B / catapult / cannon, watchtower | Tower line     | tower_A in; upgrade-in-place command still to build |
+| church, shrine                              | healer, mage   | skipped for now (no ranged or healing yet)          |
+| archeryrange                                | Archer         | skipped for now (no ranged)                         |
+| stables                                     | Scout, speed   | later                                               |
+| workshop                                    | Siege          | later, with damage-by-target                        |
+| watermill                                   | Wheat by water | skipped (needs placement rules)                     |
+| well, tavern, docks, shipyard               | –              | no role yet                                         |
+
+Walls and gates keep primitives: the pack has no wall pieces. Units in the plan (worker with tools,
+soldier with sword and shield, archer, healer, mage, berserker, scout, siege) come from the
+Adventurers characters plus hand props and the shared animation set; only the worker and soldier exist.
+Model files are 100–360 KB each because every one embeds its own copy of the atlas; sharing one
+texture per pack is the fix when size matters.
 
 ### M3 — Looks
 
@@ -229,7 +262,7 @@ basic combat, multiplayer over WebSocket, minimap, HUD.
   Decide with real opponents.
 - Towers use raw `attack.damage`; should a tech be able to buff them? Add a `buildingDamage` effect when
   there is a reason.
-- Player elimination: campfire destroyed = out? Or allow rebuilding? Decide with the win condition in M2.
+- Player elimination: town hall destroyed = out? Or allow rebuilding? Decide with the win condition in M2.
 - Persistence: is a game ever saved, or is every server restart a fresh map? Fresh for now.
 - Same-name reconnect is convenient but lets anyone claim an unattended village. Fine among friends; a
   token per session before any public deployment. Also: a page reload while the old socket is still open
