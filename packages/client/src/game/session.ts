@@ -4,6 +4,7 @@ import { appStore, toggleOverlay } from '../app/store';
 import { Input } from './input';
 import { drawMinimap, minimapToWorld } from './minimap';
 import { Net } from './net';
+import { hexAtlasSeason } from './render/models';
 import { Renderer } from './render/scene';
 import { buildHud } from './viewmodel';
 import { World } from './world';
@@ -88,7 +89,8 @@ export class GameSession {
 
   /** Start rendering into a canvas. Returns the matching teardown. */
   attach(canvas: HTMLCanvasElement): () => void {
-    this.renderer = new Renderer(canvas);
+    // Dev knob: ?atlas=summer|fall|winter swaps the Hexagon pack's texture for a seasonal one.
+    this.renderer = new Renderer(canvas, { atlas: hexAtlasSeason(new URLSearchParams(location.search).get('atlas')) });
     this.input = new Input(this.world, this.renderer, this.net, () => this.publish());
     this.resetScene();
     this.publish();

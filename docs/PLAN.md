@@ -231,9 +231,13 @@ texture per pack is the fix when size matters.
     hall. **Open decision (Christer):** shrink the character to a Civ-style token, scale buildings up to
     fill their hex (loses the house/castle hierarchy), or meet in the middle. Knobs: `CHARACTER_SCALE`,
     the buildings' `scale:0.5`, `visual.height` per unit, `visual.scale` per node.
-  - Colours: `kaykit_prop.py` has a `PALETTE` table that nudges pack swatches at export (the Hexagon grass
-    was a lime with red ≈ green; now a touch greener). Sun light is neutral white so colour lives in the models.
-    Small steps only, shadows and lighting are still to come. `kaykit_compose.py` builds whole-tile terrains.
+  - Colours: textures go out of the converters untouched (`kaykit_prop.py` keeps a `remap_palette` tool, no
+    longer called; the grass nudge tried on 2026-09-06 made the whole board lime). The renderer uses AgX tone
+    mapping, Blender's default view transform, so the pack reads as it does in Blender instead of clipping
+    to saturated lime and red under the 1.4 sun + 0.9 hemisphere. The Hexagon pack's seasonal atlases live
+    in `client/public/models/atlas/`; `?atlas=summer|fall|winter` on the game or the model viewer swaps them
+    in at load (`render/models.ts`, materials named `hexagons_medieval`). Sun light is neutral white so colour
+    lives in the models. Shadows and lighting are still to come. `kaykit_compose.py` builds whole-tile terrains.
   - Tooling: `tools/models/glb.ts` + `worker.ts` (procedural labourer, `bun run model:worker`, kept as a
     reference), `inspect.ts` (what is in a GLB), `models.html` viewer (`?m=file.glb`, plays clips).
   - Done 2026-09-06: hex grid, island terrain, ground tiles, relief, decorations, palette nudge, all pack

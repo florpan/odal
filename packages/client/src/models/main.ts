@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { HEX_ATLAS_MATERIAL, hexAtlasSeason, loadHexAtlas } from '../game/render/models';
 
 // ---------------------------------------------------------------------------
 // Model viewer (models.html): loads a GLB from /models/, lights it roughly
@@ -73,6 +74,9 @@ function play(clip: THREE.AnimationClip | undefined) {
   action = next;
 }
 
+const atlasSeason = hexAtlasSeason(new URLSearchParams(location.search).get('atlas'));
+const atlas = atlasSeason ? loadHexAtlas(atlasSeason) : null;
+
 function load(url: string) {
   new GLTFLoader().load(
     url,
@@ -86,7 +90,11 @@ function load(url: string) {
           const g = o.geometry as THREE.BufferGeometry;
           tris += (g.index ? g.index.count : g.attributes.position.count) / 3;
           const mats = Array.isArray(o.material) ? o.material : [o.material];
-          for (const m of mats) materials.add(m.name);
+          for (const m of mats) {
+            materials.add(m.name);
+            // ?atlas=summer|fall|winter: the Hexagon pack's seasonal recolour, as in the game.
+            if (atlas && m.name.startsWith(HEX_ATLAS_MATERIAL) && 'map' in m) (m as THREE.MeshStandardMaterial).map = atlas;
+          }
           if (o instanceof THREE.SkinnedMesh) o.frustumCulled = false;
         }
       });
@@ -149,7 +157,8 @@ addEventListener('resize', () => {
   renderer.setSize(innerWidth, innerHeight);
 });
 
-const url = new URLSearchParams(location.search).get('m');
+const params = new URLSearchParams(location.search);
+const url = params.get('m');
 if (url) urlInput.value = url.startsWith('/') ? url : `/models/${url}`;
 load(urlInput.value);
 const clock = new THREE.Clock();

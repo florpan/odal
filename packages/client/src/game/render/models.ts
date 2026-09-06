@@ -15,6 +15,28 @@ import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.j
 // death), assigned when the model is assembled (tools/models/kaykit_character.py).
 // ---------------------------------------------------------------------------
 
+/**
+ * The Medieval Hexagon pack ships one atlas ("hexagons_medieval", embedded in every GLB it produced) and
+ * three seasonal recolours of it with identical layout. A season name here swaps the map on every
+ * material that uses the atlas, at load time, so seasons can be compared without re-exporting.
+ * Dev knob: `?atlas=summer` on the game or the model viewer.
+ */
+export const HEX_ATLAS_MATERIAL = 'hexagons_medieval';
+export const HEX_ATLAS_SEASONS = ['summer', 'fall', 'winter'] as const;
+export type HexAtlasSeason = (typeof HEX_ATLAS_SEASONS)[number];
+
+export function hexAtlasSeason(value: string | null | undefined): HexAtlasSeason | undefined {
+  return (HEX_ATLAS_SEASONS as readonly string[]).includes(value ?? '') ? (value as HexAtlasSeason) : undefined;
+}
+
+/** A texture for the seasonal atlas, set up like a glTF-embedded one (no flip, sRGB, mipmapped). */
+export function loadHexAtlas(season: HexAtlasSeason): THREE.Texture {
+  const tex = new THREE.TextureLoader().load(`/models/atlas/${HEX_ATLAS_MATERIAL}_${season}.png`);
+  tex.flipY = false;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 export interface ModelInstance {
   root: THREE.Object3D;
   meshes: THREE.Mesh[];
@@ -31,11 +53,22 @@ interface Template {
 
 export class ModelLibrary {
   private loader = new GLTFLoader();
+  private atlas: THREE.Texture | null;
   private templates = new Map<string, Template>();
   private pending = new Map<string, Promise<void>>();
   private teamMats = new Map<string, THREE.MeshLambertMaterial>();
   private plainMats = new Map<string, THREE.MeshLambertMaterial>();
   private geometries = new Map<string, { geometry: THREE.BufferGeometry; material: THREE.Material }>();
+
+  constructor(atlas?: HexAtlasSeason) {
+    this.atlas = atlas ? loadHexAtlas(atlas) : null;
+  }
+
+  /** The map a Lambert copy of `src` should use: the seasonal atlas if `src` is a Hexagon-pack material. */
+  private mapFor(src: THREE.MeshStandardMaterial): THREE.Texture | null {
+    if (this.atlas && src.name.startsWith(HEX_ATLAS_MATERIAL)) return this.atlas;
+    return src.map ?? null;
+  }
 
   /** Start loading; resolves (never rejects) when the file is usable or has failed. */
   load(file: string): Promise<void> {
@@ -98,7 +131,7 @@ export class ModelLibrary {
         const key = `${file}:${src.name}`;
         m = this.plainMats.get(key);
         if (!m) {
-          m = new THREE.MeshLambertMaterial({ color: src.color ?? 0xffffff, map: src.map ?? null });
+          m = new THREE.MeshLambertMaterial({ color: src.color ?? 0xffffff, map: this.mapFor(src) });
           this.plainMats.set(key, m);
         }
       }
@@ -134,7 +167,7 @@ export class ModelLibrary {
         const key = `${file}:${src.name}`;
         let m = this.plainMats.get(key);
         if (!m) {
-          m = new THREE.MeshLambertMaterial({ color: src.color ?? 0xffffff, map: src.map ?? null });
+          m = new THREE.MeshLambertMaterial({ color: src.color ?? 0xffffff, map: this.mapFor(src) });
           this.plainMats.set(key, m);
         }
         material = m;

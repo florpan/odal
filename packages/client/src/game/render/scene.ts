@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { HEX_R, buildingMaxHp, hexCentre, idx, unitMaxHp, worldSize, worldToHex } from '@odal/engine';
 import type { Building, GameState, RallyPoint, ResourceNode, TechTree, Unit, Vec2 } from '@odal/engine';
 import { ModelLibrary } from './models';
+import type { HexAtlasSeason } from './models';
 import { tileOf } from './shore';
 
 // ---------------------------------------------------------------------------
@@ -83,7 +84,7 @@ export class Renderer {
   private cols = 64;
   private rows = 64;
 
-  private models = new ModelLibrary();
+  private models: ModelLibrary;
   private nodeMeshes = new Map<number, THREE.Object3D>();
   private units = new Map<number, EntityView>();
   private buildings = new Map<number, EntityView>();
@@ -132,8 +133,9 @@ export class Renderer {
   private barYellow = new THREE.MeshBasicMaterial({ color: 0xe6c02e, depthTest: false });
   private barRed = new THREE.MeshBasicMaterial({ color: 0xe04a2e, depthTest: false });
 
-  constructor(canvas: HTMLCanvasElement) {
+  constructor(canvas: HTMLCanvasElement, opts: { atlas?: HexAtlasSeason } = {}) {
     this.canvas = canvas;
+    this.models = new ModelLibrary(opts.atlas);
     this.gl = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.gl.setPixelRatio(Math.min(2, window.devicePixelRatio));
     // AgX is Blender's default view transform: the KayKit atlas reads the same here as in Blender
