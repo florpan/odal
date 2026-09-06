@@ -8,7 +8,7 @@ import type { World } from './world';
 // owns what is drawn on it (like the renderer owns the 3D canvas).
 // ---------------------------------------------------------------------------
 
-const GROUND: [number, number, number] = [75, 122, 52];
+const UNEXPLORED: [number, number, number] = [13, 18, 11];
 let image: ImageData | null = null;
 let scratch: HTMLCanvasElement | null = null;
 
@@ -42,12 +42,15 @@ export function drawMinimap(
   const { vision, explored } = world;
   const nodeColors: Record<string, [number, number, number]> = {};
   for (const n of st.tree.nodes) nodeColors[n.id] = hexToRgb(n.visual.color);
+  const terrainColors = st.tree.terrain.map((t) => hexToRgb(t.visual.color));
 
+  // Terrain where explored, nothing where not: the island's shape is something to discover.
   for (let i = 0; i < w * h; i++) {
     const o = i * 4;
-    px[o] = GROUND[0];
-    px[o + 1] = GROUND[1];
-    px[o + 2] = GROUND[2];
+    const col = explored && !explored[i] ? UNEXPLORED : terrainColors[st.terrain[i]];
+    px[o] = col[0];
+    px[o + 1] = col[1];
+    px[o + 2] = col[2];
     px[o + 3] = 255;
   }
   for (const id in st.nodes) {
@@ -55,19 +58,18 @@ export function drawMinimap(
     const i = n.y * w + n.x;
     if (explored && !explored[i]) continue;
     const o = i * 4;
-    const col = nodeColors[n.type] ?? GROUND;
+    const col = nodeColors[n.type] ?? terrainColors[st.terrain[i]];
     px[o] = col[0];
     px[o + 1] = col[1];
     px[o + 2] = col[2];
   }
   if (vision && explored) {
     for (let i = 0; i < w * h; i++) {
-      const dim = vision[i] ? 1 : explored[i] ? 0.55 : 0.12;
-      if (dim === 1) continue;
+      if (vision[i] || !explored[i]) continue;
       const o = i * 4;
-      px[o] *= dim;
-      px[o + 1] *= dim;
-      px[o + 2] *= dim;
+      px[o] *= 0.55;
+      px[o + 1] *= 0.55;
+      px[o + 2] *= 0.55;
     }
   }
   scratch!.getContext('2d')!.putImageData(image, 0, 0);

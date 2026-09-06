@@ -18,8 +18,8 @@ import type { GameState, Player, TickEvents, Vec2 } from './types';
 
 export function createGame(tree: TechTree, seed: number): GameState {
   const { width, height } = tree.rules.map;
-  const { nodes, nextId, starts } = generateMap(tree, seed, width, height);
-  return { tree, seed, tick: 0, width, height, nodes, starts, units: {}, buildings: {}, players: {}, nextId };
+  const { terrain, nodes, nextId, starts } = generateMap(tree, seed, width, height);
+  return { tree, seed, tick: 0, width, height, terrain, nodes, starts, units: {}, buildings: {}, players: {}, nextId };
 }
 
 export function emptyEvents(): TickEvents {
@@ -48,9 +48,11 @@ export function addPlayer(state: GameState, name: string, events: TickEvents): P
       ? free.reduce((a, b) => (distToOthers(b) > distToOthers(a) ? b : a))
       : free[Math.floor(rng() * free.length)];
   } else {
+    const blocked = computeBlocked(state);
     let bestScore = -1;
     for (let i = 0; i < 80; i++) {
       const p = { x: 6 + Math.floor(rng() * (state.width - 12)), y: 6 + Math.floor(rng() * (state.height - 12)) };
+      if (blocked[p.y * state.width + p.x]) continue;
       const score = distToOthers(p);
       if (score > bestScore) {
         bestScore = score;

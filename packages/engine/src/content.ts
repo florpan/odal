@@ -58,6 +58,17 @@ export interface ResourceDef extends EntityDef {
   icon: string;
 }
 
+/** A kind of ground. Every hex of the map has exactly one. */
+export interface TerrainDef extends EntityDef {
+  /** Units walk on it. Impassable terrain (water) blocks like a node does and nothing spawns or builds on it. */
+  passable: boolean;
+  /**
+   * `height`: where the tile's top sits relative to the ground plane (water below 0 makes a shore step).
+   * `model`: a GLB hex tile under /models/ (one hex wide, top at y=0); without it a flat coloured hex is drawn.
+   */
+  visual: { color: string; height: number; model?: string };
+}
+
 export interface NodeDef extends EntityDef {
   resource: string;
   amount: number;
@@ -125,7 +136,18 @@ export interface TechDef extends ProducibleDef {
 export interface Rules {
   tickRate: number;
   /** `starts`: start slots on a ring around the centre; players take the free one farthest from everyone. */
-  map: { width: number; height: number; starts: number }; // hex columns and rows
+  map: {
+    width: number; // hex columns
+    height: number; // hex rows
+    starts: number;
+    /** Terrain id every hex starts as. */
+    ground: string;
+    /**
+     * Present: the map is an island. `water` is the terrain outside the coast, `shore` how much of the
+     * map's half-size is water at the edge (0.12 = a thin band), `roughness` how far the coastline wanders.
+     */
+    island?: { water: string; shore: number; roughness: number };
+  };
   /** Every start slot gets each node type's `spawn.perStart` clusters/deposits within this radius. */
   homeRadius: number;
   startResources: Cost;
@@ -146,6 +168,7 @@ export interface TechTree {
   version: 1;
   rules: Rules;
   resources: ResourceDef[];
+  terrain: TerrainDef[];
   nodes: NodeDef[];
   units: UnitDef[];
   buildings: BuildingDef[];

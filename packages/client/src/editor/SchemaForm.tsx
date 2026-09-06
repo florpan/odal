@@ -9,7 +9,7 @@ import type { Path } from './ops';
 // kind of thing it refers to (see idKind); everything else is generic.
 // ---------------------------------------------------------------------------
 
-export type IdKind = 'resources' | 'nodes' | 'units' | 'buildings' | 'techs';
+export type IdKind = 'resources' | 'terrain' | 'nodes' | 'units' | 'buildings' | 'techs';
 
 export interface FormContext {
   /** Known ids per file, for pickers. */
@@ -63,6 +63,7 @@ function idKind(path: Path, siblings?: Record<string, unknown>): IdKind | null {
   if (key === 'id' && siblings?.type === 'tech') return 'techs';
   if (key === 'id' && siblings?.type === 'building') return 'buildings';
   if (key === 'resource') return 'resources';
+  if (key === 'ground' || key === 'water') return 'terrain';
   if (key === 'unit') return 'units';
   if (key === 'building') return 'buildings';
   if (key === 'tech') return 'techs';

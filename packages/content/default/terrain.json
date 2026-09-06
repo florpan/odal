@@ -1,0 +1,15 @@
+[
+  {
+    "id": "grass",
+    "name": "Grass",
+    "desc": "Open ground. Everything walks, grows and builds here.",
+    "visual": { "color": "#5b8a3c" }
+  },
+  {
+    "id": "water",
+    "name": "Water",
+    "desc": "The sea around the island. Nothing crosses it.",
+    "passable": false,
+    "visual": { "color": "#2f6f9f", "height": -0.18 }
+  }
+]

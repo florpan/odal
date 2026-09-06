@@ -90,6 +90,8 @@ export interface GameState {
   tick: number;
   width: number; // hex columns
   height: number; // hex rows (see hex.ts for the world size)
+  /** Per hex (row * width + col): index into `tree.terrain`. Static after generation. */
+  terrain: number[];
   nodes: Record<number, ResourceNode>;
   /** Start slots from map generation; addPlayer hands them out. */
   starts: Vec2[];

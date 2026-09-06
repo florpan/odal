@@ -39,11 +39,41 @@
                   "minimum": 2,
                   "maximum": 8,
                   "default": 4
+                },
+                "ground": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_]*$"
+                },
+                "island": {
+                  "type": "object",
+                  "properties": {
+                    "water": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9_]*$"
+                    },
+                    "shore": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 0.4,
+                      "default": 0.12
+                    },
+                    "roughness": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 0.3,
+                      "default": 0.06
+                    }
+                  },
+                  "required": [
+                    "water"
+                  ],
+                  "additionalProperties": false
                 }
               },
               "required": [
                 "width",
-                "height"
+                "height",
+                "ground"
               ],
               "additionalProperties": false
             },

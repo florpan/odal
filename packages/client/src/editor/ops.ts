@@ -2,17 +2,18 @@ import { RULESET_FILES } from '@odal/engine';
 import type { GraphEdge, Ref, RulesetFile, RulesetFiles } from '@odal/engine';
 
 // ---------------------------------------------------------------------------
-// Pure edits on the six raw ruleset files. The editor store applies these and
+// Pure edits on the raw ruleset files. The editor store applies these and
 // keeps history; nothing here knows about React or the network. Files are
 // the authored JSON (defaults not applied), so what gets saved is what the
 // author sees.
 // ---------------------------------------------------------------------------
 
 export type ListFile = Exclude<RulesetFile, 'rules'>;
-export const LIST_FILES: ListFile[] = ['resources', 'nodes', 'units', 'buildings', 'techs'];
+export const LIST_FILES: ListFile[] = ['resources', 'terrain', 'nodes', 'units', 'buildings', 'techs'];
 export const FILE_LABEL: Record<RulesetFile, string> = {
   rules: 'Rules',
   resources: 'Resources',
+  terrain: 'Terrain',
   nodes: 'Nodes',
   units: 'Units',
   buildings: 'Buildings',
@@ -100,6 +101,8 @@ export function template(files: Files, file: ListFile): Entity {
   switch (file) {
     case 'resources':
       return { id, name: 'New resource', icon: '' };
+    case 'terrain':
+      return { id, name: 'New terrain', visual: { color: '#5b8a3c' } };
     case 'nodes':
       return {
         id,

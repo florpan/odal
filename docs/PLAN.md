@@ -83,7 +83,8 @@ Every building occupies one hex (ADR 0008: board-game scale, a tile represents w
 
 ### Map
 
-A hex grid (`rules.map`, 96×96 hexes by default) from a seed: forest blobs, stone, iron and gold deposits,
+A hex grid (`rules.map`, 96×96 hexes by default) from a seed: an island with a wandering coastline and
+impassable water around it (terrain is data, `terrain.json`), forest blobs, stone, iron and gold deposits,
 densities per node type in `nodes.json`. Each new player is placed as far as possible from existing
 campfires and the area around their campfire is cleared; every start is guaranteed a path to the centre.
 Trees, rocks and buildings block movement; units path around them (hex A*, six neighbours). Gates are open
@@ -194,7 +195,8 @@ basic combat, multiplayer over WebSocket, minimap, HUD.
   - **Next:** tools in the worker's hands per clip (KayKit axe / pickaxe props on the hand slot), Knight as
     the soldier, remaining buildings from the Hexagon pack, rocks from Resource Bits, one shared texture per
     pack instead of a copy in every GLB, softer shrink-with-amount for tree models.
-- [ ] Terrain texture, water/cliffs as impassable terrain
+- [x] Terrain layer: `terrain.json`, island with water as the natural border, unexplored hexes hidden (2026-09-06)
+- [ ] KayKit hex tiles as ground (grass, coast, water), then per-hex stepped height
 - [ ] Animations (walk, chop, attack), sound
 - [ ] Flashier start screen, in-game help, settings dialog (all React)
 

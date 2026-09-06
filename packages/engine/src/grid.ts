@@ -23,13 +23,15 @@ export function footprintTiles(x: number, y: number, radius: number): Vec2[] {
 }
 
 /**
- * Tiles nothing can walk through: nodes and buildings. With `forOwner`, that
+ * Tiles nothing can walk through: impassable terrain, nodes and buildings. With `forOwner`, that
  * player's `passable` buildings (gates) are left open, so pathfinding for their
  * units walks through them while everyone else goes around.
  */
 export function computeBlocked(state: GameState, forOwner?: number): Uint8Array {
   const { width: w, height: h } = state;
   const g = new Uint8Array(w * h);
+  const terrain = state.tree.terrain;
+  for (let i = 0; i < w * h; i++) if (!terrain[state.terrain[i]].passable) g[i] = 1;
   for (const id in state.nodes) {
     const n = state.nodes[id];
     g[n.y * w + n.x] = 1;

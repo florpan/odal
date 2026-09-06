@@ -205,6 +205,7 @@ function Inspector({
       list(files, file).map((e) => ({ id: e.id, name: typeof e.name === 'string' ? e.name : e.id }));
     return {
       resources: pick('resources'),
+      terrain: pick('terrain'),
       nodes: pick('nodes'),
       units: pick('units'),
       buildings: pick('buildings'),

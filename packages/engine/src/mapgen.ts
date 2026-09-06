@@ -1,23 +1,28 @@
-import { hexArea, hexCentre, hexLine, hexNeighbours, worldSize, worldToHex } from './hex';
+import { hexArea, hexCentre, hexDistance, hexLine, hexNeighbours, worldSize, worldToHex } from './hex';
 import { mulberry32 } from './rng';
 import type { NodeDef, Spawn, TechTree } from './content';
 import type { ResourceNode, Vec2 } from './types';
 
 export interface GeneratedMap {
+  /** Per hex: index into `tree.terrain`. */
+  terrain: number[];
   nodes: Record<number, ResourceNode>;
   nextId: number;
   starts: Vec2[];
 }
 
 /**
- * Seeded map generation, in three passes so no start is left without its basics:
+ * Seeded map generation, in passes so no start is left without its basics:
  *
+ * 0. Terrain: every hex is `rules.map.ground`; with `rules.map.island` the map
+ *    becomes an island with a wandering coastline and `island.water` outside.
  * 1. `rules.map.starts` start slots on a ring around the centre, evenly spaced
- *    at a random rotation. Players at the edges, the middle in between.
+ *    at a random rotation, on land. Players at the edges, the middle in between.
  * 2. Home zones: every slot gets each node type's `spawn.perStart` clusters or
  *    deposits somewhere between the start clearing and `rules.homeRadius`.
- * 3. The per-1000-tiles scatter from each `spawn` rule, anywhere on the map or,
- *    with `zone: 'centre'`, only in the middle fifth (contested resources).
+ * 3. The per-1000-land-hexes scatter from each `spawn` rule, anywhere on land
+ *    or, with `zone: 'centre'`, only in the middle fifth (contested resources).
+ * 4. Connectivity: a corridor is carved for any start that cannot reach the centre.
  *
  * Positions are hexes (offset coordinates); radii are in hexes. Deterministic
  * for a given tree, seed and size.
@@ -26,11 +31,50 @@ export function generateMap(tree: TechTree, seed: number, w: number, h: number):
   const rng = mulberry32(seed);
   const { rules } = tree;
   const nodes: Record<number, ResourceNode> = {};
+  /** Hexes nothing can spawn on: water and already placed nodes. */
   const occupied = new Set<number>();
   let nextId = 1;
-  const per1000 = (w * h) / 1000;
   const TAU = Math.PI * 2;
   const size = worldSize(w, h);
+  const cx = size.x / 2;
+  const cy = size.y / 2;
+
+  // 0. Terrain.
+  const groundIdx = tree.terrain.findIndex((t) => t.id === rules.map.ground);
+  const terrain: number[] = new Array<number>(w * h).fill(groundIdx);
+  const island = rules.map.island;
+  /** How far inland (in world units, along each axis) the coast is guaranteed to be. */
+  let landX = cx;
+  let landY = cy;
+  if (island) {
+    const waterIdx = tree.terrain.findIndex((t) => t.id === island.water);
+    // Coastline: a radius of 1 - shore in normalised ellipse space, plus a few harmonics.
+    const waves = [2, 3, 5, 7].map((k) => ({ k, amp: (0.4 + rng() * 0.6) / k, phase: rng() * TAU }));
+    const coast = (a: number) => {
+      let n = 0;
+      for (const wv of waves) n += wv.amp * Math.sin(wv.k * a + wv.phase);
+      return 1 - island.shore + island.roughness * n;
+    };
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const c = hexCentre(x, y);
+        const nx = (c.x - cx) / cx;
+        const ny = (c.y - cy) / cy;
+        const d = Math.hypot(nx, ny);
+        if (d >= coast(Math.atan2(ny, nx))) {
+          terrain[y * w + x] = waterIdx;
+          occupied.add(y * w + x);
+        }
+      }
+    }
+    const inland = 1 - island.shore - island.roughness * 1.2;
+    landX = cx * inland;
+    landY = cy * inland;
+  }
+
+  const isLand = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && terrain[y * w + x] === groundIdx;
+  const landCount = terrain.filter((t) => t === groundIdx).length;
+  const per1000 = landCount / 1000;
 
   const place = (type: string, amount: number, x: number, y: number) => {
     if (x < 0 || y < 0 || x >= w || y >= h) return;
@@ -42,10 +86,10 @@ export function generateMap(tree: TechTree, seed: number, w: number, h: number):
   };
 
   /** Blob that is dense in the middle and thins out towards the edge. */
-  const forest = (def: NodeDef, sp: Spawn & { kind: 'forest' }, cx: number, cy: number) => {
+  const forest = (def: NodeDef, sp: Spawn & { kind: 'forest' }, fx: number, fy: number) => {
     const r = sp.radius[0] + rng() * (sp.radius[1] - sp.radius[0]);
-    const centre = hexCentre(cx, cy);
-    for (const t of hexArea(cx, cy, Math.ceil(r))) {
+    const centre = hexCentre(fx, fy);
+    for (const t of hexArea(fx, fy, Math.ceil(r))) {
       const c = hexCentre(t.x, t.y);
       const d = Math.hypot(c.x - centre.x, c.y - centre.y) / r;
       if (d > 1) continue;
@@ -69,33 +113,38 @@ export function generateMap(tree: TechTree, seed: number, w: number, h: number):
 
   /** The hex under a world position. */
   const hexAt = (x: number, y: number) => worldToHex({ x, y });
+  const centre = hexAt(cx, cy);
 
-  // 1. Start slots. The ring leaves room for a whole home zone inside the map edge.
+  // 1. Start slots. The ring leaves room for a whole home zone inside the coast (or map edge).
   const starts: Vec2[] = [];
   const margin = rules.homeRadius + 2;
-  const rx = Math.max(4, size.x / 2 - margin);
-  const ry = Math.max(4, size.y / 2 - margin);
+  const rx = Math.max(4, landX - margin);
+  const ry = Math.max(4, landY - margin);
   const rot = rng() * TAU;
   for (let i = 0; i < rules.map.starts; i++) {
     const a = rot + (i / rules.map.starts) * TAU;
-    starts.push(hexAt(size.x / 2 + Math.cos(a) * rx, size.y / 2 + Math.sin(a) * ry));
+    let s = hexAt(cx + Math.cos(a) * rx, cy + Math.sin(a) * ry);
+    // Should the coast have wandered this far in, step inland until on land.
+    if (!isLand(s.x, s.y)) s = hexLine(s, centre).find((t) => isLand(t.x, t.y)) ?? centre;
+    starts.push(s);
   }
   // The start hexes themselves stay free: the starting building goes there.
   for (const s of starts) occupied.add(s.y * w + s.x);
 
   // 2. Home zones, placed first so they win the tiles. A cluster whose seed hex is
-  //    already taken (a deposit landing in a forest) is re-rolled a few times.
+  //    already taken (water, or a deposit landing in a forest) is re-rolled a few times.
   const inner = rules.startClearRadius + 1;
   const outer = Math.max(inner + 1, rules.homeRadius);
   for (const s of starts) {
     const c = hexCentre(s.x, s.y);
     for (const def of tree.nodes) {
       for (let k = 0; k < def.spawn.perStart; k++) {
-        for (let tries = 0; tries < 8; tries++) {
+        for (let tries = 0; tries < 12; tries++) {
           const a = rng() * TAU;
           const d = inner + rng() * (outer - inner);
           const t = hexAt(c.x + Math.cos(a) * d, c.y + Math.sin(a) * d);
           if (t.x < 0 || t.y < 0 || t.x >= w || t.y >= h || occupied.has(t.y * w + t.x)) continue;
+          if (hexDistance(t, s) > rules.homeRadius) continue; // world distance rounds up to one hex more
           spawnAt(def, t.x, t.y);
           break;
         }
@@ -118,33 +167,37 @@ export function generateMap(tree: TechTree, seed: number, w: number, h: number):
     const count = Math.round((sp.kind === 'forest' ? sp.clustersPer1000Tiles : sp.depositsPer1000Tiles) * per1000);
     for (let i = 0; i < count; i++) {
       const p = randomIn(sp.zone);
-      spawnAt(def, p.x, p.y);
+      if (isLand(p.x, p.y)) spawnAt(def, p.x, p.y);
     }
   }
 
   // 4. Connectivity. On a hex grid a ring of trees is a real wall (no diagonal
   //    gaps), so every start must be able to reach the map centre: any that
-  //    cannot gets a one-hex corridor carved straight towards it.
-  const centre = hexAt(size.x / 2, size.y / 2);
+  //    cannot gets a one-hex corridor carved straight towards it (through
+  //    water too, as a causeway).
   const byTile = new Map<number, number>();
   for (const id in nodes) byTile.set(nodes[id].y * w + nodes[id].x, Number(id));
+  const blockedAt = (i: number) => byTile.has(i) || terrain[i] !== groundIdx;
   for (const s of starts) {
-    if (reaches(byTile, w, h, s, centre)) continue;
+    if (reaches(blockedAt, w, h, s, centre)) continue;
     for (const t of hexLine(s, centre)) {
-      const id = byTile.get(t.y * w + t.x);
-      if (id === undefined) continue;
-      delete nodes[id];
-      byTile.delete(t.y * w + t.x);
+      const i = t.y * w + t.x;
+      const id = byTile.get(i);
+      if (id !== undefined) {
+        delete nodes[id];
+        byTile.delete(i);
+      }
+      terrain[i] = groundIdx;
     }
   }
 
-  return { nodes, nextId, starts };
+  return { terrain, nodes, nextId, starts };
 }
 
 /** Flood fill over free hexes: can `from` walk to `to`? */
-function reaches(occupied: Map<number, number>, w: number, h: number, from: Vec2, to: Vec2): boolean {
+function reaches(blockedAt: (i: number) => boolean, w: number, h: number, from: Vec2, to: Vec2): boolean {
   const target = to.y * w + to.x;
-  if (occupied.has(target)) return false;
+  if (blockedAt(target)) return false;
   const seen = new Uint8Array(w * h);
   const stack: Vec2[] = [from];
   seen[from.y * w + from.x] = 1;
@@ -154,7 +207,7 @@ function reaches(occupied: Map<number, number>, w: number, h: number, from: Vec2
     for (const n of hexNeighbours(p.x, p.y)) {
       if (n.x < 0 || n.y < 0 || n.x >= w || n.y >= h) continue;
       const i = n.y * w + n.x;
-      if (seen[i] || occupied.has(i)) continue;
+      if (seen[i] || blockedAt(i)) continue;
       seen[i] = 1;
       stack.push(n);
     }

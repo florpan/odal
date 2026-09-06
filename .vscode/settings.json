@@ -2,6 +2,7 @@
   "json.schemas": [
     { "fileMatch": ["packages/content/*/rules.json"], "url": "./packages/content/schema/rules.schema.json" },
     { "fileMatch": ["packages/content/*/resources.json"], "url": "./packages/content/schema/resources.schema.json" },
+    { "fileMatch": ["packages/content/*/terrain.json"], "url": "./packages/content/schema/terrain.schema.json" },
     { "fileMatch": ["packages/content/*/nodes.json"], "url": "./packages/content/schema/nodes.schema.json" },
     { "fileMatch": ["packages/content/*/units.json"], "url": "./packages/content/schema/units.schema.json" },
     { "fileMatch": ["packages/content/*/buildings.json"], "url": "./packages/content/schema/buildings.schema.json" },

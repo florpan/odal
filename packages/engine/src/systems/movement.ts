@@ -19,9 +19,9 @@ export function goTo(ctx: Ctx, u: Unit, tx: number, ty: number): GoResult {
   const blocked = blockedFor(ctx, u.owner);
   const { width: w, height: h } = state;
 
-  // If the destination itself is blocked, aim for the nearest free tile around it.
+  // If the destination itself is blocked (a tree, the sea), aim for the nearest free tile around it.
   if (!isWalkable(blocked, w, h, tx, ty)) {
-    const alt = findFreeTileNear(blocked, w, h, tx, ty, 0, 3);
+    const alt = findFreeTileNear(blocked, w, h, tx, ty, 0, 10);
     if (!alt) return 'unreachable';
     tx = alt.x;
     ty = alt.y;

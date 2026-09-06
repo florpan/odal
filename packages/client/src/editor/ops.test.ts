@@ -8,10 +8,15 @@ const files: RulesetFiles = {
   rules: {
     name: 'T',
     version: 1,
-    rules: { map: { width: 32, height: 32 }, startResources: { wood: 10 }, playerColors: ['#ff0000'] },
+    rules: {
+      map: { width: 32, height: 32, ground: 'dirt' },
+      startResources: { wood: 10 },
+      playerColors: ['#ff0000'],
+    },
     start: { building: 'camp', units: [{ type: 'peon', count: 1 }] },
   },
   resources: [{ id: 'wood', name: 'Wood' }],
+  terrain: [{ id: 'dirt', name: 'Dirt', visual: { color: '#664422' } }],
   nodes: [
     {
       id: 'tree',
@@ -92,7 +97,7 @@ describe('editor ops', () => {
 
   test('templates produce valid entities and unique ids', () => {
     let f = files;
-    for (const file of ['resources', 'nodes', 'units', 'buildings', 'techs'] as const) {
+    for (const file of ['resources', 'terrain', 'nodes', 'units', 'buildings', 'techs'] as const) {
       f = addEntity(f, file, template(f, file)).files;
     }
     // New units/techs are unobtainable until connected; everything else must be fine.

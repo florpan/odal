@@ -55,6 +55,7 @@ units, buildings and techs.
 | ---------------- | --------------------------------- |
 | `rules.json`     | `{ name, version, rules, start }` |
 | `resources.json` | `ResourceDef[]`                   |
+| `terrain.json`   | `TerrainDef[]`                    |
 | `nodes.json`     | `NodeDef[]`                       |
 | `units.json`     | `UnitDef[]`                       |
 | `buildings.json` | `BuildingDef[]`                   |
@@ -105,18 +106,20 @@ when they are implied, because it makes the item's own card honest in the tree v
 
 ### rules
 
-| Field                     | Default  | Meaning                                                                                                                                              |
-| ------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `tickRate`                | 10       | Simulation steps per second                                                                                                                          |
-| `map.width`, `map.height` | required | Tiles (16–256)                                                                                                                                       |
-| `map.starts`              | 4        | Start slots on a ring around the centre (2–8). Players take the free slot farthest from everyone; late joiners beyond that land on a random far spot |
-| `homeRadius`              | 12       | Each start slot gets every node type's `spawn.perStart` within this radius                                                                           |
-| `startResources`          | required | `{ resourceId: amount }` every player starts with                                                                                                    |
-| `maxQueue`                | 5        | Max items in a building's train/research queue                                                                                                       |
-| `separationDist`          | 0.6      | Units closer than this push each other apart (0 disables)                                                                                            |
-| `startClearRadius`        | 4        | Nodes within this radius of a start building are removed                                                                                             |
-| `upkeepInterval`          | 60       | Seconds between upkeep payments                                                                                                                      |
-| `playerColors`            | required | Array of colors assigned in join order                                                                                                               |
+| Field                     | Default  | Meaning                                                                                                                                                                                                                                             |
+| ------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tickRate`                | 10       | Simulation steps per second                                                                                                                                                                                                                         |
+| `map.width`, `map.height` | required | Hex columns and rows (16–256)                                                                                                                                                                                                                       |
+| `map.ground`              | required | Terrain id every hex starts as. Must be passable                                                                                                                                                                                                    |
+| `map.island`              | –        | `{ water, shore: 0.12, roughness: 0.06 }`: makes the map an island. `water` is the terrain outside the coast, `shore` how much of the half-size is sea at the edge, `roughness` how far the coastline wanders. Without it the whole map is `ground` |
+| `map.starts`              | 4        | Start slots on a ring around the centre (2–8). Players take the free slot farthest from everyone; late joiners beyond that land on a random far spot                                                                                                |
+| `homeRadius`              | 12       | Each start slot gets every node type's `spawn.perStart` within this radius                                                                                                                                                                          |
+| `startResources`          | required | `{ resourceId: amount }` every player starts with                                                                                                                                                                                                   |
+| `maxQueue`                | 5        | Max items in a building's train/research queue                                                                                                                                                                                                      |
+| `separationDist`          | 0.6      | Units closer than this push each other apart (0 disables)                                                                                                                                                                                           |
+| `startClearRadius`        | 4        | Nodes within this radius of a start building are removed                                                                                                                                                                                            |
+| `upkeepInterval`          | 60       | Seconds between upkeep payments                                                                                                                                                                                                                     |
+| `playerColors`            | required | Array of colors assigned in join order                                                                                                                                                                                                              |
 
 ### start
 
@@ -134,6 +137,16 @@ when they are implied, because it makes the item's own card honest in the tree v
 The default ruleset gives each resource a primary sink (see PLAN.md): lumber for general buildings,
 stone for protective buildings, iron for units, gold for research, wheat for unit count. That is a design
 guideline, not a rule the engine knows about; mixed costs are the interesting ones.
+
+### terrain
+
+| Field      | Default  | Meaning                                                                                                                                                                                                                                              |
+| ---------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `passable` | true     | `false` blocks like a node: nothing walks, spawns or builds there (water)                                                                                                                                                                            |
+| `visual`   | required | `{ color, height: 0, model? }`. `height` is where the tile's top sits relative to the ground plane (water below 0 gives a shore step). `model` is a GLB hex tile under `/models/`, one hex wide, top at y=0; without it a flat coloured hex is drawn |
+
+Every hex of a generated map has one terrain (`state.terrain`, an index into this list). Unexplored hexes are
+not drawn at all, so the island's shape is something to scout.
 
 ### nodes
 

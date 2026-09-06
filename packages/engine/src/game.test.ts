@@ -70,6 +70,28 @@ describe('engine with the default tech tree', () => {
     }
   });
 
+  test('an island map has water around a land mass; starts, nodes and building spots are on land', () => {
+    const { rules } = DEFAULT_TREE;
+    expect(rules.map.island).toBeDefined();
+    const waterIdx = DEFAULT_TREE.terrain.findIndex((t) => t.id === rules.map.island!.water);
+    const groundIdx = DEFAULT_TREE.terrain.findIndex((t) => t.id === rules.map.ground);
+    for (const seed of [1, 7, 42]) {
+      const st = createGame(DEFAULT_TREE, seed);
+      const water = st.terrain.filter((t) => t === waterIdx).length;
+      expect(water).toBeGreaterThan(st.terrain.length * 0.15);
+      expect(water).toBeLessThan(st.terrain.length * 0.6);
+      // The corners are sea, the centre is land.
+      expect(st.terrain[0]).toBe(waterIdx);
+      expect(st.terrain[st.width - 1]).toBe(waterIdx);
+      expect(st.terrain[(st.height - 1) * st.width]).toBe(waterIdx);
+      expect(st.terrain[Math.floor(st.height / 2) * st.width + Math.floor(st.width / 2)]).toBe(groundIdx);
+      for (const s of st.starts) expect(st.terrain[s.y * st.width + s.x]).toBe(groundIdx);
+      for (const n of Object.values(st.nodes)) expect(st.terrain[n.y * st.width + n.x]).toBe(groundIdx);
+      const blocked = computeBlocked(st);
+      for (let i = 0; i < st.terrain.length; i++) if (st.terrain[i] === waterIdx) expect(blocked[i]).toBe(1);
+    }
+  });
+
   test('centre-zone deposits stay in the middle of the map', () => {
     const centred = DEFAULT_TREE.nodes.filter((n) => n.spawn.zone === 'centre' && n.spawn.perStart === 0);
     if (!centred.length) return;

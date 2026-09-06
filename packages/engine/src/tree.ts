@@ -10,6 +10,7 @@ import type {
   StartDef,
   TechDef,
   TechTree,
+  TerrainDef,
   UnitDef,
 } from './content';
 import { buildGraph, findCycle, refKey, refName, unobtainable } from './techgraph';
@@ -82,6 +83,22 @@ const producible = {
 };
 
 export const ResourceSchema = z.object({ ...entity, icon: z.string().default('') }).strict();
+
+export const TerrainSchema = z
+  .object({
+    ...entity,
+    passable: z.boolean().default(true),
+    visual: z
+      .object({
+        color: Color,
+        /** Top of the tile relative to the ground plane; water below 0 makes a shore step. */
+        height: z.number().default(0),
+        /** GLB hex tile under /models/, one hex wide, top at y=0. */
+        model: z.string().min(1).optional(),
+      })
+      .strict(),
+  })
+  .strict();
 
 export const NodeSchema = z
   .object({
@@ -172,6 +189,15 @@ export const RulesSchema = z
         width: z.number().int().min(16).max(256),
         height: z.number().int().min(16).max(256),
         starts: z.number().int().min(2).max(8).default(4),
+        ground: Id,
+        island: z
+          .object({
+            water: Id,
+            shore: z.number().min(0).max(0.4).default(0.12),
+            roughness: z.number().min(0).max(0.3).default(0.06),
+          })
+          .strict()
+          .optional(),
       })
       .strict(),
     homeRadius: Positive.default(12),
@@ -194,6 +220,7 @@ export const TechTreeSchema = z
     version: z.literal(1),
     rules: RulesSchema,
     resources: z.array(ResourceSchema).min(1),
+    terrain: z.array(TerrainSchema).min(1),
     nodes: z.array(NodeSchema),
     units: z.array(UnitSchema).min(1),
     buildings: z.array(BuildingSchema).min(1),
@@ -204,6 +231,7 @@ export const TechTreeSchema = z
 
 /** What ruleset authors write: fields with defaults are optional. */
 export type ResourceDefInput = z.input<typeof ResourceSchema>;
+export type TerrainDefInput = z.input<typeof TerrainSchema>;
 export type NodeDefInput = z.input<typeof NodeSchema>;
 export type UnitDefInput = z.input<typeof UnitSchema>;
 export type BuildingDefInput = z.input<typeof BuildingSchema>;
@@ -217,6 +245,7 @@ type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 type Assert<T extends true> = T;
 type _Checks = [
   Assert<Same<z.infer<typeof ResourceSchema>, ResourceDef>>,
+  Assert<Same<z.infer<typeof TerrainSchema>, TerrainDef>>,
   Assert<Same<z.infer<typeof NodeSchema>, NodeDef>>,
   Assert<Same<z.infer<typeof UnitSchema>, UnitDef>>,
   Assert<Same<z.infer<typeof BuildingSchema>, BuildingDef>>,
@@ -233,6 +262,7 @@ type _Checks = [
 
 export interface TreeIndex {
   resources: Record<string, ResourceDef>;
+  terrain: Record<string, TerrainDef>;
   nodes: Record<string, NodeDef>;
   units: Record<string, UnitDef>;
   buildings: Record<string, BuildingDef>;
@@ -253,6 +283,7 @@ export function idx(tree: TechTree): TreeIndex {
   if (!i) {
     i = {
       resources: byId(tree.resources),
+      terrain: byId(tree.terrain),
       nodes: byId(tree.nodes),
       units: byId(tree.units),
       buildings: byId(tree.buildings),
@@ -282,6 +313,7 @@ export function validateTree(data: unknown): TreeValidation {
   const errors: string[] = [];
   const ids = {
     resources: new Set(t.resources.map((x) => x.id)),
+    terrain: new Set(t.terrain.map((x) => x.id)),
     units: new Set(t.units.map((x) => x.id)),
     buildings: new Set(t.buildings.map((x) => x.id)),
     techs: new Set(t.techs.map((x) => x.id)),
@@ -289,6 +321,7 @@ export function validateTree(data: unknown): TreeValidation {
 
   for (const [kind, list] of Object.entries({
     resources: t.resources,
+    terrain: t.terrain,
     nodes: t.nodes,
     units: t.units,
     buildings: t.buildings,
@@ -315,6 +348,14 @@ export function validateTree(data: unknown): TreeValidation {
   };
 
   checkCost('rules.startResources', t.rules.startResources);
+  checkRef('rules.map.ground', ids.terrain, t.rules.map.ground, 'terrain');
+  const ground = t.terrain.find((x) => x.id === t.rules.map.ground);
+  if (ground && !ground.passable) errors.push('rules.map.ground: the ground terrain must be passable');
+  if (t.rules.map.island) {
+    checkRef('rules.map.island.water', ids.terrain, t.rules.map.island.water, 'terrain');
+    if (t.rules.map.island.water === t.rules.map.ground)
+      errors.push('rules.map.island.water: must differ from rules.map.ground');
+  }
   for (const n of t.nodes) checkRef(`nodes.${n.id}.resource`, ids.resources, n.resource, 'resource');
 
   for (const u of t.units) {
@@ -415,10 +456,10 @@ export function describeEffect(tree: TechTree, e: Effect): string {
   }
 }
 
-/** A ruleset on disk is six JSON files with these names. */
-export const RULESET_FILES = ['rules', 'resources', 'nodes', 'units', 'buildings', 'techs'] as const;
+/** A ruleset on disk is seven JSON files with these names. */
+export const RULESET_FILES = ['rules', 'resources', 'terrain', 'nodes', 'units', 'buildings', 'techs'] as const;
 export type RulesetFile = (typeof RULESET_FILES)[number];
-/** The six files as raw JSON values, as authored (defaults not applied). */
+/** The files as raw JSON values, as authored (defaults not applied). */
 export type RulesetFiles = Record<RulesetFile, unknown>;
 
 /** Drop editor-only keys (`$schema`) so strict validation accepts the file. */
@@ -430,12 +471,13 @@ function stripMeta(value: unknown): unknown {
   return value;
 }
 
-/** Merge the six files of a ruleset into one tree object (unvalidated; feed it to validateTree). */
+/** Merge the files of a ruleset into one tree object (unvalidated; feed it to validateTree). */
 export function mergeFiles(files: RulesetFiles): unknown {
   const base = stripMeta(files.rules) as Record<string, unknown>;
   return {
     ...base,
     resources: stripMeta(files.resources),
+    terrain: stripMeta(files.terrain),
     nodes: stripMeta(files.nodes),
     units: stripMeta(files.units),
     buildings: stripMeta(files.buildings),
@@ -450,6 +492,7 @@ export function mergeFiles(files: RulesetFiles): unknown {
 export const FILE_SCHEMAS = {
   rules: z.object({ name: z.string().min(1), version: z.literal(1), rules: RulesSchema, start: StartSchema }).strict(),
   resources: ResourceSchema,
+  terrain: TerrainSchema,
   nodes: NodeSchema,
   units: UnitSchema,
   buildings: BuildingSchema,

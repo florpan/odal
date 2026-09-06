@@ -91,6 +91,10 @@ export class Renderer {
   private ghost: THREE.Mesh | null = null;
   private rallyMarker: THREE.Group | null = null;
   private ground: THREE.InstancedMesh | null = null;
+  /** Per hex: 1 when its ground tile is shown (explored). Unexplored hexes are not drawn at all. */
+  private shown: Uint8Array | null = null;
+  /** Per hex: y of the tile's top, from the terrain's `visual.height`. */
+  private tileTop: Float32Array | null = null;
   private fog: { mesh: THREE.Mesh; tex: THREE.DataTexture; data: Uint8Array } | null = null;
   private raycaster = new THREE.Raycaster();
   private groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -124,7 +128,7 @@ export class Renderer {
     this.canvas = canvas;
     this.gl = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.gl.setPixelRatio(Math.min(2, window.devicePixelRatio));
-    this.scene.background = new THREE.Color(0x141c12);
+    this.scene.background = new THREE.Color(0x060a06); // same as unexplored fog, so the map edge stays invisible
     this.camera = new THREE.PerspectiveCamera(50, 1, 0.5, 300);
 
     this.scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x3d5a2a, 0.9));
@@ -173,8 +177,10 @@ export class Renderer {
     this.setRallyMarker(null);
   }
 
-  /** Build the board for a map of `cols` × `rows` hexes. */
-  setMap(cols: number, rows: number) {
+  /** Build the board for a map: one ground tile per hex, coloured and raised by its terrain. */
+  setMap(state: GameState) {
+    const cols = state.width;
+    const rows = state.height;
     this.cols = cols;
     this.rows = rows;
     const size = worldSize(cols, rows);
@@ -183,23 +189,27 @@ export class Renderer {
     if (this.ground) this.scene.remove(this.ground);
     if (this.fog) this.scene.remove(this.fog.mesh);
 
-    // The ground: one instanced hex puck per cell, top face at y=0, greens varied a little per tile.
+    // The ground: one instanced hex puck per cell, top face at the terrain's height, colour varied a
+    // little per tile. Tiles start hidden (scale 0) and appear as the player explores (updateFog).
     const ground = new THREE.InstancedMesh(
       this.geo.tile,
       new THREE.MeshLambertMaterial({ color: 0xffffff }),
       cols * rows,
     );
-    const m = new THREE.Matrix4();
-    const base = new THREE.Color(0x5b8a3c);
+    const terrain = state.tree.terrain;
+    const colors = terrain.map((t) => new THREE.Color(t.visual.color));
+    const hidden = new THREE.Matrix4().makeScale(0, 0, 0);
     const col = new THREE.Color();
+    this.shown = new Uint8Array(cols * rows);
+    this.tileTop = new Float32Array(cols * rows);
     for (let y = 0; y < rows; y++) {
       for (let x = 0; x < cols; x++) {
         const i = y * cols + x;
-        const c = hexCentre(x, y);
-        m.makeTranslation(c.x, -0.06, c.y);
-        ground.setMatrixAt(i, m);
+        const def = terrain[state.terrain[i]];
+        this.tileTop[i] = def.visual.height;
+        ground.setMatrixAt(i, hidden);
         const v = 0.92 + (((x * 7 + y * 13) % 11) / 11) * 0.16; // stable per-tile variation
-        col.copy(base).multiplyScalar(v);
+        col.copy(colors[state.terrain[i]]).multiplyScalar(v);
         ground.setColorAt(i, col);
       }
     }
@@ -212,6 +222,7 @@ export class Renderer {
     // (one texel per hex; odd rows are half a hex off, which the linear filter blurs away).
     const data = new Uint8Array(cols * rows * 4);
     const tex = new THREE.DataTexture(data, cols, rows, THREE.RGBAFormat);
+    tex.colorSpace = THREE.SRGBColorSpace; // the bytes are display colours, same as the scene background
     tex.magFilter = THREE.LinearFilter;
     tex.minFilter = THREE.LinearFilter;
     const mesh = new THREE.Mesh(
@@ -226,22 +237,33 @@ export class Renderer {
     this.camTarget = { x: size.x / 2, y: size.y / 2 };
   }
 
+  /** Fog sheet alpha per hex, and ground tiles revealed as hexes become explored. */
   updateFog(vision: Uint8Array | null, explored: Uint8Array | null) {
     if (!this.fog) return;
     const { data, tex } = this.fog;
     const w = this.cols;
     const h = this.rows;
+    const m = new THREE.Matrix4();
+    let revealed = false;
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const i = y * w + x;
         const o = ((h - 1 - y) * w + x) * 4; // texture rows run bottom-up
-        const alpha = !vision || !explored ? 235 : vision[i] ? 0 : explored[i] ? 120 : 235;
+        const alpha = !vision || !explored ? 255 : vision[i] ? 0 : explored[i] ? 120 : 255;
         data[o] = 6;
         data[o + 1] = 10;
         data[o + 2] = 6;
         data[o + 3] = alpha;
+        if (explored && explored[i] && this.ground && this.shown && this.tileTop && !this.shown[i]) {
+          const c = hexCentre(x, y);
+          m.makeTranslation(c.x, this.tileTop[i] - 0.06, c.y);
+          this.ground.setMatrixAt(i, m);
+          this.shown[i] = 1;
+          revealed = true;
+        }
       }
     }
+    if (revealed && this.ground) this.ground.instanceMatrix.needsUpdate = true;
     tex.needsUpdate = true;
   }
 
