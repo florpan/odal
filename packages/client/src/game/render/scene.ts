@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { HEX_R, buildingMaxHp, hexCentre, idx, unitMaxHp, worldSize } from '@odal/engine';
+import { HEX_R, buildingMaxHp, hexCentre, idx, unitMaxHp, worldSize, worldToHex } from '@odal/engine';
 import type { Building, GameState, RallyPoint, ResourceNode, TechTree, Unit, Vec2 } from '@odal/engine';
 import { ModelLibrary } from './models';
 import { tileOf } from './shore';
@@ -14,6 +14,8 @@ import { tileOf } from './shore';
 
 /** Footprint radius → width of the disc a building covers, in world units. */
 const footprintWidth = (radius: number) => 1 + 2 * radius;
+/** World units per elevation step (`state.elevation`). Two steps stay within a KayKit tile's 0.5 thickness. */
+const HEIGHT_STEP = 0.2;
 
 export interface Pick {
   kind: 'unit' | 'building' | 'node';
@@ -264,7 +266,7 @@ export class Renderer {
         this.tilePart[i] = g.index;
         this.tileSlot[i] = g.hexes.length;
         this.tileRot[i] = usable ? rotation : 0;
-        this.tileTop[i] = terrain[terrainIdx].visual.height;
+        this.tileTop[i] = terrain[terrainIdx].visual.height + (state.elevation[i] ?? 0) * HEIGHT_STEP;
         g.hexes.push(i);
       }
     }
@@ -298,6 +300,14 @@ export class Renderer {
       for (let i = 0; i < n; i++) if (this.shown[i]) this.revealTile(i);
       for (const part of this.ground) part.mesh.instanceMatrix.needsUpdate = true;
     }
+  }
+
+  /** Height of the ground under a world position: the top of that hex's tile. */
+  groundY(x: number, y: number): number {
+    if (!this.tileTop) return 0;
+    const t = worldToHex({ x, y });
+    if (t.x < 0 || t.y < 0 || t.x >= this.cols || t.y >= this.rows) return 0;
+    return this.tileTop[t.y * this.cols + t.x];
   }
 
   /** Place hex `i`'s tile (it starts scaled to nothing). Caller flags the instance matrix for upload. */
@@ -403,16 +413,17 @@ export class Renderer {
       if (!mesh) {
         const inst = file ? this.models.instantiate(file, '#ffffff') : null;
         const c = hexCentre(n.x, n.y);
+        const gy = this.groundY(c.x, c.y);
         if (inst) {
           mesh = inst.root;
-          mesh.position.set(c.x, 0, c.y);
+          mesh.position.set(c.x, gy, c.y);
           mesh.rotation.y = ((n.id * 137) % 360) * (Math.PI / 180); // varied but stable
           mesh.userData = { kind: 'node', id: n.id, unit: def.visual.scale ?? 1 };
         } else {
           if (file) void this.models.load(file);
           const isCone = def.visual.shape === 'cone';
           mesh = new THREE.Mesh(isCone ? this.geo.cone : this.geo.rock, this.material(def.visual.color));
-          mesh.position.set(c.x, isCone ? 0.65 : 0.3, c.y);
+          mesh.position.set(c.x, gy + (isCone ? 0.65 : 0.3), c.y);
           if (!isCone) mesh.rotation.set(Math.random(), Math.random(), 0);
           mesh.userData = { kind: 'node', id: n.id, unit: 1, wantModel: file };
         }
@@ -542,7 +553,7 @@ export class Renderer {
         const bar = this.makeBar(0.8);
         group.add(bar.group);
         group.userData = { kind: 'unit', id: u.id } satisfies Pick;
-        group.position.set(u.x, 0, u.y);
+        group.position.set(u.x, this.groundY(u.x, u.y), u.y);
         this.scene.add(group);
         v = {
           group,
@@ -557,7 +568,7 @@ export class Renderer {
           maxHp: def.hp,
           lastHp: u.hp,
           flashUntil: 0,
-          target: new THREE.Vector3(u.x, 0, u.y),
+          target: new THREE.Vector3(u.x, this.groundY(u.x, u.y), u.y),
           color,
           carry,
         };
@@ -567,7 +578,7 @@ export class Renderer {
       if (v.wantModel) this.attachModel(v, v.wantModel, def.visual.height);
       v.workClip = this.workClipFor(u, state);
       v.maxHp = owner ? unitMaxHp(tree, owner, u.type) : def.hp;
-      v.target.set(u.x, 0, u.y);
+      v.target.set(u.x, this.groundY(u.x, u.y), u.y);
       if (u.hp < v.lastHp) v.flashUntil = this.time + FLASH_TIME;
       v.lastHp = u.hp;
       v.carry!.visible = !!u.carry;
@@ -629,7 +640,7 @@ export class Renderer {
         group.add(bar.group);
         group.userData = { kind: 'building', id: b.id } satisfies Pick;
         const centre = hexCentre(b.x, b.y);
-        group.position.set(centre.x, 0, centre.y);
+        group.position.set(centre.x, this.groundY(centre.x, centre.y), centre.y);
         this.scene.add(group);
         v = {
           group,
@@ -701,12 +712,12 @@ export class Renderer {
         const b = buildings[buildingId!];
         if (b) {
           const c = hexCentre(b.x, b.y);
-          ring.position.set(c.x, 0.03, c.y);
+          ring.position.set(c.x, this.groundY(c.x, c.y) + 0.03, c.y);
           ring.scale.setScalar(footprintWidth(b.r) * 1.4);
         }
       } else if (key[0] === 'n' && node) {
         const c = hexCentre(node.x, node.y);
-        ring.position.set(c.x, 0.03, c.y);
+        ring.position.set(c.x, this.groundY(c.x, c.y) + 0.03, c.y);
         ring.scale.setScalar(1.3);
       }
     }
@@ -728,7 +739,7 @@ export class Renderer {
       this.rallyMarker = g;
     }
     this.rallyMarker.visible = true;
-    this.rallyMarker.position.set(rally.x, 0, rally.y);
+    this.rallyMarker.position.set(rally.x, this.groundY(rally.x, rally.y), rally.y);
   }
 
   private ghostHeight = 1;
@@ -755,7 +766,7 @@ export class Renderer {
     if (!this.ghost) return;
     const c = hexCentre(tx, ty);
     this.ghost.visible = true;
-    this.ghost.position.set(c.x, this.ghostHeight / 2, c.y);
+    this.ghost.position.set(c.x, this.groundY(c.x, c.y) + this.ghostHeight / 2, c.y);
     this.ghost.material = valid ? this.ghostOk : this.ghostBad;
   }
 
@@ -800,7 +811,7 @@ export class Renderer {
     for (const [key, ring] of this.rings) {
       if (key[0] !== 'u') continue;
       const v = this.units.get(Number(key.slice(1)));
-      if (v) ring.position.set(v.group.position.x, 0.03, v.group.position.z);
+      if (v) ring.position.set(v.group.position.x, v.group.position.y + 0.03, v.group.position.z);
     }
 
     for (const [id, v] of this.units) this.updateView(v, this.selectedUnits.has(id));

@@ -101,7 +101,8 @@ player's own `passable` buildings are open to them and closed to everyone else.
 The map is a hex grid (ADR 0008, `hex.ts`). Tiles are `(col, row)` in odd-r offset coordinates and are
 stored `row * width + col`, so a `width × height` `Uint8Array` covers the map. Nodes and buildings sit on a
 hex (`x`, `y`); a building's footprint is its centre hex plus every hex within `r` steps. `state.terrain`
-holds one terrain index per hex; impassable terrain is part of the blocked grid. Units and every
+holds one terrain index per hex and `state.elevation` its height in steps (a look, not a rule); impassable
+terrain is part of the blocked grid. Units and every
 command target are continuous world positions: neighbouring hexes in a row are 1 unit apart, rows are
 `ROW_H` (≈ 0.866) apart, odd rows are shifted right by 0.5. Convert with `hexCentre(col, row)` and
 `worldToHex(pos)`; never add 0.5 by hand. `worldSize(width, height)` gives the map's extent in world units.

@@ -68,6 +68,25 @@
                     "water"
                   ],
                   "additionalProperties": false
+                },
+                "relief": {
+                  "type": "object",
+                  "properties": {
+                    "levels": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 4
+                    },
+                    "scale": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "default": 9
+                    }
+                  },
+                  "required": [
+                    "levels"
+                  ],
+                  "additionalProperties": false
                 }
               },
               "required": [

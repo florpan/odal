@@ -92,6 +92,8 @@ export interface GameState {
   height: number; // hex rows (see hex.ts for the world size)
   /** Per hex (row * width + col): index into `tree.terrain`. Static after generation. */
   terrain: number[];
+  /** Per hex: height in steps, 0..rules.map.relief.levels (all 0 without relief). Static. */
+  elevation: number[];
   nodes: Record<number, ResourceNode>;
   /** Start slots from map generation; addPlayer hands them out. */
   starts: Vec2[];

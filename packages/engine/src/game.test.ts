@@ -3,7 +3,7 @@ import { DEFAULT_TREE } from '@odal/content';
 import { makeBuilding, makeUnit } from './entities';
 import { addPlayer, createGame, emptyEvents, stepGame } from './game';
 import { computeBlocked } from './grid';
-import { hexCentre, hexDistance, worldToHex } from './hex';
+import { hexCentre, hexDistance, hexNeighbours, worldToHex } from './hex';
 import { findPath } from './pathfinding';
 import type { PlayerCommand } from './protocol';
 import { buildingMaxHp, countUnits } from './queries';
@@ -89,6 +89,36 @@ describe('engine with the default tech tree', () => {
       for (const n of Object.values(st.nodes)) expect(st.terrain[n.y * st.width + n.x]).toBe(groundIdx);
       const blocked = computeBlocked(st);
       for (let i = 0; i < st.terrain.length; i++) if (st.terrain[i] === waterIdx) expect(blocked[i]).toBe(1);
+    }
+  });
+
+  test('relief: elevation is quantised noise, flat on water and shore, one step between neighbours', () => {
+    const { rules } = DEFAULT_TREE;
+    expect(rules.map.relief).toBeDefined();
+    const groundIdx = DEFAULT_TREE.terrain.findIndex((t) => t.id === rules.map.ground);
+    for (const seed of [1, 7, 42]) {
+      const st = createGame(DEFAULT_TREE, seed);
+      expect(st.elevation.length).toBe(st.width * st.height);
+      expect(JSON.stringify(createGame(DEFAULT_TREE, seed).elevation)).toBe(JSON.stringify(st.elevation));
+      const counts = new Array<number>(rules.map.relief!.levels + 1).fill(0);
+      for (let i = 0; i < st.elevation.length; i++) {
+        const e = st.elevation[i];
+        expect(e).toBeGreaterThanOrEqual(0);
+        expect(e).toBeLessThanOrEqual(rules.map.relief!.levels);
+        counts[e]++;
+        const x = i % st.width;
+        const y = Math.floor(i / st.width);
+        const land = st.terrain[i] === groundIdx;
+        let shore = false;
+        for (const n of hexNeighbours(x, y)) {
+          if (n.x < 0 || n.y < 0 || n.x >= st.width || n.y >= st.height) continue;
+          const j = n.y * st.width + n.x;
+          if (st.terrain[j] !== groundIdx) shore = true;
+          expect(Math.abs(st.elevation[j] - e)).toBeLessThanOrEqual(1);
+        }
+        if (!land || shore) expect(e).toBe(0);
+      }
+      for (const c of counts) expect(c).toBeGreaterThan(0); // every level occurs
     }
   });
 

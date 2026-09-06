@@ -200,6 +200,10 @@ export const RulesSchema = z
           })
           .strict()
           .optional(),
+        relief: z
+          .object({ levels: z.number().int().min(1).max(4), scale: Positive.default(9) })
+          .strict()
+          .optional(),
       })
       .strict(),
     homeRadius: Positive.default(12),

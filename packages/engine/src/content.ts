@@ -149,6 +149,12 @@ export interface Rules {
      * map's half-size is water at the edge (0.12 = a thin band), `roughness` how far the coastline wanders.
      */
     island?: { water: string; shore: number; roughness: number };
+    /**
+     * Present: hexes get an elevation of 0..`levels` steps from seeded noise with features about
+     * `scale` hexes across. Water and the shore stay at 0 and neighbours differ by at most one step.
+     * Purely a look for now; movement ignores it.
+     */
+    relief?: { levels: number; scale: number };
   };
   /** Every start slot gets each node type's `spawn.perStart` clusters/deposits within this radius. */
   homeRadius: number;

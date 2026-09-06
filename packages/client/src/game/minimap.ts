@@ -45,12 +45,14 @@ export function drawMinimap(
   const terrainColors = st.tree.terrain.map((t) => hexToRgb(t.visual.color));
 
   // Terrain where explored, nothing where not: the island's shape is something to discover.
+  // Higher ground is drawn a little lighter.
   for (let i = 0; i < w * h; i++) {
     const o = i * 4;
     const col = explored && !explored[i] ? UNEXPLORED : terrainColors[st.terrain[i]];
-    px[o] = col[0];
-    px[o + 1] = col[1];
-    px[o + 2] = col[2];
+    const lift = explored && !explored[i] ? 1 : 1 + 0.12 * (st.elevation[i] ?? 0);
+    px[o] = Math.min(255, col[0] * lift);
+    px[o + 1] = Math.min(255, col[1] * lift);
+    px[o + 2] = Math.min(255, col[2] * lift);
     px[o + 3] = 255;
   }
   for (const id in st.nodes) {

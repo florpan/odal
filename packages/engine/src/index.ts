@@ -8,6 +8,7 @@ export * from './rng';
 export * from './hex';
 export * from './grid';
 export * from './pathfinding';
+export * from './noise';
 export * from './vision';
 export * from './queries';
 export { createGame, addPlayer, stepGame, emptyEvents } from './game';

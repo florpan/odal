@@ -198,7 +198,8 @@ basic combat, multiplayer over WebSocket, minimap, HUD.
 - [x] Terrain layer: `terrain.json`, island with water as the natural border, unexplored hexes hidden (2026-09-06)
 - [x] KayKit hex tiles as ground: grass, water, coast A–D picked by consecutive water edges and turned
       towards the sea (2026-09-06). Flat coloured pucks remain the fallback without the GLBs.
-- [ ] Per-hex stepped height (the pack's sloped tiles)
+- [x] Per-hex stepped height from seeded noise (`rules.map.relief`), everything on a hex rises with it (2026-09-06)
+- [ ] The pack's sloped tiles on the steps, cliffs as terrain that costs more to climb (a `findPath` parameter)
 - [ ] Animations (walk, chop, attack), sound
 - [ ] Flashier start screen, in-game help, settings dialog (all React)
 
@@ -213,7 +214,8 @@ basic combat, multiplayer over WebSocket, minimap, HUD.
 ## Open questions
 
 - ~~Hexagonal tiles?~~ Decided 2026-09-06: hex grid at person scale, board-game look (ADR 0008). Next on
-  the map: per-hex stepped height. Terrain layer, island and KayKit ground tiles landed the same day.
+  the map: sloped tiles, and whether height should matter to movement. Terrain layer, island, KayKit ground
+  tiles and noise relief landed the same day.
 - Pathfinding styles per unit (a dumb heavy hitter that walks straight and needs micro)? Idea from
   2026-09-06, not decided. `pathfinding.ts` is built so this is a parameter on `findPath`, nothing more.
 

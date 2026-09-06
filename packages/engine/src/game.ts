@@ -18,8 +18,22 @@ import type { GameState, Player, TickEvents, Vec2 } from './types';
 
 export function createGame(tree: TechTree, seed: number): GameState {
   const { width, height } = tree.rules.map;
-  const { terrain, nodes, nextId, starts } = generateMap(tree, seed, width, height);
-  return { tree, seed, tick: 0, width, height, terrain, nodes, starts, units: {}, buildings: {}, players: {}, nextId };
+  const { terrain, elevation, nodes, nextId, starts } = generateMap(tree, seed, width, height);
+  return {
+    tree,
+    seed,
+    tick: 0,
+    width,
+    height,
+    terrain,
+    elevation,
+    nodes,
+    starts,
+    units: {},
+    buildings: {},
+    players: {},
+    nextId,
+  };
 }
 
 export function emptyEvents(): TickEvents {

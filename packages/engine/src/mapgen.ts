@@ -1,4 +1,5 @@
 import { hexArea, hexCentre, hexDistance, hexLine, hexNeighbours, worldSize, worldToHex } from './hex';
+import { terrainNoise } from './noise';
 import { mulberry32 } from './rng';
 import type { NodeDef, Spawn, TechTree } from './content';
 import type { ResourceNode, Vec2 } from './types';
@@ -6,6 +7,8 @@ import type { ResourceNode, Vec2 } from './types';
 export interface GeneratedMap {
   /** Per hex: index into `tree.terrain`. */
   terrain: number[];
+  /** Per hex: elevation in steps (0 without `rules.map.relief`). */
+  elevation: number[];
   nodes: Record<number, ResourceNode>;
   nextId: number;
   starts: Vec2[];
@@ -23,6 +26,8 @@ export interface GeneratedMap {
  * 3. The per-1000-land-hexes scatter from each `spawn` rule, anywhere on land
  *    or, with `zone: 'centre'`, only in the middle fifth (contested resources).
  * 4. Connectivity: a corridor is carved for any start that cannot reach the centre.
+ * 5. Relief: quantised noise gives every land hex an elevation step; the shore
+ *    stays flat and no hex is more than one step above a neighbour.
  *
  * Positions are hexes (offset coordinates); radii are in hexes. Deterministic
  * for a given tree, seed and size.
@@ -191,7 +196,65 @@ export function generateMap(tree: TechTree, seed: number, w: number, h: number):
     }
   }
 
-  return { terrain, nodes, nextId, starts };
+  // 5. Relief.
+  const elevation: number[] = new Array<number>(w * h).fill(0);
+  const relief = rules.map.relief;
+  if (relief) {
+    const values = new Float64Array(w * h);
+    for (let i = 0; i < w * h; i++) {
+      const c = hexCentre(i % w, Math.floor(i / w));
+      values[i] = terrainNoise(c.x, c.y, relief.scale, seed);
+    }
+    // Thresholds at quantiles of the land values, so the mix of levels is the same on every map:
+    // level 0 is the lowest 45%, the rest is shared out with the higher levels rarer.
+    const land = Array.from(values.filter((_, i) => terrain[i] === groundIdx)).sort((a, b) => a - b);
+    const weights = Array.from({ length: relief.levels }, (_, k) => relief.levels - k);
+    const total = weights.reduce((a, b) => a + b, 0);
+    const thresholds: number[] = [];
+    let cum = 0.45;
+    for (const wgt of weights) {
+      thresholds.push(land[Math.min(land.length - 1, Math.floor(cum * land.length))] ?? Infinity);
+      cum += (0.55 * wgt) / total;
+    }
+    for (let i = 0; i < w * h; i++) {
+      if (terrain[i] !== groundIdx) continue;
+      let level = 0;
+      for (const t of thresholds) if (values[i] >= t) level++;
+      elevation[i] = level;
+    }
+    // The beach is flat, and every slope is a single step.
+    for (let i = 0; i < w * h; i++) {
+      if (terrain[i] !== groundIdx) continue;
+      const x = i % w;
+      const y = Math.floor(i / w);
+      if (
+        hexNeighbours(x, y).some(
+          (n) => n.x >= 0 && n.y >= 0 && n.x < w && n.y < h && terrain[n.y * w + n.x] !== groundIdx,
+        )
+      )
+        elevation[i] = 0;
+    }
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (let i = 0; i < w * h; i++) {
+        if (elevation[i] === 0) continue;
+        const x = i % w;
+        const y = Math.floor(i / w);
+        let lowest = elevation[i];
+        for (const n of hexNeighbours(x, y)) {
+          if (n.x < 0 || n.y < 0 || n.x >= w || n.y >= h) continue;
+          lowest = Math.min(lowest, elevation[n.y * w + n.x]);
+        }
+        if (elevation[i] > lowest + 1) {
+          elevation[i] = lowest + 1;
+          changed = true;
+        }
+      }
+    }
+  }
+
+  return { terrain, elevation, nodes, nextId, starts };
 }
 
 /** Flood fill over free hexes: can `from` walk to `to`? */
