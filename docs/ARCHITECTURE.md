@@ -34,7 +34,7 @@ A ruleset is six JSON files (`rules`, `resources`, `nodes`, `units`, `buildings`
 The engine never names a specific unit, building, tech or resource. It reads:
 
 - what a unit can do (`abilities`: harvest, build, attack) and its stats
-- what a building trains, researches, produces, unlocks (`requires`), whether it's a drop-off, whether it
+- what a building trains, upgrades into, produces, unlocks (`requires`), whether it's a drop-off, whether it
   shoots (`attack`), whether its owner walks through it (`passable`), its footprint
 - what a tech does through generic **effects** (`gatherRate`, `produceRate`, `damage`, `maxHp`, `speed`,
   `buildingHp`, `buildSpeed`) with optional filters
@@ -81,11 +81,12 @@ in `content/schema/` (generated from the zod schemas by `bun run schema:gen`, us
    idle → auto-acquire (combat); move/attackMove → movement (+ auto-acquire);
    harvest → `systems/harvest.ts`; build → `systems/construction.ts`; attack → `systems/combat.ts`.
 4. `separateUnits` – push idle/walking units apart (`systems/separation.ts`).
-5. `stepBuildings` – production timers and train/research queues (`systems/production.ts`), rally points;
+5. `stepBuildings` – production timers and train/upgrade queues (`systems/production.ts`), rally points;
    then buildings with an `attack` block shoot the nearest enemy in range (`systems/towers.ts`).
-6. `stepUpkeep` – every `rules.upkeepInterval` seconds, players pay their units' `upkeep` (`systems/upkeep.ts`).
-7. Remove dead units and buildings, emit messages.
-8. `tick++`. Return `TickEvents` (changed/removed nodes, messages) for the server to forward.
+6. `stepResearch` – each player's community-wide research queue, one tech at a time (`systems/research.ts`).
+7. `stepUpkeep` – every `rules.upkeepInterval` seconds, players pay their units' `upkeep` (`systems/upkeep.ts`).
+8. Remove dead units and buildings, emit messages.
+9. `tick++`. Return `TickEvents` (changed/removed nodes, messages) for the server to forward.
 
 Commands (`commands.ts`) check `requires` on units, buildings and techs through `queries.ts`
 (`unitUnlocked`, `buildingUnlocked`, `techUnlocked`); a requirement is a researched tech, an owned
@@ -154,7 +155,7 @@ client/src/
     GameCanvas.tsx      THE bridge: renders <canvas>, session.attach(canvas) in an effect, cleanup disposes
     hooks.ts            useApp(selector)
     screens/            StartScreen, LobbyScreen, GameScreen, TechTreeOverlay (also the research screen), KeysOverlay
-    hud/                TopBar, Messages, ModeHint, SelectionPanel, ActionBar, Minimap, HelpBar
+    hud/                TopBar, Messages, ModeHint, SelectionPanel (the selection card, ActionBar inside it), Minimap, HelpBar
     dialogs/            RestartButton
     tree/               TechTimeline (tier columns, in game), TechTreeGraph (React Flow + dagre, editor), RefDetails, layout.
     styles.css

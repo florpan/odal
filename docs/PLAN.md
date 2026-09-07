@@ -57,20 +57,20 @@ harvested goods go to the building that takes them (`accepts`), never to the tow
 
 | Building                       | Cost                           | Effect                                                                       | Requires       |
 | ------------------------------ | ------------------------------ | ---------------------------------------------------------------------------- | -------------- |
-| Town hall                      | —                              | Start. Trains workers, researches the civic techs. +5 pop. → Castle          | —              |
+| Town hall                      | —                              | Start. Trains workers, directs research (Select research). +5 pop. → Castle  | —              |
 | Castle                         | 150 stone, 100 lumber, 50 gold | Upgrade of the town hall, 60 s. +10 pop, trains workers and knights, 1200 HP | Feudalism      |
 | House                          | 25 lumber                      | +5 population cap.                                                           | —              |
-| Windmill                       | 20 lumber                      | +4 wheat every 8 s. Researches crop rotation.                                | —              |
+| Windmill                       | 20 lumber                      | +4 wheat every 8 s.                                                          | —              |
 | Grain field                    | 10 lumber                      | +2 wheat every 8 s.                                                          | —              |
-| Lumber mill                    | 30 lumber                      | Takes lumber. Researches sharpened axes. First building of every game.       | —              |
+| Lumber mill                    | 30 lumber                      | Takes lumber. First building of every game.                                  | —              |
 | Quarry / Iron mine / Gold mine | 40 lumber                      | Take stone / iron / gold (same pack model for now).                          | Mining         |
 | Barracks                       | 50 lumber                      | Trains soldiers.                                                             | House          |
-| Blacksmith                     | 40 lumber, 10 iron             | Researches steel weapons, chainmail.                                         | Ironworking    |
-| Archery range                  | 40 lumber                      | Trains archers. Researches longbows.                                         | Fletching      |
-| Church                         | 50 lumber, 20 gold             | Researches rites.                                                            | Faith          |
-| Shrine                         | 40 lumber, 20 stone, 20 gold   | One per player. Researches the three blessings.                              | Rites          |
-| Market                         | 40 lumber, 10 gold             | +2 gold every 10 s. Researches trade routes.                                 | Trade          |
-| Workshop                       | 60 lumber, 20 iron             | Lets towers mount a catapult. Researches gunpowder.                          | Engineering    |
+| Blacksmith                     | 40 lumber, 10 iron             | Steel weapons and chainmail need one.                                        | Ironworking    |
+| Archery range                  | 40 lumber                      | Trains archers. Longbows need one.                                           | Fletching      |
+| Church                         | 50 lumber, 20 gold             | Rites need one.                                                              | Faith          |
+| Shrine                         | 40 lumber, 20 stone, 20 gold   | One per player. The three blessings need one.                                | Rites          |
+| Market                         | 40 lumber, 10 gold             | +2 gold every 10 s. Trade routes need one.                                   | Trade          |
+| Workshop                       | 60 lumber, 20 iron             | Lets towers mount a catapult. Gunpowder needs one.                           | Engineering    |
 | Tower                          | 40 stone, 20 lumber            | Shoots 6 / 1.5 s within 6. → Stone tower → Catapult tower → Cannon tower     | Masonry        |
 | Stone tower                    | 40 stone, 10 iron              | Upgrade, 20 s. 9 / 1.5 s within 7, 400 HP.                                   | Fortification  |
 | Catapult tower                 | 40 stone, 40 lumber            | Upgrade, 25 s. 20 / 3 s within 8, 450 HP.                                    | Workshop built |
@@ -93,17 +93,23 @@ shipyard, fences, bridge, ruin, scaffolding, stages, projectile.
 
 ### Research
 
-Town hall (civic): Mining (30 lumber) → Ironworking (20 gold, 10 iron) and Masonry (20 gold, 20 stone);
+Research belongs to the community, not to a building (decided 2026-09-08): the tech tree shows every
+tech, the player queues what to research next (`rules.maxQueue` deep, one in progress), and a tech that
+needs a building says so in its `requires`, the way a society needs a factory before it thinks of
+machines. The town hall (and the castle) carries the "Select research" button; the top bar shows what is
+in progress.
+
+Civic chain: Mining (30 lumber) → Ironworking (20 gold, 10 iron) and Masonry (20 gold, 20 stone);
 Fletching (40 lumber, 10 gold; needs a barracks); Faith (30 gold); Trade (20 gold, 30 lumber);
 Engineering (40 gold, 20 iron; needs a blacksmith); Fortification (40 gold, 40 stone; after Masonry;
 buildings finished afterwards ×1.25 HP); Feudalism (100 gold, 60 stone, 40 iron; after Fortification and
-Engineering, with a church) → the castle. The castle keeps Fletching and Trade.
+Engineering, with a church) → the castle.
 
-Elsewhere: Sharpened Axes (lumber mill, lumber ×1.5), Crop Rotation (windmill, farm ×1.5), Steel Weapons
-(blacksmith, soldier ×1.5, knight ×1.25) and Chainmail (blacksmith, soldier HP ×1.3), Longbows (archery
-range, archer ×1.5), Rites (church → shrine), Gunpowder (workshop → cannon tower), Trade Routes (market
-×1.5), and at the shrine the blessings of the Harvest (all gathering ×1.2), of Arms (all damage ×1.15)
-and of Stone (buildings ×1.2 HP).
+Needing a building: Sharpened Axes (lumber mill; lumber ×1.5), Crop Rotation (windmill; farm ×1.5), Steel
+Weapons (blacksmith; soldier ×1.5, knight ×1.25) and Chainmail (blacksmith; soldier HP ×1.3), Longbows
+(archery range; archer ×1.5), Rites (church → shrine), Gunpowder (workshop → cannon tower), Trade Routes
+(market ×1.5), and with a shrine the blessings of the Harvest (all gathering ×1.2), of Arms (all damage
+×1.15) and of Stone (buildings ×1.2 HP).
 
 ### Map
 
@@ -266,6 +272,8 @@ set; only the worker has a model.
 - [ ] Animations (walk, chop, attack), sound
 - [x] Buildings rotate (2026-09-07): `Building.rot` in sixths of a turn, `rotate` command (protocol 8), Q / Shift+Q or the
       action button, any time after placement. Cosmetic only: footprints are hexes, so no rule depends on facing.
+- [x] HUD as a selection card (2026-09-08): what is selected and its actions in one floating card (a bottom
+      sheet on phones), a minimap in the corner behind a Map toggle, nothing spanning the bottom.
 - [x] Touch controls (2026-09-07): tap selects, a held finger is the right click, one-finger drag pans, pinch
       zooms; on coarse pointers or short windows the bottom HUD is a one-line strip that opens on tap and closes
       after an action (`ui/screens/GameScreen.tsx` COMPACT_QUERY, `game/input.ts`). Box select has no touch form.

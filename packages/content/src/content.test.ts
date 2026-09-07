@@ -52,11 +52,13 @@ describe('validator', () => {
     expect(errors.some((e) => e.includes('buildings.townhall.trains') && e.includes('dragon'))).toBe(true);
   });
 
-  test('rejects techs nobody can research', () => {
-    const broken = clone();
-    broken.techs.push({ id: 'orphan', name: 'Orphan', time: 1 });
-    const { errors } = validateTree(broken);
-    expect(errors.some((e) => e.includes('tech:orphan') && e.includes('unobtainable'))).toBe(true);
+  test('accepts techs nobody researches (research is community-wide) but rejects buildings nobody can place', () => {
+    const orphan = structuredClone(DEFAULT_TREE) as unknown as { techs: Record<string, unknown>[]; buildings: Record<string, unknown>[] };
+    orphan.techs.push({ id: 'orphan', name: 'Orphan', time: 1 });
+    expect(validateTree(orphan).errors).toEqual([]);
+    orphan.buildings.push({ id: 'ghost', name: 'Ghost', buildable: false, time: 1, hp: 1, visual: { color: '#ffffff' } });
+    const { errors } = validateTree(orphan);
+    expect(errors.some((e) => e.includes('building:ghost') && e.includes('unobtainable'))).toBe(true);
   });
 
   test('rejects requirement cycles', () => {

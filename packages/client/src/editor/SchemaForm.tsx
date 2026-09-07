@@ -56,7 +56,7 @@ function idKind(path: Path, siblings?: Record<string, unknown>): IdKind | null {
   const parent = path[path.length - 2];
   if (typeof key === 'number') {
     if (parent === 'trains') return 'units';
-    if (parent === 'researches') return 'techs';
+    if (parent === 'upgrades') return 'buildings';
     return null;
   }
   if (path.length === 1 && key === 'id') return null; // the entity's own id

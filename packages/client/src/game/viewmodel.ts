@@ -85,6 +85,8 @@ export type SelectionView =
       desc: string;
       rally: string | null;
       queue: QueueView[];
+      /** Techs that need this kind of building, with whether the community has them. */
+      advances: { name: string; done: boolean }[];
     };
 
 export interface MessageView {
@@ -106,10 +108,19 @@ export interface TreeView {
   progress: Record<string, number>;
 }
 
+/** The community's research queue: the first entry is in progress. */
+export interface ResearchView {
+  name: string;
+  pct: number;
+  /** Names of what follows. */
+  queued: string[];
+}
+
 export interface HudModel {
   player: { name: string; color: string } | null;
   resources: ResourceView[];
   pop: { used: number; cap: number };
+  research: ResearchView | null;
   selection: SelectionView;
   actions: ActionView[];
   modeHint: string;
@@ -121,6 +132,7 @@ export const EMPTY_HUD: HudModel = {
   player: null,
   resources: [],
   pop: { used: 0, cap: 0 },
+  research: null,
   selection: { kind: 'none' },
   actions: [],
   modeHint: '',
@@ -137,7 +149,6 @@ function treeProgress(st: GameState, me: Player): TreeProgress {
   const alive = new Set<string>();
   const queuedUnits = new Set<string>();
   const trainers = new Set<string>();
-  const researchers = new Set<string>();
   const building = new Set<string>();
   const progress: Record<string, number> = {};
   for (const id in st.units) if (st.units[id].owner === me.id) alive.add(st.units[id].type);
@@ -149,12 +160,11 @@ function treeProgress(st: GameState, me: Player): TreeProgress {
       continue;
     }
     for (const q of b.queue) if (q.kind === 'unit') queuedUnits.add(q.type);
-    const head = b.queue[0];
-    if (head?.kind === 'tech')
-      progress[`tech:${head.id}`] = Math.round((100 * b.queueProgress) / defs.techs[head.id].time) / 100;
     for (const t of defs.buildings[b.type].trains) trainers.add(t);
-    for (const t of defs.buildings[b.type].researches) researchers.add(t);
   }
+  const researching = me.research[0];
+  if (researching !== undefined)
+    progress[`tech:${researching}`] = Math.round((100 * me.researchProgress) / defs.techs[researching].time) / 100;
   const status: Record<string, RefStatus> = {};
   const affordable: Record<string, boolean> = {};
   for (const x of [...st.tree.units, ...st.tree.buildings, ...st.tree.techs]) {
@@ -188,7 +198,7 @@ function treeProgress(st: GameState, me: Player): TreeProgress {
       ? 'owned'
       : isTechQueued(st, me.id, t.id)
         ? 'inProgress'
-        : researchers.has(t.id) && requirementsMet(st, me, t.requires)
+        : requirementsMet(st, me, t.requires)
           ? 'available'
           : 'locked';
   }
@@ -219,6 +229,13 @@ export function buildHud(world: World, input: Input | null): HudModel {
     amount: Math.floor(me.resources[r.id] ?? 0),
   }));
   const pop = { used: popUsed(st, me.id), cap: popCap(st, me.id) };
+  const research: ResearchView | null = me.research.length
+    ? {
+        name: defs.techs[me.research[0]].name,
+        pct: Math.floor((100 * me.researchProgress) / defs.techs[me.research[0]].time),
+        queued: me.research.slice(1).map((t) => defs.techs[t].name),
+      }
+    : null;
 
   let selection: SelectionView = { kind: 'none' };
   const actions: ActionView[] = [];
@@ -249,21 +266,14 @@ export function buildHud(world: World, input: Input | null): HudModel {
         own && b.rally ? (b.rally.nodeId !== undefined ? 'Rally point set (auto-harvest)' : 'Rally point set') : null,
       queue: own
         ? b.queue.map((q, i) => {
-            const name =
-              q.kind === 'unit'
-                ? defs.units[q.type].name
-                : q.kind === 'upgrade'
-                  ? `Upgrade: ${defs.buildings[q.type].name}`
-                  : defs.techs[q.id].name;
-            const total =
-              q.kind === 'unit'
-                ? defs.units[q.type].time
-                : q.kind === 'upgrade'
-                  ? defs.buildings[q.type].time
-                  : defs.techs[q.id].time;
+            const name = q.kind === 'unit' ? defs.units[q.type].name : `Upgrade: ${defs.buildings[q.type].name}`;
+            const total = q.kind === 'unit' ? defs.units[q.type].time : defs.buildings[q.type].time;
             return { index: i, name, pct: i === 0 ? Math.floor((100 * b.queueProgress) / total) : 0 };
           })
         : [],
+      advances: tree.techs
+        .filter((t) => t.requires.some((r) => r.type === 'building' && r.id === b.type))
+        .map((t) => ({ name: t.name, done: hasTech(me, t.id) })),
     };
     if (own && b.progress >= 1) {
       for (const type of def.trains) {
@@ -279,28 +289,6 @@ export function buildHud(world: World, input: Input | null): HudModel {
           title: `${u.desc} ${u.time}s.${upkeep}`,
           disabled: !!missing || !canAfford(me.resources, u.cost),
           active: false,
-        });
-      }
-      for (const tech of def.researches) {
-        const t = defs.techs[tech];
-        const done = hasTech(me, tech);
-        const queued = isTechQueued(st, me.id, tech);
-        const missing = missingRequirement(st, me, t.requires);
-        const sub = done
-          ? 'Researched'
-          : queued
-            ? 'In progress'
-            : missing
-              ? `Requires ${describeRequirement(tree, missing)}`
-              : formatCost(tree, t.cost);
-        actions.push({
-          id: `research:${tech}`,
-          label: t.name,
-          sub,
-          title: `${t.desc} ${t.time}s`,
-          disabled: done || queued || !!missing || !canAfford(me.resources, t.cost),
-          active: false,
-          done,
         });
       }
       for (const target of def.upgrades) {
@@ -337,12 +325,12 @@ export function buildHud(world: World, input: Input | null): HudModel {
         disabled: false,
         active: false,
       });
-      if (def.researches.length)
+      if (def.research)
         actions.push({
           id: 'tree',
-          label: 'Tech tree (Tab)',
-          sub: 'Plan research',
-          title: 'Open the tech tree. Research can be queued from there too.',
+          label: 'Select research',
+          sub: me.research.length ? `Researching ${defs.techs[me.research[0]].name}` : 'Nothing in progress',
+          title: 'Open the tech tree and choose what the community researches next.',
           disabled: false,
           active: false,
         });
@@ -444,6 +432,7 @@ export function buildHud(world: World, input: Input | null): HudModel {
     player: { name: me.name, color: me.color },
     resources,
     pop,
+    research,
     selection,
     actions,
     modeHint,

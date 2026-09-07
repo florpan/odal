@@ -8,7 +8,8 @@ import type { Building } from '../types';
 
 // ---------------------------------------------------------------------------
 // Production: buildings that grow resources over time and work through their
-// train/research queue. New units honour the building's rally point.
+// train/upgrade queue. New units honour the building's rally point. Research
+// is the community's, not a building's: see research.ts.
 // ---------------------------------------------------------------------------
 
 export function stepBuilding(ctx: Ctx, b: Building) {
@@ -28,12 +29,7 @@ export function stepBuilding(ctx: Ctx, b: Building) {
 
   if (!b.queue.length) return;
   const item = b.queue[0];
-  const time =
-    item.kind === 'unit'
-      ? defs.units[item.type].time
-      : item.kind === 'upgrade'
-        ? defs.buildings[item.type].time
-        : defs.techs[item.id].time;
+  const time = item.kind === 'unit' ? defs.units[item.type].time : defs.buildings[item.type].time;
   b.queueProgress = Math.min(time, b.queueProgress + dt);
   if (b.queueProgress < time) return;
 
@@ -52,14 +48,11 @@ export function stepBuilding(ctx: Ctx, b: Building) {
         setTask(unit, { kind: 'move', target: { x: b.rally.x, y: b.rally.y } });
       }
     }
-  } else if (item.kind === 'upgrade') {
+  } else {
     // The building becomes the target in place: same id, hex and facing; full hit points of the new kind.
     b.type = item.type;
     b.hp = buildingMaxHp(ctx.tree, player, item.type);
     say(ctx, b.owner, `${defs.buildings[item.type].name} complete.`);
-  } else {
-    if (!player.techs.includes(item.id)) player.techs.push(item.id);
-    say(ctx, b.owner, `Research complete: ${defs.techs[item.id].name}.`);
   }
   b.queue.shift();
   b.queueProgress = 0;

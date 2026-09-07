@@ -165,18 +165,16 @@ export function applyCommand(ctx: Ctx, pc: PlayerCommand) {
     }
 
     case 'research': {
-      const b = state.buildings[cmd.buildingId];
       const def = defs.techs[cmd.tech];
-      if (!b || !def || b.owner !== player.id || b.progress < 1) return;
-      if (!defs.buildings[b.type].researches.includes(cmd.tech)) return;
+      if (!def) return;
       if (hasTech(player, cmd.tech) || isTechQueued(state, player.id, cmd.tech)) return;
       if (!techUnlocked(state, player, cmd.tech)) {
         const req = missingRequirement(state, player, def.requires)!;
         say(ctx, player.id, `${def.name} requires ${describeRequirement(tree, req)}.`);
         return;
       }
-      if (b.queue.length >= tree.rules.maxQueue) {
-        say(ctx, player.id, `Queue is full.`);
+      if (player.research.length >= tree.rules.maxQueue) {
+        say(ctx, player.id, `Research queue is full.`);
         return;
       }
       if (!canAfford(player.resources, def.cost)) {
@@ -184,7 +182,16 @@ export function applyCommand(ctx: Ctx, pc: PlayerCommand) {
         return;
       }
       pay(player.resources, def.cost);
-      b.queue.push({ kind: 'tech', id: cmd.tech });
+      player.research.push(cmd.tech);
+      break;
+    }
+
+    case 'cancelResearch': {
+      const id = player.research[cmd.index];
+      if (id === undefined) return;
+      refund(player.resources, defs.techs[id].cost);
+      player.research.splice(cmd.index, 1);
+      if (cmd.index === 0) player.researchProgress = 0;
       break;
     }
 
@@ -217,14 +224,7 @@ export function applyCommand(ctx: Ctx, pc: PlayerCommand) {
       if (!b || b.owner !== player.id) return;
       const item = b.queue[cmd.index];
       if (!item) return;
-      refund(
-        player.resources,
-        item.kind === 'unit'
-          ? defs.units[item.type].cost
-          : item.kind === 'upgrade'
-            ? defs.buildings[item.type].cost
-            : defs.techs[item.id].cost,
-      );
+      refund(player.resources, item.kind === 'unit' ? defs.units[item.type].cost : defs.buildings[item.type].cost);
       b.queue.splice(cmd.index, 1);
       if (cmd.index === 0) b.queueProgress = 0;
       break;

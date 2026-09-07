@@ -161,7 +161,8 @@ export const BuildingSchema = z
       .default({ radius: 0 }),
     pop: NonNeg.default(0),
     trains: z.array(Id).default([]),
-    researches: z.array(Id).default([]),
+    /** Research is directed from this building (its card shows "Select research"). */
+    research: z.boolean().default(false),
     /** Buildings this one can turn into in place; the target's cost/time/requires are the upgrade's. */
     upgrades: z.array(Id).default([]),
     dropOff: z.boolean().default(false),
@@ -397,7 +398,6 @@ export function validateTree(data: unknown): TreeValidation {
     checkCost(`buildings.${b.id}.cost`, b.cost);
     checkRequires(`buildings.${b.id}.requires`, b.requires);
     for (const u of b.trains) checkRef(`buildings.${b.id}.trains`, ids.units, u, 'unit');
-    for (const r of b.researches) checkRef(`buildings.${b.id}.researches`, ids.techs, r, 'tech');
     for (const r of b.upgrades) checkRef(`buildings.${b.id}.upgrades`, ids.buildings, r, 'building');
     for (const r of b.accepts) checkRef(`buildings.${b.id}.accepts`, ids.resources, r, 'resource');
     if (b.accepts.length && !b.dropOff) errors.push(`buildings.${b.id}.accepts: only a dropOff accepts resources`);
@@ -434,9 +434,7 @@ export function validateTree(data: unknown): TreeValidation {
       const why =
         r.kind === 'unit'
           ? 'no obtainable building trains it'
-          : r.kind === 'tech'
-            ? 'no obtainable building researches it'
-            : 'its requirements can never be met (a building nobody can place needs something that upgrades into it)';
+          : 'its requirements can never be met (a building nobody can place needs something that upgrades into it)';
       errors.push(`${refKey(r)}: unobtainable (${why})`);
     }
   }

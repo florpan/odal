@@ -9,10 +9,10 @@ import { TechTimeline } from '../tree/TechTimeline';
 /**
  * The research screen: a sideways timeline of techs by tier (TechTimeline),
  * each card listing what it unlocks, coloured by how far the player is from it.
- * An available tech has a Research button in the side panel, queued at
- * whichever own building can do it. Locked ones show what they still need, so
- * the whole tree is readable ahead of time.
- * Toggled with Tab, the top bar button, or from a research building's actions.
+ * Research is community-wide: an available tech has a Research button in the
+ * side panel and joins the player's queue. Locked ones show what they still
+ * need, so the whole tree is readable ahead of time.
+ * Toggled with Tab, the top bar button, or "Select research" on the town hall.
  */
 export function TechTreeOverlay() {
   const view = useApp((s) => s.hud.tree);
@@ -68,7 +68,7 @@ export function TechTreeOverlay() {
                   type="button"
                   className="research"
                   disabled={!view.affordable[key!]}
-                  title={view.affordable[key!] ? 'Queue this research' : 'Not enough resources yet'}
+                  title={view.affordable[key!] ? 'Research this next' : 'Not enough resources yet'}
                   onClick={() => session?.action(`research:${selected.id}`)}
                 >
                   {view.affordable[key!] ? 'Research' : 'Cannot afford'} {refName(view.tree, selected)}

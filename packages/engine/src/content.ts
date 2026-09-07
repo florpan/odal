@@ -114,7 +114,12 @@ export interface BuildingDef extends ProducibleDef {
   size: { radius: number };
   pop: number;
   trains: string[];
-  researches: string[];
+  /**
+   * Research is directed from here (the town hall, the castle): the building's card gets the
+   * "Select research" button. Techs themselves belong to the whole community and are gated only by
+   * their `requires`; a tech that needs a blacksmith says so with a building requirement.
+   */
+  research: boolean;
   /**
    * Buildings this one can turn into in place (town hall → castle, tower → better tower). The target's
    * own cost, time and requires are what the upgrade costs and needs; it is usually not `buildable`.

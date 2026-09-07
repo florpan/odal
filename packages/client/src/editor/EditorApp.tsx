@@ -218,7 +218,7 @@ function Inspector({
       <aside className="editor-inspector">
         <p className="muted">Select something in the list or the graph. Drag between nodes to connect them.</p>
         <p className="muted">
-          Solid edges are trains / researches, dashed edges are requirements. Population requirements are gates, not
+          Solid edges are trains / upgrades, dashed edges are requirements. Population requirements are gates, not
           edges; set them in the form.
         </p>
       </aside>
@@ -290,9 +290,7 @@ function PendingEdge() {
       ? `${pending.to.id} requires ${pending.from.id}`
       : how === 'trains'
         ? `${pending.from.id} trains ${pending.to.id}`
-        : how === 'upgrades'
-          ? `${pending.from.id} upgrades into ${pending.to.id}`
-          : `${pending.from.id} researches ${pending.to.id}`;
+        : `${pending.from.id} upgrades into ${pending.to.id}`;
   return (
     <div className="pending-edge">
       <span>What does this edge mean?</span>

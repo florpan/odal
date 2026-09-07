@@ -1,9 +1,10 @@
 import { useApp } from '../hooks';
 
 /** Context buttons. What they are and whether they're enabled is decided by the game's view model. */
-export function ActionBar({ onAction }: { onAction?: () => void } = {}) {
+export function ActionBar() {
   const actions = useApp((s) => s.hud.actions);
   const session = useApp((s) => s.session);
+  if (!actions.length) return null;
   return (
     <div className="actions">
       {actions.map((a) => (
@@ -13,10 +14,7 @@ export function ActionBar({ onAction }: { onAction?: () => void } = {}) {
           className={`act${a.active || a.done ? ' done' : ''}`}
           title={a.title}
           disabled={a.disabled}
-          onClick={() => {
-            session?.action(a.id);
-            onAction?.();
-          }}
+          onClick={() => session?.action(a.id)}
         >
           {a.label}
           <small>{a.sub}</small>

@@ -4,13 +4,14 @@ import type { Cost, ProducibleDef, Ref, Requirement, TechTree } from './content'
 // The tech graph: what leads to what.
 //
 // Nodes are units, buildings and techs. An edge A → B means "A must exist
-// before B can be obtained": a building trains a unit or researches a tech,
-// or something is listed in B's `requires`. This is the data a Civilization-
+// before B can be obtained": a building trains a unit or upgrades into a
+// building, or something is listed in B's `requires`. Techs have no producer:
+// research is community-wide and gated only by requirements. This is the data a Civilization-
 // style tree view renders, and what the validator uses to reject cycles and
 // unobtainable content.
 // ---------------------------------------------------------------------------
 
-export type EdgeReason = 'trains' | 'researches' | 'upgrades' | 'requires';
+export type EdgeReason = 'trains' | 'upgrades' | 'requires';
 
 export interface GraphEdge {
   from: Ref; // prerequisite
@@ -74,7 +75,6 @@ export function buildGraph(tree: TechTree): TechGraph {
   for (const b of tree.buildings) {
     const me: Ref = { kind: 'building', id: b.id };
     for (const u of b.trains) edges.push({ from: me, to: { kind: 'unit', id: u }, reason: 'trains' });
-    for (const t of b.researches) edges.push({ from: me, to: { kind: 'tech', id: t }, reason: 'researches' });
     for (const t of b.upgrades) edges.push({ from: me, to: { kind: 'building', id: t }, reason: 'upgrades' });
     req(me, b.requires);
   }
@@ -173,9 +173,10 @@ export function unobtainable(tree: TechTree, graph: TechGraph): Ref[] {
     if (!incoming.has(k)) incoming.set(k, []);
     incoming.get(k)!.push(e);
   }
-  // Units need a trainer, techs a researcher, and a building nobody can place needs something that upgrades into it.
+  // Units need a trainer and a building nobody can place needs something that upgrades into it; techs only need
+  // their requirements.
   const buildable = new Set(tree.buildings.filter((b) => b.buildable).map((b) => `building:${b.id}`));
-  const needsProducer = (r: Ref) => r.kind !== 'building' || !buildable.has(refKey(r));
+  const needsProducer = (r: Ref) => r.kind === 'unit' || (r.kind === 'building' && !buildable.has(refKey(r)));
   let changed = true;
   while (changed) {
     changed = false;

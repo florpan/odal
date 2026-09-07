@@ -2,242 +2,409 @@
   {
     "id": "townhall",
     "name": "Town hall",
-    "desc": "The heart of the village. Trains workers, researches the civic techs, and can become a castle.",
-    "notes": "Research lives here (no library). It takes no harvested goods: lumber goes to the lumber mill, ore to the mines. Upgrades to the castle after Feudalism.",
+    "desc": "The heart of the village. Trains workers, directs the community's research, and can become a castle.",
+    "notes": "Research is community-wide and chosen from the tech tree; this is where the button lives (research: true). It takes no harvested goods: lumber goes to the lumber mill, ore to the mines. Upgrades to the castle after Feudalism.",
     "buildable": false,
     "time": 0,
     "hp": 400,
     "pop": 5,
     "trains": ["worker"],
-    "researches": [
-      "mining",
-      "ironworking",
-      "masonry",
-      "fletching",
-      "faith",
-      "trade",
-      "engineering",
-      "fortification",
-      "feudalism"
-    ],
     "upgrades": ["castle"],
     "dropOff": true,
     "accepts": ["wheat"],
     "vision": 7,
-    "visual": { "color": "#8d6e63", "height": 1.2, "model": "townhall_{team}.glb" }
+    "visual": {
+      "color": "#8d6e63",
+      "height": 1.2,
+      "model": "townhall_{team}.glb"
+    },
+    "research": true
   },
   {
     "id": "castle",
     "name": "Castle",
     "desc": "Seat of power. +10 population, trains workers and knights, hard to bring down.",
-    "notes": "Not placed: the town hall becomes it (upgrades). Its cost, time and requires are the upgrade's. It keeps the civic techs that are not already behind Feudalism (fletching, trade); everything else is necessarily researched before a castle can exist, and listing it would close a cycle in the graph.",
+    "notes": "Not placed: the town hall becomes it (upgrades). Its cost, time and requires are the upgrade's.",
     "buildable": false,
-    "cost": { "stone": 150, "lumber": 100, "gold": 50 },
+    "cost": {
+      "stone": 150,
+      "lumber": 100,
+      "gold": 50
+    },
     "time": 60,
     "hp": 1200,
     "pop": 10,
     "trains": ["worker", "knight"],
-    "researches": ["fletching", "trade"],
     "dropOff": true,
     "accepts": ["wheat"],
-    "requires": [{ "type": "tech", "id": "feudalism" }],
+    "requires": [
+      {
+        "type": "tech",
+        "id": "feudalism"
+      }
+    ],
     "vision": 10,
-    "visual": { "color": "#9e9e9e", "height": 2, "model": "castle_{team}.glb" }
+    "visual": {
+      "color": "#9e9e9e",
+      "height": 2,
+      "model": "castle_{team}.glb"
+    },
+    "research": true
   },
   {
     "id": "house",
     "name": "House",
     "desc": "+5 population.",
-    "cost": { "lumber": 25 },
+    "cost": {
+      "lumber": 25
+    },
     "time": 15,
     "hp": 150,
     "pop": 5,
     "hotkey": "H",
-    "visual": { "color": "#8d6e63", "height": 1.2, "model": "home_a_{team}.glb" }
+    "visual": {
+      "color": "#8d6e63",
+      "height": 1.2,
+      "model": "home_a_{team}.glb"
+    }
   },
   {
     "id": "farm",
     "name": "Windmill",
-    "desc": "Grinds 4 wheat every 8 seconds. Researches crop rotation.",
-    "cost": { "lumber": 20 },
+    "desc": "Grinds 4 wheat every 8 seconds.",
+    "cost": {
+      "lumber": 20
+    },
     "time": 15,
     "hp": 100,
-    "produces": { "resource": "wheat", "amount": 4, "interval": 8 },
-    "researches": ["crop_rotation"],
+    "produces": {
+      "resource": "wheat",
+      "amount": 4,
+      "interval": 8
+    },
     "hotkey": "F",
-    "visual": { "color": "#d4b04a", "height": 1.4, "model": "windmill_{team}.glb" }
+    "visual": {
+      "color": "#d4b04a",
+      "height": 1.4,
+      "model": "windmill_{team}.glb"
+    }
   },
   {
     "id": "field",
     "name": "Grain field",
     "desc": "Grows 2 wheat every 8 seconds.",
     "notes": "Cheap wheat trickle. Later: require a windmill nearby.",
-    "cost": { "lumber": 10 },
+    "cost": {
+      "lumber": 10
+    },
     "time": 8,
     "hp": 60,
-    "produces": { "resource": "wheat", "amount": 2, "interval": 8 },
+    "produces": {
+      "resource": "wheat",
+      "amount": 2,
+      "interval": 8
+    },
     "hotkey": "W",
-    "visual": { "color": "#d4b04a", "height": 0.2, "model": "grain.glb" }
+    "visual": {
+      "color": "#d4b04a",
+      "height": 0.2,
+      "model": "grain.glb"
+    }
   },
   {
     "id": "lumbermill",
     "name": "Lumber mill",
-    "desc": "Takes in lumber. Build it by the woods. Researches sharpened axes.",
+    "desc": "Takes in lumber. Build it by the woods.",
     "notes": "The only place lumber can be delivered, so it is the first building of every game. Cheap for that reason.",
-    "cost": { "lumber": 30 },
+    "cost": {
+      "lumber": 30
+    },
     "time": 15,
     "hp": 200,
     "dropOff": true,
     "accepts": ["lumber"],
-    "researches": ["sharp_axes"],
     "hotkey": "L",
-    "visual": { "color": "#8d6e63", "height": 1.2, "model": "lumbermill_{team}.glb" }
+    "visual": {
+      "color": "#8d6e63",
+      "height": 1.2,
+      "model": "lumbermill_{team}.glb"
+    }
   },
   {
     "id": "quarry",
     "name": "Quarry",
     "desc": "Takes in stone. Build it by the rocks.",
     "notes": "Same pack model as the mines for now; a stack of the Resource Bits stone next to it later.",
-    "cost": { "lumber": 40 },
+    "cost": {
+      "lumber": 40
+    },
     "time": 20,
     "hp": 250,
     "dropOff": true,
     "accepts": ["stone"],
-    "requires": [{ "type": "tech", "id": "mining" }],
+    "requires": [
+      {
+        "type": "tech",
+        "id": "mining"
+      }
+    ],
     "hotkey": "Y",
-    "visual": { "color": "#6d6d6d", "height": 1, "model": "mine_{team}.glb" }
+    "visual": {
+      "color": "#6d6d6d",
+      "height": 1,
+      "model": "mine_{team}.glb"
+    }
   },
   {
     "id": "iron_mine",
     "name": "Iron mine",
     "desc": "Takes in iron. Build it by the iron deposit.",
-    "cost": { "lumber": 40 },
+    "cost": {
+      "lumber": 40
+    },
     "time": 20,
     "hp": 250,
     "dropOff": true,
     "accepts": ["iron"],
-    "requires": [{ "type": "tech", "id": "mining" }],
+    "requires": [
+      {
+        "type": "tech",
+        "id": "mining"
+      }
+    ],
     "hotkey": "I",
-    "visual": { "color": "#6d6d6d", "height": 1, "model": "mine_{team}.glb" }
+    "visual": {
+      "color": "#6d6d6d",
+      "height": 1,
+      "model": "mine_{team}.glb"
+    }
   },
   {
     "id": "gold_mine",
     "name": "Gold mine",
     "desc": "Takes in gold. Build it by the gold deposit.",
-    "cost": { "lumber": 40 },
+    "cost": {
+      "lumber": 40
+    },
     "time": 20,
     "hp": 250,
     "dropOff": true,
     "accepts": ["gold"],
-    "requires": [{ "type": "tech", "id": "mining" }],
+    "requires": [
+      {
+        "type": "tech",
+        "id": "mining"
+      }
+    ],
     "hotkey": "O",
-    "visual": { "color": "#6d6d6d", "height": 1, "model": "mine_{team}.glb" }
+    "visual": {
+      "color": "#6d6d6d",
+      "height": 1,
+      "model": "mine_{team}.glb"
+    }
   },
   {
     "id": "barracks",
     "name": "Barracks",
     "desc": "Trains soldiers.",
     "notes": "Needs a house first, only to force a little progress before an army.",
-    "cost": { "lumber": 50 },
+    "cost": {
+      "lumber": 50
+    },
     "time": 25,
     "hp": 300,
     "trains": ["soldier"],
-    "requires": [{ "type": "building", "id": "house" }],
+    "requires": [
+      {
+        "type": "building",
+        "id": "house"
+      }
+    ],
     "hotkey": "B",
-    "visual": { "color": "#795548", "height": 1.6, "model": "barracks_{team}.glb" }
+    "visual": {
+      "color": "#795548",
+      "height": 1.6,
+      "model": "barracks_{team}.glb"
+    }
   },
   {
     "id": "blacksmith",
     "name": "Blacksmith",
-    "desc": "Researches weapons and armour.",
-    "cost": { "lumber": 40, "iron": 10 },
+    "desc": "Forge. Weapon and armour advances need one.",
+    "cost": {
+      "lumber": 40,
+      "iron": 10
+    },
     "time": 20,
     "hp": 200,
-    "researches": ["steel_weapons", "chainmail"],
-    "requires": [{ "type": "tech", "id": "ironworking" }],
+    "requires": [
+      {
+        "type": "tech",
+        "id": "ironworking"
+      }
+    ],
     "hotkey": "K",
-    "visual": { "color": "#5d4037", "height": 1, "model": "blacksmith_{team}.glb" }
+    "visual": {
+      "color": "#5d4037",
+      "height": 1,
+      "model": "blacksmith_{team}.glb"
+    }
   },
   {
     "id": "archeryrange",
     "name": "Archery range",
-    "desc": "Trains archers. Researches longbows.",
-    "cost": { "lumber": 40 },
+    "desc": "Trains archers.",
+    "cost": {
+      "lumber": 40
+    },
     "time": 20,
     "hp": 250,
     "trains": ["archer"],
-    "researches": ["longbows"],
-    "requires": [{ "type": "tech", "id": "fletching" }],
+    "requires": [
+      {
+        "type": "tech",
+        "id": "fletching"
+      }
+    ],
     "hotkey": "N",
-    "visual": { "color": "#795548", "height": 1, "model": "archeryrange.glb" }
+    "visual": {
+      "color": "#795548",
+      "height": 1,
+      "model": "archeryrange.glb"
+    }
   },
   {
     "id": "church",
     "name": "Church",
-    "desc": "A place of worship. Researches the rites that allow a shrine.",
+    "desc": "A place of worship. Rites need one.",
     "notes": "Healers or magicians later; for now the gate to the shrine and to Feudalism.",
-    "cost": { "lumber": 50, "gold": 20 },
+    "cost": {
+      "lumber": 50,
+      "gold": 20
+    },
     "time": 30,
     "hp": 250,
-    "researches": ["rites"],
-    "requires": [{ "type": "tech", "id": "faith" }],
+    "requires": [
+      {
+        "type": "tech",
+        "id": "faith"
+      }
+    ],
     "hotkey": "U",
-    "visual": { "color": "#9e9e9e", "height": 1, "model": "church.glb" }
+    "visual": {
+      "color": "#9e9e9e",
+      "height": 1,
+      "model": "church.glb"
+    }
   },
   {
     "id": "shrine",
     "name": "Shrine",
-    "desc": "One per village. Researches blessings: harvest, arms or stone.",
+    "desc": "One per village. The blessings need one.",
     "notes": "Later: dedicate villagers to it for the boost. For now the blessings are techs and the order is the choice.",
-    "cost": { "lumber": 40, "stone": 20, "gold": 20 },
+    "cost": {
+      "lumber": 40,
+      "stone": 20,
+      "gold": 20
+    },
     "time": 30,
     "hp": 200,
     "limit": 1,
-    "researches": ["blessing_harvest", "blessing_arms", "blessing_walls"],
-    "requires": [{ "type": "tech", "id": "rites" }],
+    "requires": [
+      {
+        "type": "tech",
+        "id": "rites"
+      }
+    ],
     "hotkey": "J",
-    "visual": { "color": "#9e9e9e", "height": 1, "model": "shrine.glb" }
+    "visual": {
+      "color": "#9e9e9e",
+      "height": 1,
+      "model": "shrine.glb"
+    }
   },
   {
     "id": "market",
     "name": "Market",
-    "desc": "Brings in 2 gold every 10 seconds. Researches trade routes.",
+    "desc": "Brings in 2 gold every 10 seconds.",
     "notes": "A small passive gold trickle so gold is not only mined. Behind Trade.",
-    "cost": { "lumber": 40, "gold": 10 },
+    "cost": {
+      "lumber": 40,
+      "gold": 10
+    },
     "time": 20,
     "hp": 200,
-    "produces": { "resource": "gold", "amount": 2, "interval": 10 },
-    "researches": ["trade_routes"],
-    "requires": [{ "type": "tech", "id": "trade" }],
+    "produces": {
+      "resource": "gold",
+      "amount": 2,
+      "interval": 10
+    },
+    "requires": [
+      {
+        "type": "tech",
+        "id": "trade"
+      }
+    ],
     "hotkey": "E",
-    "visual": { "color": "#c8a24a", "height": 1, "model": "market_{team}.glb" }
+    "visual": {
+      "color": "#c8a24a",
+      "height": 1,
+      "model": "market_{team}.glb"
+    }
   },
   {
     "id": "workshop",
     "name": "Workshop",
-    "desc": "Siege works. Lets towers mount a catapult; researches gunpowder.",
-    "cost": { "lumber": 60, "iron": 20 },
+    "desc": "Siege works. Lets towers mount a catapult; gunpowder needs one.",
+    "cost": {
+      "lumber": 60,
+      "iron": 20
+    },
     "time": 30,
     "hp": 250,
-    "researches": ["gunpowder"],
-    "requires": [{ "type": "tech", "id": "engineering" }],
+    "requires": [
+      {
+        "type": "tech",
+        "id": "engineering"
+      }
+    ],
     "hotkey": "P",
-    "visual": { "color": "#5d4037", "height": 1, "model": "workshop.glb" }
+    "visual": {
+      "color": "#5d4037",
+      "height": 1,
+      "model": "workshop.glb"
+    }
   },
   {
     "id": "tower",
     "name": "Tower",
     "desc": "Shoots enemies within 6 hexes. Can be rebuilt stronger step by step.",
     "notes": "Damage per second is below a soldier's, so a tower alone never wins a fight; it buys time. The line: tower → stone tower → catapult tower → cannon tower.",
-    "cost": { "stone": 40, "lumber": 20 },
+    "cost": {
+      "stone": 40,
+      "lumber": 20
+    },
     "time": 30,
     "hp": 300,
-    "attack": { "damage": 6, "range": 6, "attackTime": 1.5 },
+    "attack": {
+      "damage": 6,
+      "range": 6,
+      "attackTime": 1.5
+    },
     "upgrades": ["tower_b"],
-    "requires": [{ "type": "tech", "id": "masonry" }],
+    "requires": [
+      {
+        "type": "tech",
+        "id": "masonry"
+      }
+    ],
     "vision": 9,
     "hotkey": "T",
-    "visual": { "color": "#9e9e9e", "height": 2.4, "model": "tower_a_{team}.glb" }
+    "visual": {
+      "color": "#9e9e9e",
+      "height": 2.4,
+      "model": "tower_a_{team}.glb"
+    }
   },
   {
     "id": "tower_b",
@@ -245,14 +412,30 @@
     "desc": "A sturdier tower that hits harder and farther.",
     "notes": "Not placed: a tower becomes it after Fortification.",
     "buildable": false,
-    "cost": { "stone": 40, "iron": 10 },
+    "cost": {
+      "stone": 40,
+      "iron": 10
+    },
     "time": 20,
     "hp": 400,
-    "attack": { "damage": 9, "range": 7, "attackTime": 1.5 },
+    "attack": {
+      "damage": 9,
+      "range": 7,
+      "attackTime": 1.5
+    },
     "upgrades": ["tower_catapult"],
-    "requires": [{ "type": "tech", "id": "fortification" }],
+    "requires": [
+      {
+        "type": "tech",
+        "id": "fortification"
+      }
+    ],
     "vision": 10,
-    "visual": { "color": "#9e9e9e", "height": 2.4, "model": "tower_b.glb" }
+    "visual": {
+      "color": "#9e9e9e",
+      "height": 2.4,
+      "model": "tower_b.glb"
+    }
   },
   {
     "id": "tower_catapult",
@@ -260,14 +443,30 @@
     "desc": "A stone tower with a catapult on top. Slow, heavy hits.",
     "notes": "Not placed: a stone tower becomes it once a workshop stands.",
     "buildable": false,
-    "cost": { "stone": 40, "lumber": 40 },
+    "cost": {
+      "stone": 40,
+      "lumber": 40
+    },
     "time": 25,
     "hp": 450,
-    "attack": { "damage": 20, "range": 8, "attackTime": 3 },
+    "attack": {
+      "damage": 20,
+      "range": 8,
+      "attackTime": 3
+    },
     "upgrades": ["tower_cannon"],
-    "requires": [{ "type": "building", "id": "workshop" }],
+    "requires": [
+      {
+        "type": "building",
+        "id": "workshop"
+      }
+    ],
     "vision": 10,
-    "visual": { "color": "#9e9e9e", "height": 2.4, "model": "tower_catapult.glb" }
+    "visual": {
+      "color": "#9e9e9e",
+      "height": 2.4,
+      "model": "tower_catapult.glb"
+    }
   },
   {
     "id": "tower_cannon",
@@ -275,62 +474,119 @@
     "desc": "The last word in tower defence.",
     "notes": "Not placed: a catapult tower becomes it after Gunpowder.",
     "buildable": false,
-    "cost": { "stone": 60, "iron": 40, "gold": 20 },
+    "cost": {
+      "stone": 60,
+      "iron": 40,
+      "gold": 20
+    },
     "time": 30,
     "hp": 500,
-    "attack": { "damage": 35, "range": 9, "attackTime": 3.5 },
-    "requires": [{ "type": "tech", "id": "gunpowder" }],
+    "attack": {
+      "damage": 35,
+      "range": 9,
+      "attackTime": 3.5
+    },
+    "requires": [
+      {
+        "type": "tech",
+        "id": "gunpowder"
+      }
+    ],
     "vision": 11,
-    "visual": { "color": "#9e9e9e", "height": 2.4, "model": "tower_cannon.glb" }
+    "visual": {
+      "color": "#9e9e9e",
+      "height": 2.4,
+      "model": "tower_cannon.glb"
+    }
   },
   {
     "id": "watchtower",
     "name": "Watchtower",
     "desc": "Cheap and unarmed. Sees 12 hexes.",
     "notes": "The lookout: one defensive tower line (the tower) and one that only watches. Later it detects scouts.",
-    "cost": { "lumber": 15 },
+    "cost": {
+      "lumber": 15
+    },
     "time": 10,
     "hp": 80,
     "vision": 12,
     "hotkey": "V",
-    "visual": { "color": "#8d6e63", "height": 1, "model": "watchtower.glb" }
+    "visual": {
+      "color": "#8d6e63",
+      "height": 1,
+      "model": "watchtower.glb"
+    }
   },
   {
     "id": "wall",
     "name": "Wall",
     "desc": "A stone wall segment. Blocks everyone.",
     "notes": "Cheap per hex so enclosing a base is a real option. A wall tool that lays runs and picks corners comes later.",
-    "cost": { "stone": 10 },
+    "cost": {
+      "stone": 10
+    },
     "time": 8,
     "hp": 250,
-    "requires": [{ "type": "tech", "id": "masonry" }],
+    "requires": [
+      {
+        "type": "tech",
+        "id": "masonry"
+      }
+    ],
     "vision": 3,
     "hotkey": "R",
-    "visual": { "color": "#7b7b7b", "height": 1.1, "model": "wall.glb" }
+    "visual": {
+      "color": "#7b7b7b",
+      "height": 1.1,
+      "model": "wall.glb"
+    }
   },
   {
     "id": "wall_corner",
     "name": "Wall corner",
     "desc": "A wall segment that turns. Rotate it to fit.",
-    "cost": { "stone": 10 },
+    "cost": {
+      "stone": 10
+    },
     "time": 8,
     "hp": 250,
-    "requires": [{ "type": "tech", "id": "masonry" }],
+    "requires": [
+      {
+        "type": "tech",
+        "id": "masonry"
+      }
+    ],
     "vision": 3,
     "hotkey": "C",
-    "visual": { "color": "#7b7b7b", "height": 1.1, "model": "wall_corner.glb" }
+    "visual": {
+      "color": "#7b7b7b",
+      "height": 1.1,
+      "model": "wall_corner.glb"
+    }
   },
   {
     "id": "gate",
     "name": "Gate",
     "desc": "A wall segment your own units can walk through.",
-    "cost": { "stone": 15, "lumber": 10 },
+    "cost": {
+      "stone": 15,
+      "lumber": 10
+    },
     "time": 12,
     "hp": 300,
     "passable": true,
-    "requires": [{ "type": "tech", "id": "masonry" }],
+    "requires": [
+      {
+        "type": "tech",
+        "id": "masonry"
+      }
+    ],
     "vision": 3,
     "hotkey": "G",
-    "visual": { "color": "#5d4a3a", "height": 1.3, "model": "gate.glb" }
+    "visual": {
+      "color": "#5d4a3a",
+      "height": 1.3,
+      "model": "gate.glb"
+    }
   }
 ]

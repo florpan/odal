@@ -17,9 +17,7 @@ export function RefDetails({ tree, ref, status }: RefDetailsProps) {
   if (!def) return null;
   const i = idx(tree);
   const chain = chainCost(tree, ref);
-  const producers = tree.buildings.filter((b) =>
-    ref.kind === 'unit' ? b.trains.includes(ref.id) : ref.kind === 'tech' ? b.researches.includes(ref.id) : false,
-  );
+  const producers = tree.buildings.filter((b) => ref.kind === 'unit' && b.trains.includes(ref.id));
   const unlocks: { ref: Ref; how: string }[] = [];
   for (const u of tree.units) {
     if (u.requires.some((r) => r.type !== 'population' && r.type === ref.kind && r.id === ref.id))
@@ -30,7 +28,6 @@ export function RefDetails({ tree, ref, status }: RefDetailsProps) {
       unlocks.push({ ref: { kind: 'building', id: b.id }, how: 'requires' });
     if (ref.kind === 'building' && ref.id === b.id) {
       for (const t of b.trains) unlocks.push({ ref: { kind: 'unit', id: t }, how: 'trains' });
-      for (const t of b.researches) unlocks.push({ ref: { kind: 'tech', id: t }, how: 'researches' });
       for (const t of b.upgrades) unlocks.push({ ref: { kind: 'building', id: t }, how: 'upgrades to' });
     }
     if (ref.kind === 'building' && b.upgrades.includes(ref.id))
@@ -106,7 +103,7 @@ export function RefDetails({ tree, ref, status }: RefDetailsProps) {
         )}
         {producers.length > 0 && (
           <>
-            <dt>{ref.kind === 'unit' ? 'Trained at' : 'Researched at'}</dt>
+            <dt>Trained at</dt>
             <dd>{producers.map((b) => b.name).join(', ')}</dd>
           </>
         )}

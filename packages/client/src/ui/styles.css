@@ -123,92 +123,36 @@ button {
   font-size: 13px;
 }
 
-.hud-bottom {
+/* The selection card: floats bottom-left; a bottom sheet on compact layouts. */
+.selection-card {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 190px;
+  left: 10px;
+  bottom: 10px;
+  width: min(420px, calc(100vw - 20px));
+  max-height: 55vh;
   display: flex;
   flex-direction: column;
-  background: rgba(20, 16, 10, 0.9);
-  border-top: 2px solid #6b4f2a;
+  background: rgba(20, 16, 10, 0.92);
+  border: 1px solid #6b4f2a;
+  border-radius: 6px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
 }
-.hud-panels {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-}
-.hud-toggle {
-  display: none;
-}
-
-/* Compact (touch or short landscape): a one-line strip that opens into a short, scrollable panel. */
-.hud.compact .help {
-  display: none;
-}
-.hud.compact .topbar {
-  gap: 12px;
-  padding: 0 8px;
-  font-size: 12px;
-  overflow-x: auto;
-}
-.hud.compact .hud-bottom {
-  height: 34px;
-  transition: height 0.15s ease-out;
-}
-.hud.compact .hud-bottom.open {
-  height: min(58vh, 250px);
-}
-.hud.compact .hud-toggle {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex: 0 0 32px;
-  padding: 0 12px;
+.selection-card .card-close {
+  position: absolute;
+  top: 4px;
+  right: 6px;
   background: none;
   border: 0;
-  color: #f1e6cf;
-  font: inherit;
-  font-size: 13px;
-  text-align: left;
-  cursor: pointer;
-}
-.hud.compact .hud-toggle .chev {
   color: #c9b58a;
-}
-.hud.compact .hud-bottom:not(.open) .hud-panels {
-  display: none;
-}
-.hud.compact .selection {
-  flex: 0 0 150px;
-  padding: 6px 10px;
-  font-size: 12px;
-}
-.hud.compact .selection .desc {
-  display: none;
-}
-.hud.compact .actions {
-  padding: 6px;
-  gap: 6px;
-  overflow-y: auto;
-}
-.hud.compact .act {
-  min-width: 96px;
-  height: 40px;
-  font-size: 11px;
-}
-.hud.compact .minimap {
-  flex: 0 0 100px;
-  width: 100px;
-  height: 100px;
-  margin-right: 6px;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
 }
 .selection {
-  flex: 0 0 300px;
-  padding: 10px 12px;
+  padding: 10px 28px 8px 12px;
   font-size: 13px;
-  border-right: 1px solid #4a3620;
   overflow: auto;
 }
 .selection h3 {
@@ -218,17 +162,29 @@ button {
 .selection .desc {
   margin-top: 6px;
 }
-.actions {
-  flex: 1;
-  padding: 10px;
+.advances {
+  margin-top: 6px;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  align-content: flex-start;
+  gap: 4px 10px;
+  font-size: 12px;
+}
+.advances .done {
+  color: #9ccc65;
+}
+.actions {
+  padding: 8px 10px 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-top: 1px solid #4a3620;
+  overflow: auto;
 }
 .act {
-  min-width: 130px;
-  height: 50px;
+  min-width: 118px;
+  flex: 1 0 118px;
+  max-width: 190px;
+  height: 46px;
   padding: 4px 8px;
   text-align: left;
   background: #3b2b16;
@@ -253,14 +209,72 @@ button {
 .act.done {
   border-color: #7cb342;
 }
-.minimap {
-  flex: 0 0 180px;
-  align-self: center;
-  margin-right: 10px;
+.minimap-box {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  padding: 4px;
+  background: rgba(20, 16, 10, 0.85);
   border: 1px solid #6b4f2a;
+  border-radius: 6px;
+}
+.minimap {
+  display: block;
+  width: 180px;
+  height: 180px;
   background: #2f4d24;
   image-rendering: pixelated;
   cursor: crosshair;
+}
+.topbar .research-now {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Compact (touch or short landscape): the card is a bottom sheet, the minimap small. */
+.hud.compact .help {
+  display: none;
+}
+.hud.compact .topbar {
+  gap: 12px;
+  padding: 0 8px;
+  font-size: 12px;
+  overflow-x: auto;
+}
+.hud.compact .selection-card {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: auto;
+  max-height: 60vh;
+  border-radius: 8px 8px 0 0;
+}
+.hud.compact .selection {
+  padding: 6px 28px 4px 10px;
+  font-size: 12px;
+}
+.hud.compact .selection .desc {
+  display: none;
+}
+.hud.compact .actions {
+  padding: 6px;
+  gap: 6px;
+}
+.hud.compact .act {
+  min-width: 96px;
+  flex-basis: 96px;
+  height: 40px;
+  font-size: 11px;
+}
+.hud.compact .minimap-box {
+  right: 6px;
+  bottom: 6px;
+}
+.hud.compact .minimap {
+  width: 110px;
+  height: 110px;
 }
 .bar {
   height: 6px;

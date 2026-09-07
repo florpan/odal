@@ -511,24 +511,24 @@ describe('engine with the default tech tree', () => {
     expect(computeBlocked(state, a.id)[i]).toBe(0);
   });
 
-  test('a population requirement gates research until enough units live', () => {
+  test('a population requirement gates research until enough units live; research belongs to the community', () => {
     const tree = structuredClone(DEFAULT_TREE);
-    const library = tree.buildings.find((b) => b.researches.length)!;
-    const techId = library.researches[0];
-    tree.techs.find((t) => t.id === techId)!.requires = [{ type: 'population', min: 2 }];
+    const tech = tree.techs.find((t) => !t.requires.length)!;
+    tech.requires = [{ type: 'population', min: 2 }];
     const state = createGame(tree, 7);
     const p = addPlayer(state, 'Alice', emptyEvents());
     const camp = Object.values(state.buildings)[0];
-    const lib = makeBuilding(state, p.id, library.id, camp.x + 3, camp.y + 3);
-    lib.progress = 1;
     for (const r of tree.resources) p.resources[r.id] = 1000;
-    const ev = stepGame(state, [{ playerId: p.id, cmd: { type: 'research', buildingId: lib.id, tech: techId } }], DT);
-    expect(lib.queue.length).toBe(0);
+    const ev = stepGame(state, [{ playerId: p.id, cmd: { type: 'research', tech: tech.id } }], DT);
+    expect(p.research.length).toBe(0);
     expect(ev.messages.some((m) => m.text.includes('2 population'))).toBe(true);
     run(state, 120, [{ playerId: p.id, cmd: { type: 'train', buildingId: camp.id, unit: tree.start.units[0].type } }]);
     expect(countUnits(state, p.id)).toBe(2);
-    stepGame(state, [{ playerId: p.id, cmd: { type: 'research', buildingId: lib.id, tech: techId } }], DT);
-    expect(lib.queue.length).toBe(1);
+    stepGame(state, [{ playerId: p.id, cmd: { type: 'research', tech: tech.id } }], DT);
+    expect(p.research).toEqual([tech.id]);
+    run(state, Math.ceil(tech.time * tree.rules.tickRate) + 2);
+    expect(p.techs).toContain(tech.id);
+    expect(p.research.length).toBe(0);
   });
 
   test('buildingHp effect raises the max HP of buildings finished afterwards', () => {

@@ -121,11 +121,7 @@ export function countUnits(state: GameState, playerId: number): number {
 }
 
 export function isTechQueued(state: GameState, playerId: number, tech: string): boolean {
-  for (const id in state.buildings) {
-    const b = state.buildings[id];
-    if (b.owner === playerId && b.queue.some((q) => q.kind === 'tech' && q.id === tech)) return true;
-  }
-  return false;
+  return state.players[playerId]?.research.includes(tech) ?? false;
 }
 
 /** True when the player owns a completed building of this type. */

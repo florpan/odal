@@ -37,10 +37,11 @@ interface Card {
   row: number;
   x: number;
   y: number;
-  /** Tech ids this one follows: listed in `requires`, or required by the building that researches it. */
+  /** Tech ids this one follows: listed in `requires`, or required by a building it requires. */
   from: string[];
   unlocks: Ref[];
-  at: string[];
+  /** Buildings the community must own first. */
+  needs: string[];
 }
 
 interface Layout {
@@ -75,9 +76,6 @@ function tierFn(tree: TechTree): (ref: Ref) => number {
       if (r.type === 'tech') t = Math.max(t, tierOf({ kind: 'tech', id: r.id }) + 1);
       else if (r.type === 'building') t = Math.max(t, tierOf({ kind: 'building', id: r.id }));
     }
-    if (ref.kind === 'tech')
-      for (const b of tree.buildings)
-        if (b.researches.includes(ref.id)) t = Math.max(t, tierOf({ kind: 'building', id: b.id }));
     if (ref.kind === 'unit')
       for (const b of tree.buildings)
         if (b.trains.includes(ref.id)) t = Math.max(t, tierOf({ kind: 'building', id: b.id }));
@@ -89,15 +87,19 @@ function tierFn(tree: TechTree): (ref: Ref) => number {
 
 function layout(tree: TechTree): Layout {
   const tierOf = tierFn(tree);
+  const i = idx(tree);
   const byId = new Map<string, Card>();
   const cards: Card[] = tree.techs.map((tech) => {
     const from = new Set<string>();
-    const at: string[] = [];
-    for (const r of tech.requires) if (r.type === 'tech') from.add(r.id);
-    for (const b of tree.buildings) {
-      if (!b.researches.includes(tech.id)) continue;
-      at.push(b.name);
-      for (const r of b.requires) if (r.type === 'tech') from.add(r.id);
+    const needsBuildings: string[] = [];
+    for (const r of tech.requires) {
+      if (r.type === 'tech') from.add(r.id);
+      if (r.type === 'building') {
+        const b = i.buildings[r.id];
+        if (!b) continue;
+        needsBuildings.push(b.name);
+        for (const br of b.requires) if (br.type === 'tech') from.add(br.id);
+      }
     }
     const needs = (reqs: { type: string; id?: string }[]) => reqs.some((r) => r.type === 'tech' && r.id === tech.id);
     const unlocks: Ref[] = [
@@ -113,7 +115,7 @@ function layout(tree: TechTree): Layout {
       y: 0,
       from: [...from],
       unlocks,
-      at,
+      needs: needsBuildings,
     };
     byId.set(tech.id, card);
     return card;
@@ -251,7 +253,7 @@ export function TechTimeline({ tree, status, progress, selected, onSelect }: Tec
                     {shortCost(tree, card.tech.cost)} · {card.tech.time}s
                   </span>
                 </div>
-                <div className="tl-at">{card.at.length ? `at ${card.at.join(', ')}` : 'not researched anywhere'}</div>
+                {card.needs.length > 0 && <div className="tl-at">needs {card.needs.join(', ')}</div>}
                 <div className="tl-unlocks">
                   {card.unlocks.length ? (
                     card.unlocks.map(chip)

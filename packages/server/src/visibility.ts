@@ -19,7 +19,7 @@ function maskPlayers(state: GameState, playerId: number): Player[] {
   const empty: Record<string, number> = {};
   for (const r of state.tree.resources) empty[r.id] = 0;
   return Object.values(state.players).map((p) =>
-    p.id === playerId ? p : { ...p, resources: { ...empty }, techs: [] },
+    p.id === playerId ? p : { ...p, resources: { ...empty }, techs: [], research: [], researchProgress: 0 },
   );
 }
 

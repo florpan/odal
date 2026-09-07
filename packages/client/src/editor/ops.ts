@@ -205,17 +205,17 @@ export function renameId(files: Files, file: ListFile, oldId: string, newId: str
 }
 
 // ---------------------------------------------------------------------------
-// Graph edits: an edge is a requirement or a trains/researches entry.
+// Graph edits: an edge is a requirement or a trains/upgrades entry.
 // ---------------------------------------------------------------------------
 
-export type EdgeHow = 'requires' | 'trains' | 'researches' | 'upgrades';
+export type EdgeHow = 'requires' | 'trains' | 'upgrades';
 
 /** Which relations a drag from `from` to `to` could mean. Empty = not allowed. */
 export function connectOptions(from: Ref, to: Ref): EdgeHow[] {
   if (from.kind === 'unit') return [];
   if (from.kind === 'tech') return ['requires'];
   if (to.kind === 'unit') return ['trains', 'requires'];
-  if (to.kind === 'tech') return ['researches', 'requires'];
+  if (to.kind === 'tech') return ['requires'];
   return ['upgrades', 'requires'];
 }
 

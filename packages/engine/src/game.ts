@@ -7,7 +7,7 @@ import { generateMap } from './mapgen';
 import type { PlayerCommand } from './protocol';
 import { mulberry32 } from './rng';
 import type { TechTree } from './content';
-import { separateUnits, stepBuildings, stepUnits, stepUpkeep } from './systems';
+import { separateUnits, stepBuildings, stepResearch, stepUnits, stepUpkeep } from './systems';
 import { idx } from './tree';
 import type { GameState, Player, TickEvents, Vec2 } from './types';
 
@@ -92,6 +92,8 @@ export function addPlayer(state: GameState, name: string, events: TickEvents): P
     color: tree.rules.playerColors[(id - 1) % tree.rules.playerColors.length],
     resources,
     techs: [],
+    research: [],
+    researchProgress: 0,
   };
   state.players[id] = player;
 
@@ -137,6 +139,7 @@ export function stepGame(state: GameState, commands: PlayerCommand[], dt: number
   stepUnits(ctx);
   separateUnits(ctx);
   stepBuildings(ctx);
+  stepResearch(ctx);
   stepUpkeep(ctx);
 
   // Remove the dead.

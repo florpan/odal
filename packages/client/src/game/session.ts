@@ -1,5 +1,5 @@
-import { hexCentre, PROTOCOL_VERSION, idx } from '@odal/engine';
-import type { Building, ServerMessage } from '@odal/engine';
+import { hexCentre, PROTOCOL_VERSION } from '@odal/engine';
+import type { ServerMessage } from '@odal/engine';
 import { appStore, toggleOverlay } from '../app/store';
 import { Input } from './input';
 import { drawMinimap, minimapToWorld } from './minimap';
@@ -184,13 +184,12 @@ export class GameSession {
       case 'train':
         if (bId !== null) this.net.send({ type: 'train', buildingId: bId, unit: arg });
         break;
-      case 'research': {
-        // From the action bar the selected building researches it; from the tech tree
-        // screen any own building that can, preferring the shortest queue.
-        const at = this.researcher(arg, bId);
-        if (at !== null) this.net.send({ type: 'research', buildingId: at, tech: arg });
+      case 'research':
+        this.net.send({ type: 'research', tech: arg });
         break;
-      }
+      case 'cancelResearch':
+        this.net.send({ type: 'cancelResearch', index: Number(arg) });
+        break;
       case 'tree':
       case 'keys':
         toggleOverlay(kind);
@@ -217,20 +216,12 @@ export class GameSession {
     this.publish();
   }
 
-  /** The own completed building that should research `tech`: `preferred` if it can, else the least busy one. */
-  private researcher(tech: string, preferred: number | null): number | null {
-    const st = this.world.state;
-    if (!st) return null;
-    const defs = idx(st.tree).buildings;
-    const can = (b: Building | undefined) =>
-      !!b && b.owner === this.world.playerId && b.progress >= 1 && defs[b.type].researches.includes(tech);
-    if (preferred !== null && can(st.buildings[preferred])) return preferred;
-    let best: Building | null = null;
-    for (const id in st.buildings) {
-      const b = st.buildings[id];
-      if (can(b) && (!best || b.queue.length < best.queue.length)) best = b;
-    }
-    return best?.id ?? null;
+  /** Deselect everything (the selection card's close button). */
+  clearSelection() {
+    this.world.selectedUnits = [];
+    this.world.selectedBuilding = null;
+    this.world.selectedNode = null;
+    this.publish();
   }
 
   /** Minimap support for the Minimap component, which owns a small 2D canvas. */

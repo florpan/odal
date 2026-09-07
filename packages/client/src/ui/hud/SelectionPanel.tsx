@@ -1,4 +1,5 @@
 import { useApp } from '../hooks';
+import { ActionBar } from './ActionBar';
 
 function Bar({ value, max, className }: { value: number; max: number; className?: string }) {
   const pct = max > 0 ? Math.max(0, Math.min(100, (100 * value) / max)) : 0;
@@ -9,18 +10,37 @@ function Bar({ value, max, className }: { value: number; max: number; className?
   );
 }
 
+/**
+ * The selection card: what is selected, its state, and the actions it offers, in one floating panel.
+ * Hidden when nothing is selected. The close button clears the selection.
+ */
+export function SelectionCard() {
+  const sel = useApp((s) => s.hud.selection);
+  const session = useApp((s) => s.session);
+  if (sel.kind === 'none') return null;
+  return (
+    <div className="selection-card">
+      <button
+        type="button"
+        className="card-close"
+        title="Clear selection (Esc)"
+        onClick={() => session?.clearSelection()}
+      >
+        ×
+      </button>
+      <SelectionPanel />
+      <ActionBar />
+    </div>
+  );
+}
+
 export function SelectionPanel() {
   const sel = useApp((s) => s.hud.selection);
   const session = useApp((s) => s.session);
 
   switch (sel.kind) {
     case 'none':
-      return (
-        <div className="selection">
-          <h3>Nothing selected</h3>
-          <div className="muted">Left-click a unit or building. Drag to box-select. Ctrl+1–9 saves a group.</div>
-        </div>
-      );
+      return null;
     case 'units':
       return (
         <div className="selection">
@@ -91,6 +111,16 @@ export function SelectionPanel() {
                   </span>
                   <span>{q.pct}%</span>
                 </div>
+              ))}
+            </div>
+          )}
+          {sel.advances.length > 0 && (
+            <div className="advances muted" title="Research this building makes possible">
+              {sel.advances.map((a) => (
+                <span key={a.name} className={a.done ? 'done' : ''}>
+                  {a.done ? '✓ ' : '· '}
+                  {a.name}
+                </span>
               ))}
             </div>
           )}

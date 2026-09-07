@@ -51,8 +51,7 @@ export interface Unit {
   cooldown: number; // seconds until next attack
 }
 
-export type QueueItem =
-  { kind: 'unit'; type: string } | { kind: 'tech'; id: string } | { kind: 'upgrade'; type: string };
+export type QueueItem = { kind: 'unit'; type: string } | { kind: 'upgrade'; type: string };
 
 /** Where freshly trained units go. With nodeId set, new harvesters start harvesting it. */
 export interface RallyPoint {
@@ -84,6 +83,9 @@ export interface Player {
   color: string;
   resources: Resources;
   techs: string[]; // TechDef ids
+  /** Techs being researched, in order; costs are paid when queued. Progress is seconds spent on the first. */
+  research: string[];
+  researchProgress: number;
 }
 
 export interface GameState {

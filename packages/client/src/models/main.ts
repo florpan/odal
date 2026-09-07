@@ -93,7 +93,8 @@ function load(url: string) {
           for (const m of mats) {
             materials.add(m.name);
             // ?atlas=summer|fall|winter: the Hexagon pack's seasonal recolour, as in the game.
-            if (atlas && m.name.startsWith(HEX_ATLAS_MATERIAL) && 'map' in m) (m as THREE.MeshStandardMaterial).map = atlas;
+            if (atlas && m.name.startsWith(HEX_ATLAS_MATERIAL) && 'map' in m)
+              (m as THREE.MeshStandardMaterial).map = atlas;
           }
           if (o instanceof THREE.SkinnedMesh) o.frustumCulled = false;
         }

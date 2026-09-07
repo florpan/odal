@@ -6,6 +6,7 @@ export function TopBar({ children }: { children?: ReactNode }) {
   const player = useApp((s) => s.hud.player);
   const resources = useApp((s) => s.hud.resources);
   const pop = useApp((s) => s.hud.pop);
+  const research = useApp((s) => s.hud.research);
   const overlay = useApp((s) => s.overlay);
   return (
     <div className="topbar">
@@ -21,6 +22,14 @@ export function TopBar({ children }: { children?: ReactNode }) {
         👥 {pop.used} / {pop.cap}
       </span>
       <span className="spacer" />
+      <button
+        type="button"
+        className="small research-now"
+        onClick={() => toggleOverlay('tree')}
+        title={research?.queued.length ? `Then: ${research.queued.join(', ')}` : 'Choose research'}
+      >
+        {research ? `🔬 ${research.name} ${research.pct}%` : '🔬 No research'}
+      </button>
       <button
         type="button"
         className={`small${overlay === 'tree' ? ' active' : ''}`}

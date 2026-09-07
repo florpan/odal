@@ -47,7 +47,6 @@ const files: RulesetFiles = {
       time: 1,
       hp: 1,
       cost: { wood: 5 },
-      researches: ['fire'],
       visual: { color: '#ffffff' },
     },
   ],

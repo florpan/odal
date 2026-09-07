@@ -5,7 +5,7 @@ import type { Building, GameMessage, GameState, Player, RallyPoint, ResourceNode
 // a message shape changes; the client refuses to play on a mismatch.
 // ---------------------------------------------------------------------------
 
-export const PROTOCOL_VERSION = 9;
+export const PROTOCOL_VERSION = 10;
 
 /** What a player can ask the simulation to do. Validated by the engine, never trusted. */
 export type Command =
@@ -17,7 +17,9 @@ export type Command =
   | { type: 'assist'; unitIds: number[]; buildingId: number }
   | { type: 'attack'; unitIds: number[]; targetId: number; targetKind: 'unit' | 'building' }
   | { type: 'train'; buildingId: number; unit: string }
-  | { type: 'research'; buildingId: number; tech: string }
+  /** Queue a tech for the whole community (research is not tied to a building). */
+  | { type: 'research'; tech: string }
+  | { type: 'cancelResearch'; index: number }
   /** Queue turning an own finished building into `building` (one of its def's `upgrades`). */
   | { type: 'upgrade'; buildingId: number; building: string }
   | { type: 'cancelQueue'; buildingId: number; index: number }
