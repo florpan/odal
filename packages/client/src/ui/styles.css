@@ -269,8 +269,10 @@ button {
   font-size: 11px;
 }
 .hud.compact .minimap-box {
+  /* Top right, under the top bar, so the bottom sheet never covers it. */
   right: 6px;
-  bottom: 6px;
+  top: 42px;
+  bottom: auto;
 }
 .hud.compact .minimap {
   width: 110px;
