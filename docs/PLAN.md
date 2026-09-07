@@ -42,7 +42,7 @@ reason.
 | Gold     | Gold rocks (rarer deposits)          | Research             |                                                                                                                                    |
 | Wheat    | **Farms** (built, produce over time) | Unit count           | Every unit costs wheat and soldiers eat wheat as upkeep. Forces you to dedicate space to farming.                                  |
 
-Start: 60 lumber, 0 stone, 0 iron, 20 gold, 40 wheat. One town hall, one worker.
+Start: 80 lumber, 0 stone, 0 iron, 20 gold, 40 wheat. One town hall, one worker.
 
 Why stone (decided 2026-09-04): lumber, wheat and to a degree gold are mandatory, so they create no
 decision. Stone is the first resource a player can choose to ignore. That choice, and the worker
@@ -51,39 +51,59 @@ be a strategy rather than a chore: wall, gate, watchtower and Masonry at launch.
 
 ### Buildings
 
-Every building occupies one hex (ADR 0008: board-game scale, a tile represents what is on it).
+Every building occupies one hex (ADR 0008: board-game scale, a tile represents what is on it). Tree
+decided 2026-09-08 from the Hexagon pack's contact sheets. Research happens at the town hall (no library);
+harvested goods go to the building that takes them (`accepts`), never to the town hall.
 
-| Building    | Cost                 | Effect                                                                 | Requires    |
-| ----------- | -------------------- | ---------------------------------------------------------------------- | ----------- |
-| Town hall   | —                    | Start building. Drop-off point. Trains workers. +5 pop. Not buildable. | —           |
-| House       | 25 lumber            | +5 population cap.                                                     | —           |
-| Windmill    | 20 lumber            | +4 wheat every 8 s. Researches crop rotation.                          | —           |
-| Lumber mill | 40 lumber            | Drop-off, to shorten hauls from the woods.                             | —           |
-| Mine        | 40 lumber            | Drop-off, to shorten hauls from the rocks.                             | —           |
-| Market      | 40 lumber, 10 gold   | +2 gold every 12 s.                                                    | —           |
-| Blacksmith  | 40 lumber, 10 gold   | Researches tools, weapons and masonry.                                 | —           |
-| Barracks    | 50 lumber, 20 iron   | Trains soldiers.                                                       | Ironworking |
-| Castle      | 120 stone, 80 lumber | +10 pop, trains soldiers, 1200 HP.                                     | Masonry     |
-| Wall        | 10 stone             | Blocks everyone. 250 HP.                                               | —           |
-| Gate        | 15 stone, 10 lumber  | Wall segment the owner's units walk through. 300 HP.                   | Masonry     |
-| Watchtower  | 40 stone, 20 lumber  | Vision 11, shoots 6 damage every 1.5 s within 6 hexes. 400 HP.         | Masonry     |
+| Building                       | Cost                           | Effect                                                                       | Requires       |
+| ------------------------------ | ------------------------------ | ---------------------------------------------------------------------------- | -------------- |
+| Town hall                      | —                              | Start. Trains workers, researches the civic techs. +5 pop. → Castle          | —              |
+| Castle                         | 150 stone, 100 lumber, 50 gold | Upgrade of the town hall, 60 s. +10 pop, trains workers and knights, 1200 HP | Feudalism      |
+| House                          | 25 lumber                      | +5 population cap.                                                           | —              |
+| Windmill                       | 20 lumber                      | +4 wheat every 8 s. Researches crop rotation.                                | —              |
+| Grain field                    | 10 lumber                      | +2 wheat every 8 s.                                                          | —              |
+| Lumber mill                    | 30 lumber                      | Takes lumber. Researches sharpened axes. First building of every game.       | —              |
+| Quarry / Iron mine / Gold mine | 40 lumber                      | Take stone / iron / gold (same pack model for now).                          | Mining         |
+| Barracks                       | 50 lumber                      | Trains soldiers.                                                             | House          |
+| Blacksmith                     | 40 lumber, 10 iron             | Researches steel weapons, chainmail.                                         | Ironworking    |
+| Archery range                  | 40 lumber                      | Trains archers. Researches longbows.                                         | Fletching      |
+| Church                         | 50 lumber, 20 gold             | Researches rites.                                                            | Faith          |
+| Shrine                         | 40 lumber, 20 stone, 20 gold   | One per player. Researches the three blessings.                              | Rites          |
+| Market                         | 40 lumber, 10 gold             | +2 gold every 10 s. Researches trade routes.                                 | Trade          |
+| Workshop                       | 60 lumber, 20 iron             | Lets towers mount a catapult. Researches gunpowder.                          | Engineering    |
+| Tower                          | 40 stone, 20 lumber            | Shoots 6 / 1.5 s within 6. → Stone tower → Catapult tower → Cannon tower     | Masonry        |
+| Stone tower                    | 40 stone, 10 iron              | Upgrade, 20 s. 9 / 1.5 s within 7, 400 HP.                                   | Fortification  |
+| Catapult tower                 | 40 stone, 40 lumber            | Upgrade, 25 s. 20 / 3 s within 8, 450 HP.                                    | Workshop built |
+| Cannon tower                   | 60 stone, 40 iron, 20 gold     | Upgrade, 30 s. 35 / 3.5 s within 9, 500 HP.                                  | Gunpowder      |
+| Watchtower                     | 15 lumber                      | Unarmed, sees 12 hexes. 80 HP.                                               | —              |
+| Wall / Wall corner             | 10 stone                       | Blocks everyone. 250 HP. The corner is rotated to fit (Q).                   | Masonry        |
+| Gate                           | 15 stone, 10 lumber            | Wall segment the owner's units walk through. 300 HP.                         | Masonry        |
+
+Skipped for now (models converted, no role): cottage, stables, tavern, tent, watermill, well, docks,
+shipyard, fences, bridge, ruin, scaffolding, stages, projectile.
 
 ### Units
 
-| Unit    | Cost              | HP  | Speed | Damage | Abilities                           |
-| ------- | ----------------- | --- | ----- | ------ | ----------------------------------- |
-| Worker  | 20 wheat          | 30  | 3     | 2      | harvest, build, attack              |
-| Soldier | 20 wheat, 15 iron | 60  | 2.6   | 8      | attack, auto-engages within 6 tiles |
+| Unit    | Cost                        | HP  | Speed | Damage | Range | Trained at    | Abilities                           |
+| ------- | --------------------------- | --- | ----- | ------ | ----- | ------------- | ----------------------------------- |
+| Worker  | 20 wheat                    | 30  | 3     | 2      | 1     | Town hall     | harvest, build, attack              |
+| Soldier | 20 wheat, 15 iron           | 60  | 2.6   | 8      | 1.2   | Barracks      | attack, auto-engages within 6 tiles |
+| Archer  | 20 wheat, 10 lumber, 5 iron | 40  | 2.8   | 6      | 4     | Archery range | attack (no projectile yet)          |
+| Knight  | 30 wheat, 40 iron, 20 gold  | 130 | 3.2   | 14     | 1.2   | Castle        | attack, eats 2 wheat                |
 
-### Research (Library)
+### Research
 
-| Tech           | Cost               | Effect                                                              | Requires    |
-| -------------- | ------------------ | ------------------------------------------------------------------- | ----------- |
-| Ironworking    | 30 gold            | Unlocks Barracks                                                    | —           |
-| Sharpened Axes | 20 gold, 10 iron   | gatherRate lumber ×1.5                                              | —           |
-| Crop Rotation  | 20 gold, 20 lumber | produceRate farm ×1.5                                               | —           |
-| Steel Weapons  | 40 gold, 30 iron   | damage soldier ×1.5                                                 | Ironworking |
-| Masonry        | 30 gold, 20 stone  | Unlocks Gate and Watchtower; buildings finished afterwards ×1.25 HP | —           |
+Town hall (civic): Mining (30 lumber) → Ironworking (20 gold, 10 iron) and Masonry (20 gold, 20 stone);
+Fletching (40 lumber, 10 gold; needs a barracks); Faith (30 gold); Trade (20 gold, 30 lumber);
+Engineering (40 gold, 20 iron; needs a blacksmith); Fortification (40 gold, 40 stone; after Masonry;
+buildings finished afterwards ×1.25 HP); Feudalism (100 gold, 60 stone, 40 iron; after Fortification and
+Engineering, with a church) → the castle. The castle keeps Fletching and Trade.
+
+Elsewhere: Sharpened Axes (lumber mill, lumber ×1.5), Crop Rotation (windmill, farm ×1.5), Steel Weapons
+(blacksmith, soldier ×1.5, knight ×1.25) and Chainmail (blacksmith, soldier HP ×1.3), Longbows (archery
+range, archer ×1.5), Rites (church → shrine), Gunpowder (workshop → cannon tower), Trade Routes (market
+×1.5), and at the shrine the blessings of the Harvest (all gathering ×1.2), of Arms (all damage ×1.15)
+and of Stone (buildings ×1.2 HP).
 
 ### Map
 
@@ -178,38 +198,17 @@ basic combat, multiplayer over WebSocket, minimap, HUD.
 - [ ] **Camera:** edge scrolling, follow selected unit, jump to last event. Deferred to the graphics milestone.
 - [ ] **Map rotation** (Q/E in 90° steps, or free orbit). Deferred to the graphics milestone.
 
-### M2 content plan (2026-09-06): buildings from the Hexagon pack
+### M2 content plan: buildings from the Hexagon pack
 
-The tree is built around what the KayKit Hexagon packs actually contain, so nothing is a placeholder.
-Ids stay stable where a building only changed its look (`farm` is the windmill, `library` the blacksmith).
-
-| Pack model                                            | Building       | Status                                                                                                                           |
-| ----------------------------------------------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| townhall                                              | Town hall      | in: start, drop-off, workers                                                                                                     |
-| home_A                                                | House          | in                                                                                                                               |
-| windmill                                              | Windmill       | in: wheat, crop rotation                                                                                                         |
-| lumbermill, mine                                      | drop-offs      | in; later per-resource drop-off and a gather bonus                                                                               |
-| market                                                | Market         | in: gold trickle; later trade                                                                                                    |
-| blacksmith                                            | Blacksmith     | in: research                                                                                                                     |
-| barracks                                              | Barracks       | in                                                                                                                               |
-| castle                                                | Castle         | in: late-game pop and soldiers                                                                                                   |
-| tower_A / B / catapult / cannon, watchtower           | Tower line     | tower_A in; upgrade-in-place command still to build                                                                              |
-| church, shrine                                        | healer, mage   | in as test buildings (5 lumber, 3 s) until healing and mages exist                                                               |
-| archeryrange                                          | Archer         | in as test building until ranged exists                                                                                          |
-| stables                                               | Scout, speed   | in as test building                                                                                                              |
-| workshop                                              | Siege          | in as test building; siege needs damage-by-target                                                                                |
-| watermill                                             | Wheat by water | in as test building (needs placement rules to matter)                                                                            |
-| well, tavern, tent, docks, shipyard                   | –              | in as test buildings, no role yet                                                                                                |
-| wall_straight, gate, corner, fences, bridge (neutral) | walls          | in: wall and gate use the pack pieces; corner, fences and bridge as test buildings. Orienting walls to neighbours is still to do |
-| building_grain                                        | Grain field    | in as test building: wheat, cheaper than the windmill                                                                            |
-| scaffolding, destroyed                                | stages         | converted, not used: construction and ruin looks later                                                                           |
-
-Test buildings cost 5 lumber and take 3 s so the look can be checked in play; they get real prices when
-they get a role. Units in the plan (worker with tools,
-soldier with sword and shield, archer, healer, mage, berserker, scout, siege) come from the
-Adventurers characters plus hand props and the shared animation set; only the worker and soldier exist.
-Model files are 100–360 KB each because every one embeds its own copy of the atlas; sharing one
-texture per pack is the fix when size matters.
+Decided 2026-09-08 from the pack's contact sheets (`tools/models/kaykit_sheet.py`); the tables under
+"The rules are data" above are the result. Engine additions that made it expressible: `upgrades`
+(town hall → castle, the tower line), `accepts` (per-resource drop-offs), `limit` (one shrine), and the
+`upgrade` command (protocol 9). Still to come for the tree: a wall tool that lays runs and picks
+corners; scaffolding and ruin stages as looks; the Resource Bits stacks next to a mine to show its kind;
+healer or mage from the church; siege units; projectiles for archers and towers; road and river tiles
+only if road and river rules ever exist. Units in the plan (worker with tools, soldier with sword and
+shield, archer, knight) come from the Adventurers characters plus hand props and the shared animation
+set; only the worker has a model.
 
 ### M3 — Looks
 

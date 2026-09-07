@@ -31,7 +31,10 @@ export function RefDetails({ tree, ref, status }: RefDetailsProps) {
     if (ref.kind === 'building' && ref.id === b.id) {
       for (const t of b.trains) unlocks.push({ ref: { kind: 'unit', id: t }, how: 'trains' });
       for (const t of b.researches) unlocks.push({ ref: { kind: 'tech', id: t }, how: 'researches' });
+      for (const t of b.upgrades) unlocks.push({ ref: { kind: 'building', id: t }, how: 'upgrades to' });
     }
+    if (ref.kind === 'building' && b.upgrades.includes(ref.id))
+      unlocks.push({ ref: { kind: 'building', id: b.id }, how: 'upgraded from' });
   }
   for (const t of tree.techs) {
     if (t.requires.some((r) => r.type !== 'population' && r.type === ref.kind && r.id === ref.id))
@@ -81,7 +84,13 @@ export function RefDetails({ tree, ref, status }: RefDetailsProps) {
                 ? ` · shoots ${building.attack.damage} / ${building.attack.attackTime}s, range ${building.attack.range}`
                 : ''}
               {building.passable ? ' · own units pass through' : ''}
-              {building.dropOff ? ' · drop-off' : ''}
+              {building.dropOff
+                ? building.accepts.length
+                  ? ` · takes ${building.accepts.map((r) => i.resources[r]?.name.toLowerCase() ?? r).join(', ')}`
+                  : ' · drop-off for everything'
+                : ''}
+              {building.limit !== undefined ? ` · max ${building.limit}` : ''}
+              {!building.buildable ? ' · not placed directly' : ''}
             </dd>
           </>
         )}

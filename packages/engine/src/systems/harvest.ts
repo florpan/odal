@@ -24,9 +24,9 @@ export function stepHarvest(ctx: Ctx, u: Unit) {
       task.phase = 'toNode';
       return;
     }
-    const drop = nearestDropOff(state, u);
+    const drop = nearestDropOff(state, u, u.carry.type);
     if (!drop) {
-      say(ctx, u.owner, 'No drop-off building to return resources to.');
+      say(ctx, u.owner, `Nowhere to deliver ${u.carry.type}: build a drop-off that takes it.`);
       setTask(u, { kind: 'idle' });
       return;
     }

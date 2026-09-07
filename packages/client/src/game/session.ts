@@ -210,6 +210,9 @@ export class GameSession {
       case 'rotate':
         input.rotateSelected();
         break;
+      case 'upgrade':
+        if (bId !== null) this.net.send({ type: 'upgrade', buildingId: bId, building: arg });
+        break;
     }
     this.publish();
   }

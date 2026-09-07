@@ -51,7 +51,8 @@ export interface Unit {
   cooldown: number; // seconds until next attack
 }
 
-export type QueueItem = { kind: 'unit'; type: string } | { kind: 'tech'; id: string };
+export type QueueItem =
+  { kind: 'unit'; type: string } | { kind: 'tech'; id: string } | { kind: 'upgrade'; type: string };
 
 /** Where freshly trained units go. With nodeId set, new harvesters start harvesting it. */
 export interface RallyPoint {

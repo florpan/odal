@@ -8,6 +8,7 @@ import {
   buildingUnlocked,
   canAfford,
   canPlaceBuilding,
+  countBuildings,
   hasAbility,
   hasTech,
   isTechQueued,
@@ -18,6 +19,7 @@ import {
   refund,
   techUnlocked,
   unitUnlocked,
+  upgradeUnlocked,
 } from './queries';
 import { describeRequirement } from './tree';
 import type { Unit } from './types';
@@ -90,6 +92,14 @@ export function applyCommand(ctx: Ctx, pc: PlayerCommand) {
         !canPlaceBuilding(state, ctx.blocked, cmd.building, cmd.x, cmd.y)
       ) {
         say(ctx, player.id, `Cannot build there.`);
+        return;
+      }
+      if (def.limit !== undefined && countBuildings(state, player.id, cmd.building) >= def.limit) {
+        say(
+          ctx,
+          player.id,
+          def.limit === 1 ? `Only one ${def.name} allowed.` : `Only ${def.limit} of ${def.name} allowed.`,
+        );
         return;
       }
       if (!canAfford(player.resources, def.cost)) {
@@ -178,12 +188,43 @@ export function applyCommand(ctx: Ctx, pc: PlayerCommand) {
       break;
     }
 
+    case 'upgrade': {
+      const b = state.buildings[cmd.buildingId];
+      const def = defs.buildings[cmd.building];
+      if (!b || !def || b.owner !== player.id) return;
+      if (!defs.buildings[b.type].upgrades.includes(cmd.building) || b.progress < 1) return;
+      if (b.queue.some((q) => q.kind === 'upgrade')) return;
+      if (!upgradeUnlocked(state, player, b, cmd.building)) {
+        const req = missingRequirement(state, player, def.requires);
+        if (req) say(ctx, player.id, `${def.name} requires ${describeRequirement(tree, req)}.`);
+        return;
+      }
+      if (b.queue.length >= tree.rules.maxQueue) {
+        say(ctx, player.id, `Queue is full.`);
+        return;
+      }
+      if (!canAfford(player.resources, def.cost)) {
+        say(ctx, player.id, `Not enough resources for ${def.name}.`);
+        return;
+      }
+      pay(player.resources, def.cost);
+      b.queue.push({ kind: 'upgrade', type: cmd.building });
+      break;
+    }
+
     case 'cancelQueue': {
       const b = state.buildings[cmd.buildingId];
       if (!b || b.owner !== player.id) return;
       const item = b.queue[cmd.index];
       if (!item) return;
-      refund(player.resources, item.kind === 'unit' ? defs.units[item.type].cost : defs.techs[item.id].cost);
+      refund(
+        player.resources,
+        item.kind === 'unit'
+          ? defs.units[item.type].cost
+          : item.kind === 'upgrade'
+            ? defs.buildings[item.type].cost
+            : defs.techs[item.id].cost,
+      );
       b.queue.splice(cmd.index, 1);
       if (cmd.index === 0) b.queueProgress = 0;
       break;

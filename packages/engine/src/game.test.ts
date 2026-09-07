@@ -178,9 +178,19 @@ describe('engine with the default tech tree', () => {
     expect(p.resources).toEqual({ ...DEFAULT_TREE.rules.startResources });
   });
 
-  test('worker harvests lumber and drops it at the town hall', () => {
+  /** A finished drop-off that takes `resource`, next to the player's start building. */
+  function dropOffFor(state: GameState, playerId: number, resource: string) {
+    const hall = Object.values(state.buildings).find((b) => b.owner === playerId)!;
+    const def = DEFAULT_TREE.buildings.find((b) => b.dropOff && (!b.accepts.length || b.accepts.includes(resource)))!;
+    const b = makeBuilding(state, playerId, def.id, hall.x + 2, hall.y);
+    b.progress = 1;
+    return b;
+  }
+
+  test('worker harvests lumber and drops it at the lumber mill', () => {
     const state = createGame(DEFAULT_TREE, 7);
     const p = addPlayer(state, 'Alice', emptyEvents());
+    dropOffFor(state, p.id, 'lumber');
     const worker = Object.values(state.units)[0];
     const tree = nearestNode(state, 'tree', worker.x, worker.y);
     const before = p.resources.lumber;
@@ -246,6 +256,82 @@ describe('engine with the default tech tree', () => {
     expect(theirs.rot).toBe(0);
   });
 
+  test('an upgrade turns the building into the target in place once its time is up', () => {
+    const state = createGame(DEFAULT_TREE, 7);
+    const p = addPlayer(state, 'Alice', emptyEvents());
+    const hall = Object.values(state.buildings).find((b) => b.owner === p.id)!;
+    const target = DEFAULT_TREE.buildings.find((b) => b.id === hall.type)!.upgrades[0];
+    expect(target).toBeDefined();
+    const def = DEFAULT_TREE.buildings.find((b) => b.id === target)!;
+    // Requirements unmet: refused with a message.
+    for (const k of Object.keys(def.cost)) p.resources[k] = 1000;
+    const ev = stepGame(
+      state,
+      [{ playerId: p.id, cmd: { type: 'upgrade', buildingId: hall.id, building: target } }],
+      DT,
+    );
+    expect(hall.queue.length).toBe(0);
+    expect(ev.messages.some((m) => m.text.includes('requires'))).toBe(true);
+    // Meet them: every tech in the chain, every building it asks for.
+    for (const r of def.requires) {
+      if (r.type === 'tech') p.techs.push(r.id);
+      if (r.type === 'building') makeBuilding(state, p.id, r.id, hall.x + 3, hall.y + 3).progress = 1;
+    }
+    stepGame(state, [{ playerId: p.id, cmd: { type: 'upgrade', buildingId: hall.id, building: target } }], DT);
+    expect(hall.queue[0]).toEqual({ kind: 'upgrade', type: target });
+    run(state, Math.ceil(def.time * DEFAULT_TREE.rules.tickRate) + 2);
+    expect(state.buildings[hall.id].type).toBe(target);
+    expect(state.buildings[hall.id].hp).toBe(def.hp);
+    expect(state.buildings[hall.id].queue.length).toBe(0);
+  });
+
+  test('a harvester only delivers to a drop-off that takes what it carries', () => {
+    const state = createGame(DEFAULT_TREE, 7);
+    const p = addPlayer(state, 'Alice', emptyEvents());
+    const worker = Object.values(state.units)[0];
+    const hall = Object.values(state.buildings)[0];
+    const mill = DEFAULT_TREE.buildings.find((b) => b.dropOff && b.accepts.includes('lumber'))!;
+    expect(DEFAULT_TREE.buildings.find((b) => b.id === hall.type)!.accepts).not.toContain('lumber');
+    worker.carry = { type: 'lumber', amount: 10 };
+    worker.task = { kind: 'harvest', nodeId: -1, nodeType: 'tree', phase: 'toDrop', progress: 0 };
+    const before = p.resources.lumber;
+    const ev = stepGame(state, [], DT);
+    expect(state.units[worker.id].task.kind).toBe('idle');
+    expect(ev.messages.some((m) => m.text.includes('Nowhere to deliver'))).toBe(true);
+    expect(p.resources.lumber).toBe(before);
+    makeBuilding(state, p.id, mill.id, hall.x + 2, hall.y).progress = 1;
+    worker.task = { kind: 'harvest', nodeId: -1, nodeType: 'tree', phase: 'toDrop', progress: 0 };
+    run(state, 60);
+    expect(p.resources.lumber).toBe(before + 10);
+  });
+
+  test('a building with a limit cannot be placed beyond it', () => {
+    const state = createGame(DEFAULT_TREE, 7);
+    const p = addPlayer(state, 'Alice', emptyEvents());
+    const worker = Object.values(state.units)[0];
+    const hall = Object.values(state.buildings)[0];
+    const limited = DEFAULT_TREE.buildings.find((b) => b.limit === 1)!;
+    for (const r of limited.requires) if (r.type === 'tech') p.techs.push(r.id);
+    for (const k of Object.keys(limited.cost)) p.resources[k] = 1000;
+    const at = (dx: number) => ({
+      type: 'build' as const,
+      unitIds: [worker.id],
+      building: limited.id,
+      x: hall.x + dx,
+      y: hall.y + 2,
+    });
+    const ev = stepGame(
+      state,
+      [
+        { playerId: p.id, cmd: at(2) },
+        { playerId: p.id, cmd: at(4) },
+      ],
+      DT,
+    );
+    expect(Object.values(state.buildings).filter((b) => b.type === limited.id).length).toBe(1);
+    expect(ev.messages.some((m) => m.text.includes('Only one'))).toBe(true);
+  });
+
   test('idle units on the same spot get pushed apart', () => {
     const state = createGame(DEFAULT_TREE, 7);
     const p = addPlayer(state, 'Alice', emptyEvents());
@@ -269,6 +355,7 @@ describe('engine with the default tech tree', () => {
       [fast, pf],
       [slow, ps],
     ] as const) {
+      dropOffFor(state, p.id, 'lumber');
       const w = Object.values(state.units)[0];
       const t = nearestNode(state, 'tree', w.x, w.y);
       run(state, 900, [{ playerId: p.id, cmd: { type: 'harvest', unitIds: [w.id], nodeId: t.id } }]);
@@ -288,9 +375,10 @@ describe('engine with the default tech tree', () => {
   });
 
   test('a unit with an unmet requirement cannot be trained', () => {
-    // A ruleset where the town hall can train soldiers; the soldier itself still requires Ironworking.
+    // A ruleset where the town hall can train soldiers and the soldier itself requires Ironworking.
     const tree = structuredClone(DEFAULT_TREE);
     tree.buildings.find((b) => b.id === tree.start.building)!.trains.push('soldier');
+    tree.units.find((u) => u.id === 'soldier')!.requires.push({ type: 'tech', id: 'ironworking' });
     const state = createGame(tree, 7);
     const p = addPlayer(state, 'Alice', emptyEvents());
     const camp = Object.values(state.buildings)[0];
@@ -322,11 +410,13 @@ describe('engine with the default tech tree', () => {
   });
 
   test('tech graph: prerequisites of the soldier are the whole military branch', () => {
-    const chain = prerequisites(DEFAULT_TREE, { kind: 'unit', id: 'soldier' }).map((r) => `${r.kind}:${r.id}`);
-    expect(chain).toContain('building:library');
-    expect(chain).toContain('tech:ironworking');
-    expect(chain).toContain('building:barracks');
-    expect(chain.indexOf('tech:ironworking')).toBeLessThan(chain.indexOf('building:barracks'));
+    const chain = prerequisites(DEFAULT_TREE, { kind: 'unit', id: 'knight' }).map((r) => `${r.kind}:${r.id}`);
+    expect(chain).toContain('building:townhall');
+    expect(chain).toContain('tech:feudalism');
+    expect(chain).toContain('building:castle');
+    expect(chain).toContain('tech:mining');
+    expect(chain.indexOf('tech:mining')).toBeLessThan(chain.indexOf('tech:feudalism'));
+    expect(chain.indexOf('tech:feudalism')).toBeLessThan(chain.indexOf('building:castle'));
     expect(findCycle(buildGraph(DEFAULT_TREE))).toBeNull();
   });
 
@@ -463,10 +553,10 @@ describe('engine with the default tech tree', () => {
   });
 
   test('chainCost sums the whole prerequisite chain', () => {
-    const soldier = { kind: 'unit', id: 'soldier' } as const;
-    const { cost, time, steps } = chainCost(DEFAULT_TREE, soldier);
-    expect(steps).toBe(prerequisites(DEFAULT_TREE, soldier).length + 1);
-    expect(cost.gold).toBeGreaterThan(0); // the library and ironworking cost gold, the soldier does not
-    expect(time).toBeGreaterThan(DEFAULT_TREE.units.find((u) => u.id === 'soldier')!.time);
+    const knight = { kind: 'unit', id: 'knight' } as const;
+    const { cost, time, steps } = chainCost(DEFAULT_TREE, knight);
+    expect(steps).toBe(prerequisites(DEFAULT_TREE, knight).length + 1);
+    expect(cost.stone).toBeGreaterThan(0); // the castle and masonry cost stone, the knight does not
+    expect(time).toBeGreaterThan(DEFAULT_TREE.units.find((u) => u.id === 'knight')!.time);
   });
 });

@@ -142,9 +142,29 @@
             },
             "default": []
           },
+          "upgrades": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]*$"
+            },
+            "default": []
+          },
           "dropOff": {
             "type": "boolean",
             "default": false
+          },
+          "accepts": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]*$"
+            },
+            "default": []
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
           },
           "produces": {
             "type": "object",

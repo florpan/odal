@@ -162,7 +162,13 @@ export const BuildingSchema = z
     pop: NonNeg.default(0),
     trains: z.array(Id).default([]),
     researches: z.array(Id).default([]),
+    /** Buildings this one can turn into in place; the target's cost/time/requires are the upgrade's. */
+    upgrades: z.array(Id).default([]),
     dropOff: z.boolean().default(false),
+    /** Resources a drop-off takes; empty = all. */
+    accepts: z.array(Id).default([]),
+    /** At most this many per player (counting unfinished ones). */
+    limit: z.number().int().min(1).optional(),
     produces: z.object({ resource: Id, amount: Positive, interval: Positive }).strict().optional(),
     attack: z.object({ damage: Positive, range: Positive, attackTime: Positive }).strict().optional(),
     passable: z.boolean().default(false),
@@ -392,6 +398,9 @@ export function validateTree(data: unknown): TreeValidation {
     checkRequires(`buildings.${b.id}.requires`, b.requires);
     for (const u of b.trains) checkRef(`buildings.${b.id}.trains`, ids.units, u, 'unit');
     for (const r of b.researches) checkRef(`buildings.${b.id}.researches`, ids.techs, r, 'tech');
+    for (const r of b.upgrades) checkRef(`buildings.${b.id}.upgrades`, ids.buildings, r, 'building');
+    for (const r of b.accepts) checkRef(`buildings.${b.id}.accepts`, ids.resources, r, 'resource');
+    if (b.accepts.length && !b.dropOff) errors.push(`buildings.${b.id}.accepts: only a dropOff accepts resources`);
     if (b.produces) checkRef(`buildings.${b.id}.produces.resource`, ids.resources, b.produces.resource, 'resource');
     if (b.hotkey) {
       const key = b.hotkey.toUpperCase();
@@ -427,7 +436,7 @@ export function validateTree(data: unknown): TreeValidation {
           ? 'no obtainable building trains it'
           : r.kind === 'tech'
             ? 'no obtainable building researches it'
-            : 'its requirements can never be met';
+            : 'its requirements can never be met (a building nobody can place needs something that upgrades into it)';
       errors.push(`${refKey(r)}: unobtainable (${why})`);
     }
   }

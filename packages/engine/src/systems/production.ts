@@ -3,7 +3,7 @@ import type { Ctx } from '../ctx';
 import { makeUnit } from '../entities';
 import { findFreeTileNear } from '../grid';
 import { hexCentre } from '../hex';
-import { hasAbility, popAlive, popCap, produceRate } from '../queries';
+import { buildingMaxHp, hasAbility, popAlive, popCap, produceRate } from '../queries';
 import type { Building } from '../types';
 
 // ---------------------------------------------------------------------------
@@ -28,7 +28,12 @@ export function stepBuilding(ctx: Ctx, b: Building) {
 
   if (!b.queue.length) return;
   const item = b.queue[0];
-  const time = item.kind === 'unit' ? defs.units[item.type].time : defs.techs[item.id].time;
+  const time =
+    item.kind === 'unit'
+      ? defs.units[item.type].time
+      : item.kind === 'upgrade'
+        ? defs.buildings[item.type].time
+        : defs.techs[item.id].time;
   b.queueProgress = Math.min(time, b.queueProgress + dt);
   if (b.queueProgress < time) return;
 
@@ -47,6 +52,11 @@ export function stepBuilding(ctx: Ctx, b: Building) {
         setTask(unit, { kind: 'move', target: { x: b.rally.x, y: b.rally.y } });
       }
     }
+  } else if (item.kind === 'upgrade') {
+    // The building becomes the target in place: same id, hex and facing; full hit points of the new kind.
+    b.type = item.type;
+    b.hp = buildingMaxHp(ctx.tree, player, item.type);
+    say(ctx, b.owner, `${defs.buildings[item.type].name} complete.`);
   } else {
     if (!player.techs.includes(item.id)) player.techs.push(item.id);
     say(ctx, b.owner, `Research complete: ${defs.techs[item.id].name}.`);

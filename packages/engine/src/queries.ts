@@ -162,6 +162,25 @@ export function buildingUnlocked(state: GameState, player: Player, building: str
   return !!def && def.buildable && requirementsMet(state, player, def.requires);
 }
 
+/** Own buildings of a type, finished or not (what a building `limit` counts). */
+export function countBuildings(state: GameState, playerId: number, building: string): number {
+  let n = 0;
+  for (const id in state.buildings) {
+    const b = state.buildings[id];
+    if (b.owner === playerId && b.type === building) n++;
+  }
+  return n;
+}
+
+/** Whether an own building can start turning into `target`: listed in its upgrades, requirements met, not already queued. */
+export function upgradeUnlocked(state: GameState, player: Player, b: Building, target: string): boolean {
+  const defs = idx(state.tree).buildings;
+  const def = defs[target];
+  if (!def || !defs[b.type].upgrades.includes(target) || b.progress < 1) return false;
+  if (b.queue.some((q) => q.kind === 'upgrade')) return false;
+  return requirementsMet(state, player, def.requires);
+}
+
 export function unitUnlocked(state: GameState, player: Player, unit: string): boolean {
   const def = idx(state.tree).units[unit];
   return !!def && requirementsMet(state, player, def.requires);
@@ -204,13 +223,16 @@ export function findNearbyNode(state: GameState, from: Vec2, type: string, radiu
   return best;
 }
 
-export function nearestDropOff(state: GameState, u: Unit): Building | null {
+/** The closest finished own drop-off that takes `resource` (any drop-off when no resource is given). */
+export function nearestDropOff(state: GameState, u: Unit, resource?: string): Building | null {
   const defs = idx(state.tree).buildings;
   let best: Building | null = null;
   let bestD = Infinity;
   for (const id in state.buildings) {
     const b = state.buildings[id];
-    if (b.owner !== u.owner || b.progress < 1 || !defs[b.type].dropOff) continue;
+    const def = defs[b.type];
+    if (b.owner !== u.owner || b.progress < 1 || !def.dropOff) continue;
+    if (resource && def.accepts.length && !def.accepts.includes(resource)) continue;
     const d = footprintDistance(u, b.x, b.y, b.r);
     if (d < bestD) {
       bestD = d;

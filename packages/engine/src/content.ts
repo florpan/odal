@@ -115,7 +115,16 @@ export interface BuildingDef extends ProducibleDef {
   pop: number;
   trains: string[];
   researches: string[];
+  /**
+   * Buildings this one can turn into in place (town hall → castle, tower → better tower). The target's
+   * own cost, time and requires are what the upgrade costs and needs; it is usually not `buildable`.
+   */
+  upgrades: string[];
   dropOff: boolean;
+  /** Resources a drop-off takes; empty = every resource. A lumber mill takes lumber, a quarry stone. */
+  accepts: string[];
+  /** At most this many per player, counting ones under construction (a single shrine). */
+  limit?: number;
   produces?: { resource: string; amount: number; interval: number };
   /** Shoots enemies within `range` tiles once complete (towers). */
   attack?: { damage: number; range: number; attackTime: number };

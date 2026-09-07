@@ -189,7 +189,10 @@ and they get a message. What else happens to starving units is an open balance d
 | `pop`        | 0               | Population capacity granted when complete                                                                                                                                                                                                                                                                                                                                              |
 | `trains`     | `[]`            | Unit ids                                                                                                                                                                                                                                                                                                                                                                               |
 | `researches` | `[]`            | Tech ids                                                                                                                                                                                                                                                                                                                                                                               |
+| `upgrades`   | `[]`            | Building ids this one can turn into in place (town hall → castle, tower → stone tower). The target's own `cost`, `time` and `requires` are the upgrade's; the target is usually not `buildable`. The `upgrade` command queues it like research; the building keeps working and becomes the target when the time is up, same id, hex and facing, full HP of the new kind.               |
 | `dropOff`    | false           | Harvesters deliver here                                                                                                                                                                                                                                                                                                                                                                |
+| `accepts`    | `[]`            | Resource ids a drop-off takes; empty means everything. A harvester carrying something no finished drop-off takes stops and says so.                                                                                                                                                                                                                                                    |
+| `limit`      | –               | At most this many per player, counting ones under construction (one shrine).                                                                                                                                                                                                                                                                                                           |
 | `produces`   | –               | `{ resource, amount, interval }` passive income while complete                                                                                                                                                                                                                                                                                                                         |
 | `attack`     | –               | `{ damage, range, attackTime }`: once complete it shoots the nearest enemy within `range` (towers). Raw damage; unit damage techs do not apply.                                                                                                                                                                                                                                        |
 | `passable`   | false           | The owner's units walk through it, everyone else is blocked (gates)                                                                                                                                                                                                                                                                                                                    |
@@ -203,7 +206,8 @@ and they get a message. What else happens to starving units is an open balance d
 | --------- | ------- | ------------------------------------------------------------------------ |
 | `effects` | `[]`    | See below. A tech with no effects is still useful as a requirement gate. |
 
-A tech must appear in some building's `researches`, or the validator reports it as unobtainable.
+A tech must appear in some building's `researches`, or the validator reports it as unobtainable. Likewise a
+building that is not `buildable` (and is not the start building) must appear in some building's `upgrades`.
 
 ### effects
 
@@ -228,8 +232,8 @@ test, run `bun run schema:gen`, and document it here. The editor picks it up fro
 ## The tech graph
 
 `buildGraph(tree)` turns a ruleset into a directed graph. Nodes are units, buildings and techs; an edge
-A → B means A must exist before B: a building `trains` a unit or `researches` a tech, or A is in B's
-`requires`. Population requirements are not edges. On top of it:
+A → B means A must exist before B: a building `trains` a unit, `researches` a tech or `upgrades` into a
+building, or A is in B's `requires`. Population requirements are not edges. On top of it:
 
 - `prerequisites(tree, ref)` – everything needed for `ref`, in an order you could obtain them in.
 - `chainCost(tree, ref)` – total cost, summed time and step count of `ref` plus its whole prerequisite

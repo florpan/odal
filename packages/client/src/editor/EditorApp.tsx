@@ -290,7 +290,9 @@ function PendingEdge() {
       ? `${pending.to.id} requires ${pending.from.id}`
       : how === 'trains'
         ? `${pending.from.id} trains ${pending.to.id}`
-        : `${pending.from.id} researches ${pending.to.id}`;
+        : how === 'upgrades'
+          ? `${pending.from.id} upgrades into ${pending.to.id}`
+          : `${pending.from.id} researches ${pending.to.id}`;
   return (
     <div className="pending-edge">
       <span>What does this edge mean?</span>

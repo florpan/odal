@@ -2,6 +2,7 @@ import {
   buildingMaxHp,
   buildingUnlocked,
   canAfford,
+  countBuildings,
   describeRequirement,
   formatCost,
   hasTech,
@@ -248,8 +249,18 @@ export function buildHud(world: World, input: Input | null): HudModel {
         own && b.rally ? (b.rally.nodeId !== undefined ? 'Rally point set (auto-harvest)' : 'Rally point set') : null,
       queue: own
         ? b.queue.map((q, i) => {
-            const name = q.kind === 'unit' ? defs.units[q.type].name : defs.techs[q.id].name;
-            const total = q.kind === 'unit' ? defs.units[q.type].time : defs.techs[q.id].time;
+            const name =
+              q.kind === 'unit'
+                ? defs.units[q.type].name
+                : q.kind === 'upgrade'
+                  ? `Upgrade: ${defs.buildings[q.type].name}`
+                  : defs.techs[q.id].name;
+            const total =
+              q.kind === 'unit'
+                ? defs.units[q.type].time
+                : q.kind === 'upgrade'
+                  ? defs.buildings[q.type].time
+                  : defs.techs[q.id].time;
             return { index: i, name, pct: i === 0 ? Math.floor((100 * b.queueProgress) / total) : 0 };
           })
         : [],
@@ -290,6 +301,23 @@ export function buildHud(world: World, input: Input | null): HudModel {
           disabled: done || queued || !!missing || !canAfford(me.resources, t.cost),
           active: false,
           done,
+        });
+      }
+      for (const target of def.upgrades) {
+        const t = defs.buildings[target];
+        const queued = b.queue.some((q) => q.kind === 'upgrade');
+        const missing = missingRequirement(st, me, t.requires);
+        actions.push({
+          id: `upgrade:${target}`,
+          label: `Upgrade to ${t.name}`,
+          sub: queued
+            ? 'In progress'
+            : missing
+              ? `Requires ${describeRequirement(tree, missing)}`
+              : formatCost(tree, t.cost),
+          title: `${t.desc} ${t.time}s. The building keeps working meanwhile.`,
+          disabled: queued || !!missing || !canAfford(me.resources, t.cost),
+          active: false,
         });
       }
       if (b.rally)
@@ -367,16 +395,21 @@ export function buildHud(world: World, input: Input | null): HudModel {
         if (!bd.buildable) continue;
         const unlocked = buildingUnlocked(st, me, bd.id);
         const missing = missingRequirement(st, me, bd.requires);
+        const atLimit = bd.limit !== undefined && countBuildings(st, me.id, bd.id) >= bd.limit;
         actions.push({
           id: `build:${bd.id}`,
           label: bd.hotkey ? `${bd.name} (${bd.hotkey.toUpperCase()})` : bd.name,
-          sub: unlocked
-            ? formatCost(tree, bd.cost)
-            : missing
-              ? `Requires ${describeRequirement(tree, missing)}`
-              : 'Locked',
+          sub: atLimit
+            ? bd.limit === 1
+              ? 'Already built'
+              : `Limit ${bd.limit}`
+            : unlocked
+              ? formatCost(tree, bd.cost)
+              : missing
+                ? `Requires ${describeRequirement(tree, missing)}`
+                : 'Locked',
           title: `${bd.desc} Cost: ${formatCost(tree, bd.cost)}`,
-          disabled: !unlocked || !canAfford(me.resources, bd.cost),
+          disabled: atLimit || !unlocked || !canAfford(me.resources, bd.cost),
           active: input?.buildMode === bd.id,
         });
       }

@@ -10,7 +10,7 @@ import type { Cost, ProducibleDef, Ref, Requirement, TechTree } from './content'
 // unobtainable content.
 // ---------------------------------------------------------------------------
 
-export type EdgeReason = 'trains' | 'researches' | 'requires';
+export type EdgeReason = 'trains' | 'researches' | 'upgrades' | 'requires';
 
 export interface GraphEdge {
   from: Ref; // prerequisite
@@ -75,6 +75,7 @@ export function buildGraph(tree: TechTree): TechGraph {
     const me: Ref = { kind: 'building', id: b.id };
     for (const u of b.trains) edges.push({ from: me, to: { kind: 'unit', id: u }, reason: 'trains' });
     for (const t of b.researches) edges.push({ from: me, to: { kind: 'tech', id: t }, reason: 'researches' });
+    for (const t of b.upgrades) edges.push({ from: me, to: { kind: 'building', id: t }, reason: 'upgrades' });
     req(me, b.requires);
   }
   for (const u of tree.units) req({ kind: 'unit', id: u.id }, u.requires);
@@ -172,7 +173,9 @@ export function unobtainable(tree: TechTree, graph: TechGraph): Ref[] {
     if (!incoming.has(k)) incoming.set(k, []);
     incoming.get(k)!.push(e);
   }
-  const needsProducer = (r: Ref) => r.kind !== 'building'; // units need a trainer, techs a researcher
+  // Units need a trainer, techs a researcher, and a building nobody can place needs something that upgrades into it.
+  const buildable = new Set(tree.buildings.filter((b) => b.buildable).map((b) => `building:${b.id}`));
+  const needsProducer = (r: Ref) => r.kind !== 'building' || !buildable.has(refKey(r));
   let changed = true;
   while (changed) {
     changed = false;
