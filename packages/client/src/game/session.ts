@@ -207,6 +207,9 @@ export class GameSession {
       case 'stop':
         input.stop();
         break;
+      case 'rotate':
+        input.rotateSelected();
+        break;
     }
     this.publish();
   }

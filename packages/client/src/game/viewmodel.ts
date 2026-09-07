@@ -301,6 +301,14 @@ export function buildHud(world: World, input: Input | null): HudModel {
           disabled: false,
           active: false,
         });
+      actions.push({
+        id: 'rotate',
+        label: 'Rotate (Q)',
+        sub: 'A sixth of a turn',
+        title: 'Turn the building to face another side. Shift+Q turns it back.',
+        disabled: false,
+        active: false,
+      });
       if (def.researches.length)
         actions.push({
           id: 'tree',

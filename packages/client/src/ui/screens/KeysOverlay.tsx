@@ -28,6 +28,7 @@ export function KeysOverlay() {
     ['Rally point', 'Select a building that trains units and right-click the ground or a resource'],
     ['Control groups', 'Ctrl+1–9 saves the selection, 1–9 recalls it, press twice to centre the camera'],
     ['Camera', 'Arrow keys or W D X pan, middle-drag pans, mouse wheel zooms, left-click the minimap to jump'],
+    ['Q', 'Rotate the selected building a sixth of a turn (Shift+Q the other way)'],
     ['Touch', 'Tap selects, hold a finger to command (the right click), one-finger drag pans, pinch zooms'],
     ['Minimap', 'Right-click sends the selected units there'],
     ['Tech tree', 'Tab. Research can be queued from the tree'],

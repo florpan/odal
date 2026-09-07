@@ -201,5 +201,12 @@ export function applyCommand(ctx: Ctx, pc: PlayerCommand) {
       b.rally = nodeId !== undefined ? { x: p.x, y: p.y, nodeId } : { x: p.x, y: p.y };
       break;
     }
+
+    case 'rotate': {
+      const b = state.buildings[cmd.buildingId];
+      if (!b || b.owner !== player.id || !Number.isInteger(cmd.rot)) return;
+      b.rot = ((cmd.rot % 6) + 6) % 6;
+      break;
+    }
   }
 }

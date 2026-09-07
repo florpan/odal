@@ -232,6 +232,20 @@ describe('engine with the default tech tree', () => {
     expect(workers.some((u) => u.task.kind === 'harvest')).toBe(true);
   });
 
+  test("rotate turns an own building in sixths, never someone else's", () => {
+    const state = createGame(DEFAULT_TREE, 7);
+    const p = addPlayer(state, 'Alice', emptyEvents());
+    const q = addPlayer(state, 'Bob', emptyEvents());
+    const own = Object.values(state.buildings).find((b) => b.owner === p.id)!;
+    const theirs = Object.values(state.buildings).find((b) => b.owner === q.id)!;
+    run(state, 1, [
+      { playerId: p.id, cmd: { type: 'rotate', buildingId: own.id, rot: 7 } },
+      { playerId: p.id, cmd: { type: 'rotate', buildingId: theirs.id, rot: 2 } },
+    ]);
+    expect(own.rot).toBe(1);
+    expect(theirs.rot).toBe(0);
+  });
+
   test('idle units on the same spot get pushed apart', () => {
     const state = createGame(DEFAULT_TREE, 7);
     const p = addPlayer(state, 'Alice', emptyEvents());

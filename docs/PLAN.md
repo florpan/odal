@@ -246,7 +246,9 @@ texture per pack is the fix when size matters.
     terrains. Water: the pack's water surface is 0.1 below a tile top in both the water and the coast
     tiles, so the water terrain has no extra `visual.height` offset.
   - Tooling: `tools/models/glb.ts` + `worker.ts` (procedural labourer, `bun run model:worker`, kept as a
-    reference), `inspect.ts` (what is in a GLB), `models.html` viewer (`?m=file.glb`, plays clips).
+    reference), `inspect.ts` (what is in a GLB), `models.html` viewer (`?m=file.glb`, plays clips),
+    `kaykit_sheet.py` (contact sheets of every pack folder as PNG + .blend in `C:\Dev\KayKit\sheets`, for
+    choosing tiles and decorations without importing them one by one).
   - Done 2026-09-06: hex grid, island terrain, ground tiles, relief, decorations, palette nudge, all pack
     buildings in (12 real, 21 cheap test ones, see the M2 content plan), pack walls and gate, ownership
     plate dropped under modelled buildings.
@@ -263,6 +265,8 @@ texture per pack is the fix when size matters.
       mountains composed onto a grass tile as terrains scattered by `rules.map.features`. Verdict pending Christer.
 - [ ] The pack's sloped tiles on the steps, cliffs as terrain that costs more to climb (a `findPath` parameter)
 - [ ] Animations (walk, chop, attack), sound
+- [x] Buildings rotate (2026-09-07): `Building.rot` in sixths of a turn, `rotate` command (protocol 8), Q / Shift+Q or the
+      action button, any time after placement. Cosmetic only: footprints are hexes, so no rule depends on facing.
 - [x] Touch controls (2026-09-07): tap selects, a held finger is the right click, one-finger drag pans, pinch
       zooms; on coarse pointers or short windows the bottom HUD is a one-line strip that opens on tap and closes
       after an action (`ui/screens/GameScreen.tsx` COMPACT_QUERY, `game/input.ts`). Box select has no touch form.

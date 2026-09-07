@@ -704,6 +704,7 @@ export class Renderer {
         };
         this.buildings.set(b.id, v);
       }
+      v.body.rotation.y = -b.rot * (Math.PI / 3); // clockwise seen from above
       if (v.wantModel) this.attachModel(v, v.wantModel, v.modelScale ?? 1);
       const s = Math.max(0.08, b.progress);
       if (v.modelScale !== undefined && !v.wantModel && v.body.type !== 'Mesh') {

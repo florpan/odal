@@ -181,6 +181,14 @@ export class Input {
     if (ids.length) this.send({ type: 'stop', unitIds: ids });
   }
 
+  /** Turn the selected own building a sixth of a turn (clockwise; shift for the other way). */
+  rotateSelected(back = false) {
+    const id = this.selectedOwnBuilding();
+    const b = id !== null ? this.world.state?.buildings[id] : undefined;
+    if (!b) return;
+    this.send({ type: 'rotate', buildingId: b.id, rot: (b.rot + (back ? 5 : 1)) % 6 });
+  }
+
   private selectedOwnBuilding(): number | null {
     const st = this.world.state;
     const id = this.world.selectedBuilding;
@@ -537,6 +545,10 @@ export class Input {
     }
     if (k === 's') {
       this.stop();
+      return;
+    }
+    if (k === 'q') {
+      this.rotateSelected(e.shiftKey);
       return;
     }
     if (k === 'a' && !e.ctrlKey) {

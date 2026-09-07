@@ -5,7 +5,7 @@ import type { Building, GameMessage, GameState, Player, RallyPoint, ResourceNode
 // a message shape changes; the client refuses to play on a mismatch.
 // ---------------------------------------------------------------------------
 
-export const PROTOCOL_VERSION = 7;
+export const PROTOCOL_VERSION = 8;
 
 /** What a player can ask the simulation to do. Validated by the engine, never trusted. */
 export type Command =
@@ -19,7 +19,9 @@ export type Command =
   | { type: 'train'; buildingId: number; unit: string }
   | { type: 'research'; buildingId: number; tech: string }
   | { type: 'cancelQueue'; buildingId: number; index: number }
-  | { type: 'setRally'; buildingId: number; target: RallyPoint | null };
+  | { type: 'setRally'; buildingId: number; target: RallyPoint | null }
+  /** Turn an own building to face `rot` sixths of a turn (any time, even long after it was built). */
+  | { type: 'rotate'; buildingId: number; rot: number };
 
 export interface PlayerCommand {
   playerId: number;

@@ -67,6 +67,7 @@ export interface Building {
   x: number; // centre hex (offset coordinates)
   y: number;
   r: number; // footprint radius in hexes: 0 = one hex, 1 = seven
+  rot: number; // facing, in sixths of a turn clockwise seen from above (0..5); cosmetic
   hp: number;
   progress: number; // construction 0..1
   queue: QueueItem[];

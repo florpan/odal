@@ -12,6 +12,7 @@ export function makeBuilding(state: GameState, owner: number, type: string, x: n
     x,
     y,
     r: def.size.radius,
+    rot: 0,
     hp: 1,
     progress: 0,
     queue: [],
