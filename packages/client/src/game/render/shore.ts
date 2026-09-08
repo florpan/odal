@@ -49,10 +49,16 @@ export function shoreOf(state: GameState, x: number, y: number): Shore | null {
   return { run: best.len, angle: Math.atan2(dy, dx) };
 }
 
-/** Which tile file a hex shows, and how far to turn it about the vertical axis (three.js rotation.y). */
+/**
+ * Which tile file a hex shows, and how far to turn it about the vertical axis (three.js rotation.y).
+ * Only level ground gets a beach; raised land next to water keeps its base tile and meets the sea as
+ * a cliff (the renderer adds the rock below it).
+ */
 export function tileOf(state: GameState, x: number, y: number): { model: string | undefined; rotation: number } {
-  const def = state.tree.terrain[state.terrain[y * state.width + x]];
-  const shore = def.visual.shore?.length ? shoreOf(state, x, y) : null;
+  const i = y * state.width + x;
+  const def = state.tree.terrain[state.terrain[i]];
+  const level = (state.elevation as number[] | undefined)?.[i] ?? 0;
+  const shore = def.visual.shore?.length && level === 0 ? shoreOf(state, x, y) : null;
   if (!shore) return { model: def.visual.model, rotation: 0 };
   const list = def.visual.shore!;
   const model = list[Math.min(shore.run, list.length) - 1];

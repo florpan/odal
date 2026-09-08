@@ -57,11 +57,16 @@
                       "maximum": 0.4,
                       "default": 0.12
                     },
-                    "roughness": {
+                    "scale": {
                       "type": "number",
-                      "minimum": 0,
-                      "maximum": 0.3,
-                      "default": 0.06
+                      "exclusiveMinimum": 0,
+                      "default": 26
+                    },
+                    "land": {
+                      "type": "number",
+                      "minimum": 0.2,
+                      "maximum": 0.9,
+                      "default": 0.4
                     }
                   },
                   "required": [

@@ -3,10 +3,10 @@ import { DEFAULT_TREE } from '@odal/content';
 import { makeBuilding, makeUnit } from './entities';
 import { addPlayer, createGame, emptyEvents, stepGame } from './game';
 import { computeBlocked } from './grid';
-import { hexCentre, hexDistance, hexNeighbours, worldToHex } from './hex';
+import { hexArea, hexCentre, hexDistance, hexNeighbours, worldToHex } from './hex';
 import { findPath } from './pathfinding';
 import type { PlayerCommand } from './protocol';
-import { buildingMaxHp, countUnits } from './queries';
+import { buildingMaxHp, canPlaceBuilding, countUnits } from './queries';
 import type { GameState, ResourceNode } from './types';
 import { buildGraph, chainCost, findCycle, prerequisites } from './techgraph';
 import { computeVision, isVisible } from './vision';
@@ -78,13 +78,27 @@ describe('engine with the default tech tree', () => {
     for (const seed of [1, 7, 42]) {
       const st = createGame(DEFAULT_TREE, seed);
       const water = st.terrain.filter((t) => t === waterIdx).length;
-      expect(water).toBeGreaterThan(st.terrain.length * 0.15);
-      expect(water).toBeLessThan(st.terrain.length * 0.6);
-      // The corners are sea, the centre is land.
+      expect(water).toBeGreaterThan(st.terrain.length * 0.3);
+      expect(water).toBeLessThan(st.terrain.length * 0.75);
+      // The corners are sea; the middle need not be land (bays), but all land is one connected mass.
       expect(st.terrain[0]).toBe(waterIdx);
       expect(st.terrain[st.width - 1]).toBe(waterIdx);
       expect(st.terrain[(st.height - 1) * st.width]).toBe(waterIdx);
-      expect(st.terrain[Math.floor(st.height / 2) * st.width + Math.floor(st.width / 2)]).toBe(groundIdx);
+      const land = st.terrain.map((t, i) => (t !== waterIdx ? i : -1)).filter((i) => i >= 0);
+      const seen = new Set<number>([land[0]]);
+      const stack = [land[0]];
+      while (stack.length) {
+        const i = stack.pop()!;
+        for (const n of hexNeighbours(i % st.width, Math.floor(i / st.width))) {
+          if (n.x < 0 || n.y < 0 || n.x >= st.width || n.y >= st.height) continue;
+          const j = n.y * st.width + n.x;
+          if (st.terrain[j] !== waterIdx && !seen.has(j)) {
+            seen.add(j);
+            stack.push(j);
+          }
+        }
+      }
+      expect(seen.size).toBe(land.length);
       for (const s of st.starts) expect(st.terrain[s.y * st.width + s.x]).toBe(groundIdx);
       for (const n of Object.values(st.nodes)) expect(st.terrain[n.y * st.width + n.x]).toBe(groundIdx);
       const blocked = computeBlocked(st);
@@ -92,7 +106,7 @@ describe('engine with the default tech tree', () => {
     }
   });
 
-  test('relief: elevation is quantised noise, flat on water and shore, one step between neighbours', () => {
+  test('relief: elevation is quantised noise, flat on water, one step between land neighbours, cliffs at the coast', () => {
     const { rules } = DEFAULT_TREE;
     expect(rules.map.relief).toBeDefined();
     const waterIdx = DEFAULT_TREE.terrain.findIndex((t) => t.id === rules.map.island!.water);
@@ -101,6 +115,7 @@ describe('engine with the default tech tree', () => {
       expect(st.elevation.length).toBe(st.width * st.height);
       expect(JSON.stringify(createGame(DEFAULT_TREE, seed).elevation)).toBe(JSON.stringify(st.elevation));
       const counts = new Array<number>(rules.map.relief!.levels + 1).fill(0);
+      let cliffs = 0;
       for (let i = 0; i < st.elevation.length; i++) {
         const e = st.elevation[i];
         expect(e).toBeGreaterThanOrEqual(0);
@@ -109,16 +124,19 @@ describe('engine with the default tech tree', () => {
         const x = i % st.width;
         const y = Math.floor(i / st.width);
         const water = st.terrain[i] === waterIdx;
-        let shore = false;
+        if (water) expect(e).toBe(0);
         for (const n of hexNeighbours(x, y)) {
           if (n.x < 0 || n.y < 0 || n.x >= st.width || n.y >= st.height) continue;
           const j = n.y * st.width + n.x;
-          if (st.terrain[j] === waterIdx) shore = true;
-          expect(Math.abs(st.elevation[j] - e)).toBeLessThanOrEqual(1);
+          if (st.terrain[j] === waterIdx) {
+            if (e > 0) cliffs++;
+            continue; // the sea is at 0 whatever the land beside it does
+          }
+          if (!water) expect(Math.abs(st.elevation[j] - e)).toBeLessThanOrEqual(1);
         }
-        if (water || shore) expect(e).toBe(0);
       }
       for (const c of counts) expect(c).toBeGreaterThan(0); // every level occurs
+      expect(cliffs).toBeGreaterThan(0); // some coast is high ground
     }
   });
 
@@ -313,18 +331,24 @@ describe('engine with the default tech tree', () => {
     const limited = DEFAULT_TREE.buildings.find((b) => b.limit === 1)!;
     for (const r of limited.requires) if (r.type === 'tech') p.techs.push(r.id);
     for (const k of Object.keys(limited.cost)) p.resources[k] = 1000;
-    const at = (dx: number) => ({
+    // Two spots near the hall where it could go (the map is noise, so search rather than assume).
+    const blocked = computeBlocked(state);
+    const spots = hexArea(hall.x, hall.y, 6)
+      .filter((t) => hexDistance(t, hall) >= 2 && canPlaceBuilding(state, blocked, limited.id, t.x, t.y))
+      .slice(0, 2);
+    expect(spots.length).toBe(2);
+    const at = (t: { x: number; y: number }) => ({
       type: 'build' as const,
       unitIds: [worker.id],
       building: limited.id,
-      x: hall.x + dx,
-      y: hall.y + 2,
+      x: t.x,
+      y: t.y,
     });
     const ev = stepGame(
       state,
       [
-        { playerId: p.id, cmd: at(2) },
-        { playerId: p.id, cmd: at(4) },
+        { playerId: p.id, cmd: at(spots[0]) },
+        { playerId: p.id, cmd: at(spots[1]) },
       ],
       DT,
     );

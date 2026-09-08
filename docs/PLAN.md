@@ -86,10 +86,12 @@ shipyard, fences, bridge, ruin, scaffolding, stages, projectile.
 
 | Unit    | Cost                        | HP  | Speed | Damage | Range | Trained at    | Abilities                           |
 | ------- | --------------------------- | --- | ----- | ------ | ----- | ------------- | ----------------------------------- |
-| Worker  | 20 wheat                    | 30  | 3     | 2      | 1     | Town hall     | harvest, build, attack              |
-| Soldier | 20 wheat, 15 iron           | 60  | 2.6   | 8      | 1.2   | Barracks      | attack, auto-engages within 6 tiles |
-| Archer  | 20 wheat, 10 lumber, 5 iron | 40  | 2.8   | 6      | 4     | Archery range | attack (no projectile yet)          |
-| Knight  | 30 wheat, 40 iron, 20 gold  | 130 | 3.2   | 14     | 1.2   | Castle        | attack, eats 2 wheat                |
+| Worker  | 20 wheat                    | 30  | 1.5   | 2      | 1     | Town hall     | harvest, build, attack              |
+| Soldier | 20 wheat, 15 iron           | 60  | 1.3   | 8      | 1.2   | Barracks      | attack, auto-engages within 6 tiles |
+| Archer  | 20 wheat, 10 lumber, 5 iron | 40  | 1.4   | 6      | 4     | Archery range | attack (no projectile yet)          |
+| Knight  | 30 wheat, 40 iron, 20 gold  | 130 | 1.6   | 14     | 1.2   | Castle        | attack, eats 2 wheat                |
+
+Speeds halved 2026-09-08: the old values were tuned when a person was a full hex tall.
 
 ### Research
 
@@ -113,8 +115,9 @@ Weapons (blacksmith; soldier ×1.5, knight ×1.25) and Chainmail (blacksmith; so
 
 ### Map
 
-A hex grid (`rules.map`, 96×96 hexes by default) from a seed: an island with a wandering coastline and
-impassable water around it (terrain is data, `terrain.json`), forest blobs, stone, iron and gold deposits,
+A hex grid (`rules.map`, 112×112 hexes by default) from a seed: an island cut from domain-warped noise
+(bays, fjords, peninsulas; 40% of the map is land) with impassable water around it (terrain is data,
+`terrain.json`), forest blobs, stone, iron and gold deposits,
 densities per node type in `nodes.json`. Each new player is placed as far as possible from existing
 town halls and the area around their town hall is cleared; every start is guaranteed a path to the centre.
 Trees, rocks and buildings block movement; units path around them (hex A*, six neighbours). Gates are open
@@ -202,7 +205,7 @@ basic combat, multiplayer over WebSocket, minimap, HUD.
 - [x] **Larger map**: 96×96.
 - [x] **Controls overview** in game (F1 / ?), building hotkeys read from the tree.
 - [ ] **Camera:** edge scrolling, follow selected unit, jump to last event. Deferred to the graphics milestone.
-- [ ] **Map rotation** (Q/E in 90° steps, or free orbit). Deferred to the graphics milestone.
+- [ ] **Map rotation** (Q/E in 90° steps, or free orbit). Now part of M4 (free orbit by right-drag).
 
 ### M2 content plan: buildings from the Hexagon pack
 
@@ -272,12 +275,59 @@ set; only the worker has a model.
 - [ ] Animations (walk, chop, attack), sound
 - [x] Buildings rotate (2026-09-07): `Building.rot` in sixths of a turn, `rotate` command (protocol 8), Q / Shift+Q or the
       action button, any time after placement. Cosmetic only: footprints are hexes, so no rule depends on facing.
+- [x] Chrome matches the pack (2026-09-08): every HUD, screen and editor colour is a custom property in `ui/theme.css`
+      sampled from the Summer atlas (slate stone, terracotta wood, linen text, gold accent); Grenze for titles and
+      Alegreya Sans for text, self-hosted in `client/public/fonts`. Fog is the same slate as the minimap's unexplored
+      and the scene background, sampled by every material at its world position (`render/fow.ts`; a sheet above the
+      board sat a hex or two off from the game camera), at 4 texels per world unit, blurred on the CPU, with two rings of "fringe" tiles drawn
+      beyond the explored ones (deeper than the blur's reach) so the ground vanishes into fog instead of ending at a
+      hex edge. Selection ring, build
+      ghost and health bars use the same palette, not tone mapped. Next: a skybox instead of the flat background.
 - [x] HUD as a selection card (2026-09-08): what is selected and its actions in one floating card (a bottom
       sheet on phones), a minimap in the corner behind a Map toggle, nothing spanning the bottom.
 - [x] Touch controls (2026-09-07): tap selects, a held finger is the right click, one-finger drag pans, pinch
       zooms; on coarse pointers or short windows the bottom HUD is a one-line strip that opens on tap and closes
       after an action (`ui/screens/GameScreen.tsx` COMPACT_QUERY, `game/input.ts`). Box select has no touch form.
 - [ ] Flashier start screen, in-game help, settings dialog (all React)
+
+### M4 — Hidden geography (designed 2026-09-09, not started)
+
+**Why.** Christer wants exploration to matter: you should not know where you are on the map, nor where the
+others are, until you have scouted. Today three things give it away: the island is a blob around one
+centre, starts sit on a ring around that centre with the contested gold in the middle, and the minimap is a
+chart of the whole world, so the fog's frame tells you which corner you are in.
+
+- [x] **Irregular island** (2026-09-09). Coast from domain-warped fractal noise (`noise.ts fractalNoise`) cut
+      at a quantile so `island.land` of the map is land, with a bias of about one noise deviation towards
+      the edge and a wandering sea band; islets go under, lakes fill, the cut is loosened until one landmass
+      holds the target. Bays, fjords, peninsulas; 112×112 map at 40% land keeps the old land area.
+      Elevation is a _separate_ noise so height does not point at the centre (the tank-game lesson: a
+      falloff on elevation makes a volcano you can walk up). Three levels at `HEIGHT_STEP` 0.4; land
+      neighbours still differ by one step but the coast keeps its height: beach tiles only at level 0,
+      higher land meets the sea as a cliff on a rock plinth (`scene.ts`). Start slots still sit on a ring
+      (next item). Tuning: `bun tools/map/preview.ts [seeds] --shape --land F --scale N --size N`; in
+      game, `?fog=0` shows the whole map.
+- [ ] **Random starts.** Slots anywhere on land with a minimum mutual distance (a rules knob), near the sea is
+      fine. Each start keeps `perStart` guarantees for every node type (some wood, stone, iron and gold in
+      `homeRadius`, little but never nothing). `zone: 'centre'` becomes `zone: 'contested'`: placed after the
+      starts at spots that maximise the distance to the nearest start, so they lie between players; with two
+      players that may well be the coast. Several contested spots, not one.
+- [ ] **Radar minimap.** A fixed-scale window centred on the camera, not a chart of the world; unexplored and
+      beyond-the-map are the same slate. The camera square stays as a zoom indicator (it rotates with the map,
+      so it reveals nothing else). A flag marks the town hall; when it is outside the window the flag sits at
+      the rim pointing home. Same for attack alerts later. Minimap zoom stays fixed and small.
+- [ ] **The map as research.** Cartography (late tier) reveals the whole map's terrain; Geography reveals
+      resource nodes. Needs a `reveal` effect and a split of "explored" into terrain-known and nodes-known on
+      the server (`vision.ts`, `visibility.ts`) since one bit currently shows both. An Intel tech that reveals
+      enemy positions was considered and parked: too strong early, pointless late.
+- [ ] **Camera rotation and tilt.** Right-drag: left/right yaws, up/down tilts (a right _click_ stays the
+      command; movement past the tap slop makes it a drag). Touch: two fingers left/right yaw, up/down tilt,
+      pinch still zooms, one finger pans. Renderer: the camera offset becomes a yaw/pitch around the target;
+      keyboard and edge panning rotate the input vector by the yaw; the minimap draws with the same rotation
+      and inverts it for clicks. Key bindings: pick something, they will be revisited.
+
+Order: island first (it changes how the other two feel), then starts and contested placement, then the radar,
+then rotation, then the research items.
 
 ### Ops
 

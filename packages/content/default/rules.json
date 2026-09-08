@@ -4,15 +4,17 @@
   "rules": {
     "tickRate": 10,
     "map": {
-      "width": 96,
-      "height": 96,
+      "width": 112,
+      "height": 112,
       "starts": 4,
       "ground": "grass",
       "island": {
-        "water": "water"
+        "water": "water",
+        "scale": 26,
+        "land": 0.4
       },
       "relief": {
-        "levels": 2,
+        "levels": 3,
         "scale": 9
       },
       "features": [

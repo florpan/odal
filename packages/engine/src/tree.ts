@@ -203,7 +203,8 @@ export const RulesSchema = z
           .object({
             water: Id,
             shore: z.number().min(0).max(0.4).default(0.12),
-            roughness: z.number().min(0).max(0.3).default(0.06),
+            scale: Positive.default(26),
+            land: z.number().min(0.2).max(0.9).default(0.4),
           })
           .strict()
           .optional(),

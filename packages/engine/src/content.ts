@@ -159,13 +159,16 @@ export interface Rules {
     /** Terrain id every hex starts as. */
     ground: string;
     /**
-     * Present: the map is an island. `water` is the terrain outside the coast, `shore` how much of the
-     * map's half-size is water at the edge (0.12 = a thin band), `roughness` how far the coastline wanders.
+     * Present: the map is an island cut from 2D noise. `water` is the terrain outside the coast, `shore`
+     * how much of the map's half-size is always sea at the edge (0.12 = a thin band), `scale` how big
+     * the bays and peninsulas are (hexes), `land` the fraction of the whole map that is land. Only the
+     * largest landmass is kept.
      */
-    island?: { water: string; shore: number; roughness: number };
+    island?: { water: string; shore: number; scale: number; land: number };
     /**
      * Present: hexes get an elevation of 0..`levels` steps from seeded noise with features about
-     * `scale` hexes across. Water and the shore stay at 0 and neighbours differ by at most one step.
+     * `scale` hexes across, independent of the coast. Water stays at 0; land hexes differ by at most
+     * one step from each other, but may stand any number of steps above the sea (cliffs).
      * Purely a look for now; movement ignores it.
      */
     relief?: { levels: number; scale: number };

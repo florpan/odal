@@ -34,3 +34,21 @@ export function valueNoise(x: number, y: number, scale: number, seed: number): n
 export function terrainNoise(x: number, y: number, scale: number, seed: number): number {
   return (valueNoise(x, y, scale, seed) * 2 + valueNoise(x, y, scale / 2, seed + 1)) / 3;
 }
+
+/**
+ * Fractal noise in [0, 1): `octaves` layers, each half the scale and half the weight of the one
+ * before, so a coastline has bays at `scale` and nibbles down to a hex or two.
+ */
+export function fractalNoise(x: number, y: number, scale: number, seed: number, octaves = 5): number {
+  let sum = 0;
+  let total = 0;
+  let amp = 1;
+  let s = scale;
+  for (let o = 0; o < octaves; o++) {
+    sum += valueNoise(x, y, s, seed + o) * amp;
+    total += amp;
+    amp /= 2;
+    s /= 2;
+  }
+  return sum / total;
+}
