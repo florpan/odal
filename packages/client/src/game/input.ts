@@ -2,6 +2,7 @@ import { canPlaceBuilding, computeBlocked, hexCentre, idx, worldToHex } from '@o
 import type { Ability, Command, Vec2 } from '@odal/engine';
 import { appStore, toggleOverlay } from '../app/store';
 import type { Net } from './net';
+import { PITCH_DEFAULT, PITCH_MAX, PITCH_MIN } from './render/scene';
 import type { Renderer } from './render/scene';
 import type { World } from './world';
 
@@ -12,6 +13,11 @@ const LONG_PRESS_MS = 450;
 const TAP_SLOP_PX = 10;
 const ZOOM_MIN = 0.12;
 const ZOOM_MAX = 2.2;
+/** Radians of yaw per screen pixel of right-drag (or two-finger drag), and of pitch. */
+const ORBIT_RATE = 0.008;
+const TILT_RATE = 0.005;
+/** Radians per second for the turn and tilt keys. */
+const ORBIT_KEY_RATE = 1.6;
 
 interface Touch {
   id: number;
@@ -27,7 +33,17 @@ interface Pinch {
   d0: number;
   zoom0: number;
   mid: Vec2;
-  cam: Vec2;
+  yaw0: number;
+  pitch0: number;
+}
+
+/** A right-button press: a command if released in place, an orbit (turn / tilt) once it moves. */
+interface Orbit {
+  x: number;
+  y: number;
+  yaw0: number;
+  pitch0: number;
+  moved: boolean;
 }
 
 /**
@@ -45,6 +61,7 @@ export class Input {
   private dragStart: { x: number; y: number } | null = null;
   private dragging = false;
   private panStart: { x: number; y: number; cam: Vec2 } | null = null;
+  private orbit: Orbit | null = null;
   private mouse = { x: 0, y: 0 };
   private groups = new Map<number, number[]>();
   private lastGroupTap = { n: -1, at: 0 };
@@ -108,7 +125,14 @@ export class Input {
   /** Drag the camera: screen pixels since the gesture started, from where the camera was then. */
   private panFrom(cam: Vec2, dx: number, dy: number) {
     const scale = 0.04 * this.renderer.zoom;
-    this.renderer.camTarget = { x: cam.x - dx * scale, y: cam.y - dy * scale };
+    const v = this.renderer.panVector(dx * scale, dy * scale);
+    this.renderer.camTarget = { x: cam.x - v.x, y: cam.y - v.y };
+  }
+
+  /** Turn and tilt the camera: screen pixels since the gesture started, from where the camera was then. */
+  private orbitFrom(yaw0: number, pitch0: number, dx: number, dy: number) {
+    this.renderer.yaw = yaw0 - dx * ORBIT_RATE;
+    this.renderer.pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, pitch0 + dy * TILT_RATE));
   }
 
   // -------------------------------------------------------------------------
@@ -360,7 +384,8 @@ export class Input {
       d0: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)),
       zoom0: this.renderer.zoom,
       mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 },
-      cam: { ...this.renderer.camTarget },
+      yaw0: this.renderer.yaw,
+      pitch0: this.renderer.pitch,
     };
   }
 
@@ -380,8 +405,9 @@ export class Input {
       const [a, b] = [...this.fingers.values()];
       const d = Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
       this.setZoom(this.pinch.zoom0 * (this.pinch.d0 / d));
+      // Two fingers moving together turn (left/right) and tilt (up/down); one finger pans.
       const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-      this.panFrom(this.pinch.cam, mid.x - this.pinch.mid.x, mid.y - this.pinch.mid.y);
+      this.orbitFrom(this.pinch.yaw0, this.pinch.pitch0, mid.x - this.pinch.mid.x, mid.y - this.pinch.mid.y);
       return;
     }
     const t = this.touch;
@@ -425,8 +451,8 @@ export class Input {
       return;
     }
     if (e.button === 2) {
-      if (this.buildMode || this.attackMoveMode) this.cancelMode();
-      else this.commandAt(e.clientX, e.clientY);
+      // Decided on release: a click commands, a drag turns and tilts the camera.
+      this.orbit = { x: e.clientX, y: e.clientY, yaw0: this.renderer.yaw, pitch0: this.renderer.pitch, moved: false };
       return;
     }
     if (e.button !== 0) return;
@@ -443,6 +469,14 @@ export class Input {
     this.mouse = { x: e.clientX, y: e.clientY };
     if (this.panStart) {
       this.panFrom(this.panStart.cam, e.clientX - this.panStart.x, e.clientY - this.panStart.y);
+      return;
+    }
+    if (this.orbit) {
+      const o = this.orbit;
+      const dx = e.clientX - o.x;
+      const dy = e.clientY - o.y;
+      if (!o.moved && Math.hypot(dx, dy) > TAP_SLOP_PX) o.moved = true;
+      if (o.moved) this.orbitFrom(o.yaw0, o.pitch0, dx, dy);
       return;
     }
     if (this.dragStart) {
@@ -470,6 +504,14 @@ export class Input {
     }
     if (e.button === 1) {
       this.panStart = null;
+      return;
+    }
+    if (e.button === 2) {
+      const o = this.orbit;
+      this.orbit = null;
+      if (!o || o.moved) return;
+      if (this.buildMode || this.attackMoveMode) this.cancelMode();
+      else this.commandAt(o.x, o.y);
       return;
     }
     if (e.button !== 0 || !this.dragStart) return;
@@ -570,18 +612,29 @@ export class Input {
   update(dt: number) {
     const r = this.renderer;
     const speed = 22 * r.zoom * dt;
-    let dx = 0;
-    let dy = 0;
+    let sx = 0;
+    let sy = 0;
     // Arrow keys pan, and the S / Z X C cluster (WASD's shape shifted down a row, since A is attack-move).
-    if (this.keys.has('s') || this.keys.has('arrowup')) dy -= speed;
-    if (this.keys.has('x') || this.keys.has('arrowdown')) dy += speed;
-    if (this.keys.has('z') || this.keys.has('arrowleft')) dx -= speed;
-    if (this.keys.has('c') || this.keys.has('arrowright')) dx += speed;
-    if (dx || dy) {
+    // Screen directions: the camera's yaw turns them into world movement.
+    if (this.keys.has('s') || this.keys.has('arrowup')) sy -= speed;
+    if (this.keys.has('x') || this.keys.has('arrowdown')) sy += speed;
+    if (this.keys.has('z') || this.keys.has('arrowleft')) sx -= speed;
+    if (this.keys.has('c') || this.keys.has('arrowright')) sx += speed;
+    if (sx || sy) {
+      const v = r.panVector(sx, sy);
       r.camTarget = {
-        x: Math.max(0, Math.min(r.mapW, r.camTarget.x + dx)),
-        y: Math.max(0, Math.min(r.mapH, r.camTarget.y + dy)),
+        x: Math.max(0, Math.min(r.mapW, r.camTarget.x + v.x)),
+        y: Math.max(0, Math.min(r.mapH, r.camTarget.y + v.y)),
       };
+    }
+    // Turn with [ and ], tilt with PageUp and PageDown, Home puts north up again.
+    if (this.keys.has('[')) r.yaw += ORBIT_KEY_RATE * dt;
+    if (this.keys.has(']')) r.yaw -= ORBIT_KEY_RATE * dt;
+    if (this.keys.has('pageup')) r.pitch = Math.min(PITCH_MAX, r.pitch + ORBIT_KEY_RATE * dt);
+    if (this.keys.has('pagedown')) r.pitch = Math.max(PITCH_MIN, r.pitch - ORBIT_KEY_RATE * dt);
+    if (this.keys.has('home')) {
+      r.yaw = 0;
+      r.pitch = PITCH_DEFAULT;
     }
 
     if (this.buildMode && this.world.state) {

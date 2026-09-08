@@ -31,8 +31,15 @@ export function KeysOverlay() {
       'Camera',
       'Arrow keys or S Z X C pan (up, left, down, right), middle-drag pans, mouse wheel zooms, left-click the minimap to jump',
     ],
+    [
+      'Turn and tilt',
+      'Right-drag: left/right turns, up/down tilts. [ and ] turn, PageUp/PageDown tilt, Home puts north up again. The minimap turns with you',
+    ],
     ['Q', 'Turn the selected building a sixth of a turn (Shift+Q the other way), or the ↺ ↻ buttons on its card'],
-    ['Touch', 'Tap selects, hold a finger to command (the right click), one-finger drag pans, pinch zooms'],
+    [
+      'Touch',
+      'Tap selects, hold a finger to command (the right click), one-finger drag pans, pinch zooms, two fingers together turn (left/right) and tilt (up/down)',
+    ],
     ['Minimap', 'Right-click sends the selected units there'],
     ['Tech tree', 'Tab. Research can be queued from the tree'],
     ['This card', 'F1 or ?'],

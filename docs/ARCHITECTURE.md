@@ -141,7 +141,7 @@ client/src/
                         The controller the UI calls. Publishes the HUD view model to the store.
     world.ts            Client copy of state, fog (vision/explored), remembered enemy buildings (ghosts)
     net.ts              WebSocket wrapper
-    input.ts            Mouse/keyboard on the canvas: selection, context commands, camera, build mode,
+    input.ts            Mouse/keyboard/touch on the canvas: selection, context commands, camera (pan, zoom, right-drag orbit), build mode,
                         attack-move, control groups, Tab toggles the tech tree overlay
     viewmodel.ts        buildHud(): resolves rules into plain data + action ids for the UI, plus the
                         TreeView (tree + per-item status) for the tech tree screen

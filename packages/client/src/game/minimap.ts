@@ -43,7 +43,14 @@ export function drawMinimap(
   if (!st || !renderer) return;
   const cam = renderer.camTarget;
   const scale = cw / RADAR_SPAN; // canvas px per world unit
-  const toCanvas = (wx: number, wy: number) => ({ x: cw / 2 + (wx - cam.x) * scale, y: ch / 2 + (wy - cam.y) * scale });
+  // The radar turns with the camera: what is ahead on screen is up on the radar.
+  const sinY = Math.sin(renderer.yaw);
+  const cosY = Math.cos(renderer.yaw);
+  const toCanvas = (wx: number, wy: number) => {
+    const dx = wx - cam.x;
+    const dy = wy - cam.y;
+    return { x: cw / 2 + (dx * cosY - dy * sinY) * scale, y: ch / 2 + (dx * sinY + dy * cosY) * scale };
+  };
 
   const w = st.width;
   const h = st.height;
@@ -89,11 +96,17 @@ export function drawMinimap(
     }
   }
   scratch!.getContext('2d')!.putImageData(image, 0, 0);
-  // One texel per hex, stretched over the map's world rectangle (odd rows' half-hex offset is ignored).
+  // One texel per hex, stretched over the map's world rectangle (odd rows' half-hex offset is ignored),
+  // through the same turn as toCanvas.
   const size = worldSize(w, h);
-  const origin = toCanvas(0, 0);
+  ctx.save();
+  ctx.translate(cw / 2, ch / 2);
+  ctx.rotate(renderer.yaw);
+  ctx.scale(scale, scale);
+  ctx.translate(-cam.x, -cam.y);
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(scratch!, origin.x, origin.y, size.x * scale, size.y * scale);
+  ctx.drawImage(scratch!, 0, 0, size.x, size.y);
+  ctx.restore();
 
   const buildings = world.renderBuildings();
   for (const id in buildings) {
@@ -183,8 +196,13 @@ export function minimapToWorld(world: World, renderer: Renderer | null, x01: num
   if (!st || !renderer) return null;
   const size = worldSize(st.width, st.height);
   const cam = renderer.camTarget;
+  // Undo the radar's turn (the inverse of toCanvas in drawMinimap).
+  const rx = (x01 - 0.5) * RADAR_SPAN;
+  const ry = (y01 - 0.5) * RADAR_SPAN;
+  const sinY = Math.sin(renderer.yaw);
+  const cosY = Math.cos(renderer.yaw);
   return {
-    x: Math.max(0, Math.min(size.x, cam.x + (x01 - 0.5) * RADAR_SPAN)),
-    y: Math.max(0, Math.min(size.y, cam.y + (y01 - 0.5) * RADAR_SPAN)),
+    x: Math.max(0, Math.min(size.x, cam.x + rx * cosY + ry * sinY)),
+    y: Math.max(0, Math.min(size.y, cam.y - rx * sinY + ry * cosY)),
   };
 }

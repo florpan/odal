@@ -36,6 +36,10 @@ export interface Pick {
 
 const FLASH_TIME = 0.15;
 const PARTICLE_LIFE = 0.7;
+/** Camera tilt limits (radians above the ground) and the classic RTS angle it starts at. */
+export const PITCH_MIN = 0.35;
+export const PITCH_MAX = 1.45;
+export const PITCH_DEFAULT = Math.atan2(0.85, 0.6);
 /** KayKit's building colour variants and the hue each one stands for. */
 const TEAM_HUES: Record<string, number> = { red: 0, yellow: 52, green: 120, blue: 215 };
 const TEAM_VARIANTS = Object.keys(TEAM_HUES);
@@ -93,6 +97,9 @@ export class Renderer {
   camTarget: Vec2 = { x: 32, y: 32 };
   /** Camera distance factor (wheel). 0.2 shows about ten hexes across: a person and a house are readable. */
   zoom = 0.2;
+  /** Camera orbit around the target: yaw in radians (0 = north up, the camera south of the target), pitch from the ground. */
+  yaw = 0;
+  pitch = PITCH_DEFAULT;
   /** Map size in world units (for camera clamping and ground picking). */
   mapW = 64;
   mapH = 64;
@@ -942,8 +949,21 @@ export class Renderer {
       sc.bottom = -half;
       sc.updateProjectionMatrix();
     }
-    this.camera.position.set(this.camTarget.x, dist * 0.85, this.camTarget.y + dist * 0.6);
+    const flat = Math.cos(this.pitch) * dist;
+    this.camera.position.set(
+      this.camTarget.x + Math.sin(this.yaw) * flat,
+      Math.sin(this.pitch) * dist,
+      this.camTarget.y + Math.cos(this.yaw) * flat,
+    );
     this.camera.lookAt(this.camTarget.x, 0, this.camTarget.y);
+  }
+
+  /** World movement for a screen-space push (right, down), so panning follows the camera's yaw. */
+  panVector(sx: number, sy: number): Vec2 {
+    const s = Math.sin(this.yaw);
+    const c = Math.cos(this.yaw);
+    // Screen right is (cos, -sin) on the ground, screen up is the camera's forward (-sin, -cos).
+    return { x: c * sx + s * sy, y: -s * sx + c * sy };
   }
 
   private updateView(v: EntityView, selected: boolean) {

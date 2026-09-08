@@ -322,11 +322,12 @@ chart of the whole world, so the fog's frame tells you which corner you are in.
       resource nodes. Needs a `reveal` effect and a split of "explored" into terrain-known and nodes-known on
       the server (`vision.ts`, `visibility.ts`) since one bit currently shows both. An Intel tech that reveals
       enemy positions was considered and parked: too strong early, pointless late.
-- [ ] **Camera rotation and tilt.** Right-drag: left/right yaws, up/down tilts (a right _click_ stays the
-      command; movement past the tap slop makes it a drag). Touch: two fingers left/right yaw, up/down tilt,
-      pinch still zooms, one finger pans. Renderer: the camera offset becomes a yaw/pitch around the target;
-      keyboard and edge panning rotate the input vector by the yaw; the minimap draws with the same rotation
-      and inverts it for clicks. Key bindings: pick something, they will be revisited.
+- [x] **Camera rotation and tilt** (2026-09-09). Right-drag: left/right turns, up/down tilts; a right _click_
+      (released within the tap slop) is still the command, now issued on release. Touch: two fingers together
+      turn and tilt, pinch zooms, one finger pans. Keys for now: `[` `]` turn, PageUp/PageDown tilt, Home puts
+      north up again. Renderer: `yaw` and `pitch` orbit the camera around the target (`PITCH_MIN..MAX`);
+      `panVector()` turns screen pushes into world movement so keys, middle-drag and one-finger pans follow the
+      view; the radar draws through the same turn and inverts it for clicks.
 
 Order: island first (it changes how the other two feel), then starts and contested placement, then the radar,
 then rotation, then the research items.

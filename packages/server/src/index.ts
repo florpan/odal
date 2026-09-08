@@ -23,25 +23,36 @@ const serveStatic = staticHandler(join(import.meta.dir, '../../client/dist'));
 // dev.ts pulls in prettier (a devDependency), so it is only loaded when the editor routes are on.
 const serveDev = DEV ? (await import('./dev')).devHandler(TREE_DIR, (t) => rooms.setTree(t)) : null;
 
-Bun.serve<Conn>({
-  port: PORT,
-  async fetch(req, server) {
-    const url = new URL(req.url);
-    if (url.pathname === '/ws') {
-      if (server.upgrade(req, { data: { room: null } })) return undefined;
-      return new Response('WebSocket upgrade failed', { status: 400 });
-    }
-    if (serveDev) {
-      const res = await serveDev(req, url);
-      if (res) return res;
-    }
-    return serveStatic(url.pathname);
-  },
-  websocket: {
-    message: (ws, raw) => handleMessage(rooms, ws, raw),
-    close: (ws) => handleClose(rooms, ws),
-  },
-});
+// `bun --watch` restarts the process while the old one may still hold the port for a moment, and
+// Bun then dies with EADDRINUSE, leaving nothing listening. Retry the bind for a few seconds.
+for (let attempt = 1; ; attempt++) {
+  try {
+    Bun.serve<Conn>({
+      port: PORT,
+      async fetch(req, server) {
+        const url = new URL(req.url);
+        if (url.pathname === '/ws') {
+          if (server.upgrade(req, { data: { room: null } })) return undefined;
+          return new Response('WebSocket upgrade failed', { status: 400 });
+        }
+        if (serveDev) {
+          const res = await serveDev(req, url);
+          if (res) return res;
+        }
+        return serveStatic(url.pathname);
+      },
+      websocket: {
+        message: (ws, raw) => handleMessage(rooms, ws, raw),
+        close: (ws) => handleClose(rooms, ws),
+      },
+    });
+    break;
+  } catch (err) {
+    if (attempt >= 20 || (err as { code?: string }).code !== 'EADDRINUSE') throw err;
+    console.warn(`port ${PORT} busy, retrying (${attempt})`);
+    await Bun.sleep(250);
+  }
+}
 
 const dt = 1 / tree.rules.tickRate;
 setInterval(() => rooms.tick(dt), 1000 * dt);
