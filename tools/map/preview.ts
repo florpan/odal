@@ -49,7 +49,9 @@ for (const seed of seeds) {
     let line = y % 4 === 0 ? '' : ' ';
     for (let x = 0; x < w; x += shape ? 2 : 1) {
       if (shape) {
-        line += st.terrain[y * w + x] === waterIdx ? '~' : '#';
+        const i = y * w + x;
+        const near = st.starts.some((s) => Math.abs(s.x - x) <= 1 && Math.abs(s.y - y) <= 1);
+        line += near ? 'S' : st.terrain[i] === waterIdx ? '~' : '#';
         continue;
       }
       const i = y * w + x;

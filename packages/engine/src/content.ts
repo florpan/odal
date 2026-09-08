@@ -39,8 +39,8 @@ export type Effect =
   | { type: 'buildSpeed'; multiplier: number };
 export type EffectType = Effect['type'];
 
-/** Where the per-1000-tiles scatter may land: anywhere, or only the middle of the map (contested). */
-export type SpawnZone = 'anywhere' | 'centre';
+/** Where the per-1000-tiles scatter may land: anywhere, or on the land farthest from every start (contested). */
+export type SpawnZone = 'anywhere' | 'contested';
 
 export type Spawn =
   | { kind: 'forest'; clustersPer1000Tiles: number; radius: [number, number]; perStart: number; zone: SpawnZone }
@@ -151,11 +151,15 @@ export interface TechDef extends ProducibleDef {
 
 export interface Rules {
   tickRate: number;
-  /** `starts`: start slots on a ring around the centre; players take the free one farthest from everyone. */
+  /**
+   * `starts`: start slots anywhere on land with room for a home zone, at least `startSpacing` hexes
+   * apart when the land allows; players take the free one farthest from everyone.
+   */
   map: {
     width: number; // hex columns
     height: number; // hex rows
     starts: number;
+    startSpacing: number;
     /** Terrain id every hex starts as. */
     ground: string;
     /**

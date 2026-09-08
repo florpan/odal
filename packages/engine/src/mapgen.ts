@@ -1,4 +1,4 @@
-import { hexArea, hexCentre, hexDistance, hexLine, hexNeighbours, hexRing, worldSize, worldToHex } from './hex';
+import { hexArea, hexCentre, hexDistance, hexNeighbours, hexRing, worldSize, worldToHex } from './hex';
 import { fractalNoise, terrainNoise } from './noise';
 import { mulberry32 } from './rng';
 import type { NodeDef, Spawn, TechTree } from './content';
@@ -22,14 +22,15 @@ export interface GeneratedMap {
  *    land, pushed under water towards the edge so the sea surrounds it, and only
  *    the largest landmass kept. Bays, inlets and peninsulas; the shape says
  *    nothing about where the middle is.
- * 1. `rules.map.starts` start slots on a ring around the centre, evenly spaced
- *    at a random rotation, on land. Players at the edges, the middle in between.
+ * 1. `rules.map.starts` start slots anywhere on land with room for a home zone,
+ *    spread by farthest-point picking, at least `rules.map.startSpacing` apart
+ *    when the land allows. Nothing about a slot tells where it is on the map.
  * 1b. Features: `rules.map.features` clumps of other terrain (hills, mountains)
  *    random-walked over the ground, away from the start clearings.
  * 2. Home zones: every slot gets each node type's `spawn.perStart` clusters or
  *    deposits somewhere between the start clearing and `rules.homeRadius`.
  * 3. The per-1000-land-hexes scatter from each `spawn` rule, anywhere on land
- *    or, with `zone: 'centre'`, only in the middle fifth (contested resources).
+ *    or, with `zone: 'contested'`, on the land farthest from every start.
  * 4. Connectivity: a corridor is carved for any start that cannot reach the centre.
  * 5. Relief: quantised noise, independent of the coast, gives every land hex an
  *    elevation step; land hexes differ by at most one step from each other, but
@@ -155,18 +156,31 @@ export function generateMap(tree: TechTree, seed: number, w: number, h: number):
   /** The middle of the map, or the land nearest to it: what every start must be able to reach. */
   const centre = nearestLand(hexAt(cx, cy));
 
-  // 1. Start slots. The ring leaves room for a whole home zone inside the sea band (or map edge).
+  // 1. Start slots: anywhere on land with room for a home zone (most of `homeRadius` around it is
+  //    land; the sea itself is fine), spread out by farthest-point picking with some randomness, at
+  //    least `startSpacing` apart when the land allows it. Nothing about a slot says where it is on the map.
   const starts: Vec2[] = [];
-  const margin = rules.homeRadius + 2;
-  const rx = Math.max(4, cx * edge * 0.9 - margin);
-  const ry = Math.max(4, cy * edge * 0.9 - margin);
-  const rot = rng() * TAU;
-  for (let i = 0; i < rules.map.starts; i++) {
-    const a = rot + (i / rules.map.starts) * TAU;
-    let s = hexAt(cx + Math.cos(a) * rx, cy + Math.sin(a) * ry);
-    // Should the coast have wandered this far in, step towards the middle until on land.
-    if (!isLand(s.x, s.y)) s = hexLine(s, centre).find((t) => isLand(t.x, t.y)) ?? nearestLand(s);
-    starts.push(s);
+  const homeArea = hexArea(0, 0, rules.homeRadius).length;
+  const roomy = (p: Vec2) => {
+    let land = 0;
+    for (const t of hexArea(p.x, p.y, rules.homeRadius)) if (isLand(t.x, t.y)) land++;
+    return land >= homeArea * 0.6;
+  };
+  const candidates: Vec2[] = [];
+  for (let tries = 0; tries < 3000 && candidates.length < 80; tries++) {
+    const p = { x: 2 + Math.floor(rng() * (w - 4)), y: 2 + Math.floor(rng() * (h - 4)) };
+    if (isLand(p.x, p.y) && roomy(p) && !candidates.some((c) => hexDistance(c, p) < 3)) candidates.push(p);
+  }
+  if (!candidates.length) candidates.push(centre);
+  const pick = (from: Vec2[]) => from[Math.floor(rng() * from.length)];
+  starts.push(pick(candidates));
+  while (starts.length < rules.map.starts) {
+    const spaced = candidates.map((p) => ({ p, d: Math.min(...starts.map((s) => hexDistance(s, p))) }));
+    const best = Math.max(...spaced.map((c) => c.d));
+    if (best <= 0) break;
+    // Random among the well-spread: anything at least the spacing away, else the farthest few.
+    const floor = Math.min(rules.map.startSpacing, best * 0.85);
+    starts.push(pick(spaced.filter((c) => c.d >= floor).map((c) => c.p)));
   }
   // The start hexes themselves stay free: the starting building goes there.
   for (const s of starts) occupied.add(s.y * w + s.x);
@@ -216,13 +230,28 @@ export function generateMap(tree: TechTree, seed: number, w: number, h: number):
     }
   }
 
-  // 3. Scatter.
+  // 3. Scatter. Contested resources go to the land farthest from every start (the top quarter of
+  //    that distance, outside every home zone), so they lie between the players wherever the players
+  //    are; with two of them that may well be the coast. Successive contested spots keep apart.
+  const toStart = (p: Vec2) => Math.min(...starts.map((s) => hexDistance(s, p)));
+  let farthest = 0;
+  for (let i = 0; i < w * h; i++)
+    if (isLand(i % w, Math.floor(i / w))) farthest = Math.max(farthest, toStart({ x: i % w, y: Math.floor(i / w) }));
+  const contestedFloor = Math.max(rules.homeRadius + 2, farthest * 0.75);
+  const contested: Vec2[] = [];
+  for (let i = 0; i < w * h; i++) {
+    const p = { x: i % w, y: Math.floor(i / w) };
+    if (isLand(p.x, p.y) && toStart(p) >= contestedFloor) contested.push(p);
+  }
+  const contestedTaken: Vec2[] = [];
   const randomIn = (zone: Spawn['zone']): Vec2 => {
-    if (zone === 'centre') {
-      return {
-        x: Math.floor(w / 2 + (rng() - 0.5) * w * 0.4),
-        y: Math.floor(h / 2 + (rng() - 0.5) * h * 0.4),
-      };
+    if (zone === 'contested' && contested.length) {
+      const apart = contested.filter((p) =>
+        contestedTaken.every((q) => hexDistance(p, q) >= rules.map.startSpacing / 3),
+      );
+      const p = pick(apart.length ? apart : contested);
+      contestedTaken.push(p);
+      return p;
     }
     return { x: 2 + Math.floor(rng() * (w - 4)), y: 2 + Math.floor(rng() * (h - 4)) };
   };

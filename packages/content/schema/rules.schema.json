@@ -40,6 +40,11 @@
                   "maximum": 8,
                   "default": 4
                 },
+                "startSpacing": {
+                  "type": "integer",
+                  "minimum": 4,
+                  "default": 30
+                },
                 "ground": {
                   "type": "string",
                   "pattern": "^[a-z][a-z0-9_]*$"

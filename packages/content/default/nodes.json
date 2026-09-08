@@ -66,13 +66,13 @@
     "amount": 100,
     "gatherTime": 6,
     "gatherAmount": 10,
-    "notes": "Contested: one small home deposit each, the rest in the middle of the map. Research is where gold goes, so holding the centre means out-teching.",
+    "notes": "Contested: one small home deposit each, the rest on the land farthest from every start, between the players. Research is where gold goes, so holding those means out-teching.",
     "spawn": {
       "kind": "deposit",
       "depositsPer1000Tiles": 1.2,
       "size": [3, 6],
       "perStart": 1,
-      "zone": "centre"
+      "zone": "contested"
     },
     "visual": {
       "shape": "rock",

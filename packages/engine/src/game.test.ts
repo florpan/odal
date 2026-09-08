@@ -160,16 +160,41 @@ describe('engine with the default tech tree', () => {
     }
   });
 
-  test('centre-zone deposits stay in the middle of the map', () => {
-    const centred = DEFAULT_TREE.nodes.filter((n) => n.spawn.zone === 'centre' && n.spawn.perStart === 0);
-    if (!centred.length) return;
-    const st = createGame(DEFAULT_TREE, 42);
-    for (const nd of centred) {
-      const walk = nd.spawn.kind === 'deposit' ? nd.spawn.size[1] : nd.spawn.radius[1];
-      for (const n of Object.values(st.nodes)) {
-        if (n.type !== nd.id) continue;
-        expect(Math.abs(n.x - st.width / 2)).toBeLessThanOrEqual(st.width * 0.2 + walk + 1);
-        expect(Math.abs(n.y - st.height / 2)).toBeLessThanOrEqual(st.height * 0.2 + walk + 1);
+  test('start slots are spread out, each with room for a home zone, and nowhere in particular', () => {
+    const { rules } = DEFAULT_TREE;
+    const groundIdx = DEFAULT_TREE.terrain.findIndex((t) => t.id === rules.map.ground);
+    const area = hexArea(0, 0, rules.homeRadius).length;
+    for (const seed of [1, 2, 3, 7, 42]) {
+      const st = createGame(DEFAULT_TREE, seed);
+      for (let i = 0; i < st.starts.length; i++) {
+        for (let j = i + 1; j < st.starts.length; j++)
+          expect(hexDistance(st.starts[i], st.starts[j])).toBeGreaterThanOrEqual(rules.map.startSpacing);
+        const land = hexArea(st.starts[i].x, st.starts[i].y, rules.homeRadius).filter(
+          (t) =>
+            t.x >= 0 && t.y >= 0 && t.x < st.width && t.y < st.height && st.terrain[t.y * st.width + t.x] !== groundIdx,
+        );
+        expect(area - land.length).toBeGreaterThanOrEqual(area * 0.6 - 60); // features may sit on the land counted
+      }
+    }
+  });
+
+  test('contested deposits lie between the players, outside every home zone', () => {
+    const { rules } = DEFAULT_TREE;
+    const contested = DEFAULT_TREE.nodes.filter((n) => n.spawn.zone === 'contested');
+    if (!contested.length) return;
+    for (const seed of [7, 42]) {
+      const st = createGame(DEFAULT_TREE, seed);
+      for (const nd of contested) {
+        // The home deposit each start gets is exempt: look at the ones beyond every home zone.
+        const far = Object.values(st.nodes).filter(
+          (n) => n.type === nd.id && st.starts.every((s) => hexDistance(n, s) > rules.homeRadius + 1),
+        );
+        expect(far.length).toBeGreaterThan(0);
+        // Their nearest start is at least a good stretch away: not tucked next to one player.
+        for (const n of far) {
+          const nearest = Math.min(...st.starts.map((s) => hexDistance(n, s)));
+          expect(nearest).toBeGreaterThanOrEqual(rules.homeRadius);
+        }
       }
     }
   });

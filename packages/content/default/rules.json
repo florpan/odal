@@ -7,6 +7,7 @@
       "width": 112,
       "height": 112,
       "starts": 4,
+      "startSpacing": 30,
       "ground": "grass",
       "island": {
         "water": "water",

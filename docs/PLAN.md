@@ -307,11 +307,12 @@ chart of the whole world, so the fog's frame tells you which corner you are in.
       higher land meets the sea as a cliff on a rock plinth (`scene.ts`). Start slots still sit on a ring
       (next item). Tuning: `bun tools/map/preview.ts [seeds] --shape --land F --scale N --size N`; in
       game, `?fog=0` shows the whole map.
-- [ ] **Random starts.** Slots anywhere on land with a minimum mutual distance (a rules knob), near the sea is
-      fine. Each start keeps `perStart` guarantees for every node type (some wood, stone, iron and gold in
-      `homeRadius`, little but never nothing). `zone: 'centre'` becomes `zone: 'contested'`: placed after the
-      starts at spots that maximise the distance to the nearest start, so they lie between players; with two
-      players that may well be the coast. Several contested spots, not one.
+- [x] **Random starts** (2026-09-09). Slots anywhere on land where most of `homeRadius` around is land (the
+      sea itself is fine), picked farthest-point with some randomness among sampled candidates, at least
+      `rules.map.startSpacing` (30) apart when the land allows. Each start keeps `perStart` guarantees for every
+      node type. `zone: 'centre'` became `zone: 'contested'`: the land farthest from every start (top quarter of
+      that distance, outside every home zone), successive spots kept apart, so contested gold lies between the
+      players wherever they are; with two players that may well be the coast.
 - [ ] **Radar minimap.** A fixed-scale window centred on the camera, not a chart of the world; unexplored and
       beyond-the-map are the same slate. The camera square stays as a zoom indicator (it rotates with the map,
       so it reveals nothing else). A flag marks the town hall; when it is outside the window the flag sits at

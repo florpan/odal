@@ -53,7 +53,7 @@ const spawnCommon = {
   /** Clusters / deposits guaranteed within rules.homeRadius of every start slot. */
   perStart: z.number().int().min(0).default(0),
   /** Where the per-1000-tiles scatter may land. */
-  zone: z.enum(['anywhere', 'centre']).default('anywhere'),
+  zone: z.enum(['anywhere', 'contested']).default('anywhere'),
 };
 export const SpawnSchema = z.discriminatedUnion('kind', [
   z
@@ -198,6 +198,7 @@ export const RulesSchema = z
         width: z.number().int().min(16).max(256),
         height: z.number().int().min(16).max(256),
         starts: z.number().int().min(2).max(8).default(4),
+        startSpacing: z.number().int().min(4).default(30),
         ground: Id,
         island: z
           .object({
