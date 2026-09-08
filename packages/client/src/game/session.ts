@@ -32,6 +32,8 @@ export class GameSession {
     readonly room: string,
   ) {
     const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`;
+    // Dev knob: ?fog=0 shows the whole map (for looking at map generation).
+    this.world.noFog = new URLSearchParams(location.search).get('fog') === '0';
     appStore.setState({ connection: 'connecting', you: name, room, error: null });
     this.net = new Net(url, name, room, {
       onOpen: () => appStore.setState({ connection: 'open' }),
@@ -207,7 +209,7 @@ export class GameSession {
         input.stop();
         break;
       case 'rotate':
-        input.rotateSelected();
+        input.rotateSelected(arg === 'back');
         break;
       case 'upgrade':
         if (bId !== null) this.net.send({ type: 'upgrade', buildingId: bId, building: arg });

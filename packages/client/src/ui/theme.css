@@ -1,0 +1,123 @@
+/*
+ * Theme: fonts and colours shared by the game HUD, the start screens, the tech tree and the editor.
+ *
+ * Every colour below is sampled from the KayKit Medieval Hexagon atlas
+ * (packages/client/public/models/atlas/hexagons_medieval_summer.png) so the chrome sits in the same
+ * world as the models: cool slate for stone, terracotta for wood, tan and linen for cloth and parchment,
+ * gold for the accent, and the pack's own grass, water and red for state. Each swatch in the atlas is a
+ * vertical gradient; the 300/500/700 steps are its top, middle and bottom.
+ */
+
+@font-face {
+  font-family: 'Grenze';
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/Grenze-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Grenze';
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/Grenze-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Grenze';
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/Grenze-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Alegreya Sans';
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/AlegreyaSans-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Alegreya Sans';
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/AlegreyaSans-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Alegreya Sans';
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/AlegreyaSans-700.woff2') format('woff2');
+}
+
+:root {
+  /* Type. Grenze for titles (a medieval serif that stays readable), Alegreya Sans for everything else. */
+  --font-display: 'Grenze', Georgia, 'Times New Roman', serif;
+  --font-body: 'Alegreya Sans', system-ui, 'Segoe UI', sans-serif;
+
+  /* Atlas swatches */
+  --slate-900: #13191b;
+  --slate-800: #1c2428;
+  --slate-700: #263236;
+  --slate-600: #3c4246;
+  --slate-500: #4a5155;
+  --slate-400: #596064;
+  --slate-300: #818c91;
+  --slate-200: #aab8be;
+  --wood-800: #5e2e21;
+  --wood-700: #7d3d2c;
+  --wood-600: #9b5a45;
+  --wood-500: #b16f52;
+  --wood-400: #c8855f;
+  --bark-700: #493c33;
+  --bark-500: #6b5c53;
+  --bark-300: #9e8c7e;
+  --sand-300: #e8c79a;
+  --sand-500: #c69c6d;
+  --sand-700: #a87e54;
+  --linen-100: #fefcfa;
+  --linen-300: #e2d3c0;
+  --linen-500: #c5b097;
+  --linen-700: #a88e6e;
+  --gold-300: #fbd365;
+  --gold-500: #d09745;
+  --gold-700: #a65c26;
+  --grass-300: #aacd61;
+  --grass-500: #7cab48;
+  --grass-700: #4e8930;
+  --water-300: #88d2ea;
+  --water-500: #257ebc;
+  --red-300: #f17865;
+  --red-500: #d83f35;
+  --red-700: #a61c36;
+
+  /* Roles */
+  --bg: var(--slate-900);
+  --panel: rgba(28, 36, 40, 0.92);
+  --panel-solid: var(--slate-800);
+  --panel-deep: rgba(19, 25, 27, 0.96);
+  --panel-edge: var(--wood-600);
+  --panel-glow: rgba(255, 255, 255, 0.06);
+  --line: rgba(200, 133, 95, 0.22);
+  --line-strong: var(--bark-700);
+  --text: var(--linen-300);
+  --text-strong: var(--linen-100);
+  --muted: var(--linen-500);
+  --faint: var(--bark-300);
+  --heading: var(--sand-300);
+  --accent: var(--gold-300);
+  --accent-deep: var(--gold-500);
+  --ok: var(--grass-500);
+  --ok-text: var(--grass-300);
+  --warn: var(--gold-500);
+  --bad: var(--red-500);
+  --bad-text: var(--red-300);
+  --tech: var(--water-300);
+  --tech-deep: var(--water-500);
+
+  /* Buttons: wood for actions, stone for chrome */
+  --btn-wood: linear-gradient(var(--wood-500), var(--wood-700));
+  --btn-wood-hover: linear-gradient(var(--wood-400), var(--wood-600));
+  --btn-wood-edge: var(--wood-800);
+  --btn-stone: var(--slate-700);
+  --btn-stone-hover: var(--slate-600);
+  --btn-stone-edge: var(--slate-500);
+
+  --radius: 5px;
+  --shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+}

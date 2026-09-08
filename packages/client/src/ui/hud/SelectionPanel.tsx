@@ -80,7 +80,19 @@ export function SelectionPanel() {
     case 'building':
       return (
         <div className="selection">
-          <h3 style={{ color: sel.color }}>{sel.name}</h3>
+          <h3 style={{ color: sel.color }}>
+            {sel.name}
+            {sel.rotatable && (
+              <span className="turn" title="Turn the building a sixth of a turn (Q, Shift+Q). Looks only.">
+                <button type="button" onClick={() => session?.action('rotate:back')} aria-label="Turn left">
+                  ↺
+                </button>
+                <button type="button" onClick={() => session?.action('rotate')} aria-label="Turn right">
+                  ↻
+                </button>
+              </span>
+            )}
+          </h3>
           <div className="muted">
             {sel.owner}
             {sel.remembered ? ' · last seen' : ''}

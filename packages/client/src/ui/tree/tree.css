@@ -1,8 +1,8 @@
-/* Tech tree graph: shared by the in-game overlay and the editor */
+/* Tech tree graph: shared by the in-game overlay and the editor. Colours from ui/theme.css. */
 .tree-graph {
   position: absolute;
   inset: 0;
-  background: #14100b;
+  background: var(--slate-900);
 }
 .tree-graph .react-flow__attribution {
   display: none;
@@ -12,10 +12,10 @@
   height: 58px;
   padding: 6px 10px;
   border-radius: 6px;
-  border: 1px solid #6b4f2a;
-  background: #2a2016;
-  color: #f1e6cf;
-  font-size: 12px;
+  border: 1px solid var(--panel-edge);
+  background: var(--slate-800);
+  color: var(--text);
+  font-size: 13px;
   line-height: 1.25;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
   cursor: pointer;
@@ -26,24 +26,24 @@
 .tree-node .react-flow__handle {
   width: 8px;
   height: 8px;
-  background: #8a6a3a;
+  background: var(--wood-500);
   border: none;
 }
 .tree-node-kind {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #a89a80;
+  color: var(--faint);
 }
 .tree-node-name {
-  font-weight: 600;
-  font-size: 13px;
+  font-weight: 700;
+  font-size: 14px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .tree-node-cost {
-  color: #c9b58a;
+  color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -53,71 +53,71 @@
 }
 .tree-node.kind-tech {
   border-style: dashed;
-  background: #201a2a;
-  border-color: #7e57c2;
+  background: var(--slate-700);
+  border-color: var(--tech-deep);
 }
 .tree-node.kind-building {
-  background: #2a2016;
+  background: var(--slate-800);
 }
 .tree-node.status-owned {
-  border-color: #7cb342;
-  box-shadow: 0 0 0 1px #7cb342 inset;
+  border-color: var(--ok);
+  box-shadow: 0 0 0 1px var(--ok) inset;
 }
 .tree-node.status-inProgress {
-  border-color: #e0a030;
-  box-shadow: 0 0 0 1px #e0a030 inset;
+  border-color: var(--warn);
+  box-shadow: 0 0 0 1px var(--warn) inset;
 }
 .tree-node.status-available {
-  border-color: #c9b58a;
+  border-color: var(--sand-500);
 }
 .tree-node.status-locked {
   opacity: 0.55;
 }
 .tree-node.is-selected {
-  border-color: #ffb74d;
-  box-shadow: 0 0 0 2px #ffb74d;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
   opacity: 1;
 }
 .tree-node.is-dimmed {
   opacity: 0.3;
 }
 .tree-edge .react-flow__edge-path {
-  stroke: #8a6a3a;
+  stroke: var(--wood-600);
   stroke-width: 1.5;
 }
 .tree-edge.reason-requires .react-flow__edge-path {
   stroke-dasharray: 5 4;
 }
 .tree-edge.is-touching .react-flow__edge-path {
-  stroke: #ffb74d;
+  stroke: var(--accent);
   stroke-width: 2.5;
 }
 .tree-edge.selected .react-flow__edge-path {
-  stroke: #ff8a80;
+  stroke: var(--bad-text);
   stroke-width: 3;
 }
 .tree-edge .react-flow__edge-textbg {
-  fill: #14100b;
+  fill: var(--slate-900);
 }
 .tree-edge .react-flow__edge-text {
-  fill: #a89a80;
+  fill: var(--muted);
   font-size: 10px;
 }
 .tree-graph .react-flow__controls button {
-  background: #2a2016;
-  border-color: #6b4f2a;
-  fill: #f1e6cf;
+  background: var(--btn-stone);
+  border-color: var(--btn-stone-edge);
+  fill: var(--text);
 }
 .tree-graph .react-flow__controls button:hover {
-  background: #3b2b16;
+  background: var(--btn-stone-hover);
 }
 
 /* Legend used by both views */
 .tree-legend {
   display: flex;
   gap: 14px;
-  font-size: 11px;
-  color: #a89a80;
+  font-size: 12px;
+  color: var(--muted);
   align-items: center;
 }
 .tree-legend i {
@@ -127,18 +127,18 @@
   border-radius: 2px;
   margin-right: 4px;
   vertical-align: -1px;
-  border: 1px solid #6b4f2a;
+  border: 1px solid var(--panel-edge);
 }
 .tree-legend i.owned {
-  border-color: #7cb342;
-  background: rgba(124, 179, 66, 0.35);
+  border-color: var(--ok);
+  background: rgba(124, 171, 72, 0.35);
 }
 .tree-legend i.inProgress {
-  border-color: #e0a030;
-  background: rgba(224, 160, 48, 0.35);
+  border-color: var(--warn);
+  background: rgba(208, 151, 69, 0.35);
 }
 .tree-legend i.available {
-  border-color: #c9b58a;
+  border-color: var(--sand-500);
 }
 .tree-legend i.locked {
   opacity: 0.5;
@@ -151,7 +151,7 @@
   overflow: auto;
   background:
     linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px) 0 0 / 100% 122px,
-    #14100b;
+    var(--slate-900);
 }
 .timeline-canvas {
   position: relative;
@@ -162,18 +162,20 @@
   z-index: 2;
   display: flex;
   height: 44px;
-  border-bottom: 1px solid #4a3620;
-  background: rgba(20, 16, 11, 0.92);
+  border-bottom: 1px solid var(--line);
+  background: rgba(19, 25, 27, 0.92);
 }
 .tl-head {
   flex: 0 0 auto;
   line-height: 44px;
   text-align: center;
-  font-size: 12px;
-  letter-spacing: 0.12em;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #c9b58a;
-  border-right: 1px solid #2e2418;
+  color: var(--heading);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
 }
 .tl-edges {
   position: absolute;
@@ -182,17 +184,17 @@
 }
 .tl-edge {
   fill: none;
-  stroke: #6b4f2a;
+  stroke: var(--wood-700);
   stroke-width: 3;
   stroke-dasharray: 8 6;
   stroke-linejoin: round;
 }
 .tl-edge.is-done {
-  stroke: #7cb342;
+  stroke: var(--ok);
   stroke-dasharray: none;
 }
 .tl-edge.is-touching {
-  stroke: #ffb74d;
+  stroke: var(--accent);
   stroke-width: 4;
   stroke-dasharray: none;
 }
@@ -204,11 +206,13 @@
   padding: 8px 10px 8px 8px;
   box-sizing: border-box;
   border-radius: 8px;
-  border: 1px solid #6b4f2a;
-  background: linear-gradient(#3a2c1a, #2a2016);
-  color: #f1e6cf;
-  font-size: 12px;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.55);
+  border: 1px solid var(--panel-edge);
+  background: linear-gradient(var(--slate-700), var(--slate-800));
+  color: var(--text);
+  font-size: 13px;
+  box-shadow:
+    inset 0 1px 0 var(--panel-glow),
+    0 3px 8px rgba(0, 0, 0, 0.55);
   cursor: pointer;
   transition:
     opacity 0.15s,
@@ -216,45 +220,46 @@
     box-shadow 0.15s;
 }
 .tl-card:hover {
-  border-color: #c9b58a;
+  border-color: var(--sand-500);
 }
 .tl-card.owned {
-  border-color: #7cb342;
-  background: linear-gradient(#2f3d1e, #22301a);
+  border-color: var(--ok);
+  background: linear-gradient(#2f4028, var(--slate-800));
 }
 .tl-card.inProgress {
-  border-color: #e0a030;
+  border-color: var(--warn);
   box-shadow:
-    0 0 0 1px #e0a030 inset,
+    0 0 0 1px var(--warn) inset,
     0 3px 8px rgba(0, 0, 0, 0.55);
 }
 .tl-card.available {
-  border-color: #d8c49a;
-  background: linear-gradient(#4a3a22, #33271a);
+  border-color: var(--sand-500);
+  background: linear-gradient(var(--wood-800), var(--slate-800));
 }
 .tl-card.locked {
   opacity: 0.55;
 }
 .tl-card.is-selected {
-  border-color: #ffb74d;
+  border-color: var(--accent);
   box-shadow:
-    0 0 0 2px #ffb74d,
+    0 0 0 2px var(--accent),
     0 3px 8px rgba(0, 0, 0, 0.55);
   opacity: 1;
 }
 .tl-card.tl-start {
   cursor: default;
   border-style: dashed;
-  background: #201a14;
+  background: var(--slate-800);
 }
 .tl-medal {
   flex: 0 0 44px;
   height: 44px;
   border-radius: 50%;
-  border: 2px solid #8a6a3a;
-  background: radial-gradient(#5a4525, #2a2016);
-  color: #f1e6cf;
-  font-size: 20px;
+  border: 2px solid var(--gold-500);
+  background: radial-gradient(var(--wood-600), var(--wood-800));
+  color: var(--linen-100);
+  font-family: var(--font-display);
+  font-size: 22px;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -263,10 +268,10 @@
   text-shadow: 0 1px 2px #000;
 }
 .tl-card.owned .tl-medal {
-  border-color: #7cb342;
+  border-color: var(--ok);
 }
 .tl-card.inProgress .tl-medal {
-  border-color: #e0a030;
+  border-color: var(--warn);
 }
 .tl-body {
   flex: 1;
@@ -282,20 +287,22 @@
   align-items: baseline;
 }
 .tl-name {
+  font-family: var(--font-display);
   font-weight: 600;
-  font-size: 13px;
+  font-size: 17px;
+  color: var(--heading);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .tl-cost {
-  color: #c9b58a;
-  font-size: 11px;
+  color: var(--muted);
+  font-size: 12px;
   white-space: nowrap;
 }
 .tl-at {
-  font-size: 10px;
-  color: #a89a80;
+  font-size: 11px;
+  color: var(--faint);
 }
 .tl-unlocks {
   display: flex;
@@ -304,54 +311,54 @@
   margin-top: auto;
 }
 .tl-none {
-  font-size: 10px;
-  color: #6f6555;
+  font-size: 11px;
+  color: var(--faint);
 }
 .tl-chip {
   font: inherit;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1;
   padding: 3px 6px;
   border-radius: 3px;
-  border: 1px solid #6b4f2a;
-  background: #1c1610;
-  color: #e6d9be;
+  border: 1px solid var(--slate-500);
+  background: var(--slate-900);
+  color: var(--text);
   cursor: pointer;
   white-space: nowrap;
 }
 .tl-chip.kind-unit {
   border-radius: 9px;
-  border-color: #4f7a3a;
+  border-color: var(--grass-700);
 }
 .tl-chip.kind-building {
-  border-color: #8a6a3a;
+  border-color: var(--wood-600);
 }
 .tl-chip.kind-tech {
-  border-color: #7e57c2;
+  border-color: var(--tech-deep);
   border-style: dashed;
 }
 .tl-chip.owned {
-  color: #a5d66f;
+  color: var(--ok-text);
 }
 .tl-chip.inProgress {
-  color: #ffc766;
+  color: var(--accent);
 }
 .tl-chip.locked {
   opacity: 0.6;
 }
 .tl-chip:hover,
 .tl-chip.is-selected {
-  border-color: #ffb74d;
-  color: #ffb74d;
+  border-color: var(--accent);
+  color: var(--accent);
   opacity: 1;
 }
 .tl-progress {
   height: 4px;
-  background: #1c1610;
+  background: var(--slate-900);
   border-radius: 2px;
   overflow: hidden;
 }
 .tl-progress > div {
   height: 100%;
-  background: #e0a030;
+  background: var(--warn);
 }

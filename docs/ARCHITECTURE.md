@@ -147,6 +147,10 @@ client/src/
                         TreeView (tree + per-item status) for the tech tree screen
     minimap.ts          Draws the minimap into a 2D context
     render/scene.ts     Three.js scene. Everything in world coordinates. Looks come from tree `visual`s.
+    render/fow.ts       Fog of war: a map-sized alpha texture (4 texels per unit, hex-mapped, CPU-blurred) that every
+                        fogged material samples at its world x/z (onBeforeCompile), mixing towards the slate fog colour.
+                        Two rings of "fringe" tiles are drawn beyond the explored ones, deeper than the blur's reach, so
+                        the ground vanishes into fog rather than stopping. Tuning constants at the top of the file.
     render/models.ts    GLB library for `visual.model`: load once, per-team "Team" material, Lambert look, skeleton clones + clips.
     render/shore.ts     Which ground tile a hex shows: the terrain's tile, or a coast tile turned towards its longest run of water edges.
     index.ts            The ONLY module ui/ may import from game/
@@ -158,7 +162,9 @@ client/src/
     hud/                TopBar, Messages, ModeHint, SelectionPanel (the selection card, ActionBar inside it), Minimap, HelpBar
     dialogs/            RestartButton
     tree/               TechTimeline (tier columns, in game), TechTreeGraph (React Flow + dagre, editor), RefDetails, layout.
-    styles.css
+    theme.css           Fonts (Grenze, Alegreya Sans; self-hosted in public/fonts) and every colour as a custom property,
+                        sampled from the KayKit atlas so the chrome matches the models. All other CSS uses these.
+    styles.css          Game, start and lobby screens, overlays. Imports theme.css.
   editor/               REACT. The content editor page. Imports engine + ui/tree, never game/ or app/.
   models/               Three.js only. The model viewer page (models.html): loads a GLB, plays clips, team colour.
     main.tsx            React root of editor.html

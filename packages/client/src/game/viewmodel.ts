@@ -79,6 +79,8 @@ export type SelectionView =
       color: string;
       own: boolean;
       remembered: boolean;
+      /** Own and finished: the card offers the turn buttons (cosmetic, so not an action). */
+      rotatable: boolean;
       hp: number;
       maxHp: number;
       progress: number;
@@ -258,6 +260,7 @@ export function buildHud(world: World, input: Input | null): HudModel {
       color: owner?.color ?? '#fff',
       own,
       remembered,
+      rotatable: own && b.progress >= 1,
       hp: Math.ceil(b.hp),
       maxHp: Math.round(buildingMaxHp(tree, owner, b.type)),
       progress: b.progress,
@@ -317,14 +320,6 @@ export function buildHud(world: World, input: Input | null): HudModel {
           disabled: false,
           active: false,
         });
-      actions.push({
-        id: 'rotate',
-        label: 'Rotate (Q)',
-        sub: 'A sixth of a turn',
-        title: 'Turn the building to face another side. Shift+Q turns it back.',
-        disabled: false,
-        active: false,
-      });
       if (def.research)
         actions.push({
           id: 'tree',
@@ -414,7 +409,7 @@ export function buildHud(world: World, input: Input | null): HudModel {
     }
     actions.push({
       id: 'stop',
-      label: 'Stop (S)',
+      label: 'Halt (H)',
       sub: 'Halt current task',
       title: 'Stop',
       disabled: false,

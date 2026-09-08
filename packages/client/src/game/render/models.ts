@@ -61,8 +61,21 @@ export class ModelLibrary {
   private plainMats = new Map<string, THREE.MeshLambertMaterial>();
   private geometries = new Map<string, { geometry: THREE.BufferGeometry; material: THREE.Material }>();
 
-  constructor(atlas?: HexAtlasSeason) {
+  /**
+   * `onMaterial` sees every material the library creates, once; the renderer uses it to add the fog of
+   * war to them (render/fow.ts).
+   */
+  constructor(
+    atlas?: HexAtlasSeason,
+    private onMaterial?: (m: THREE.Material) => void,
+  ) {
     this.atlas = atlas ? loadHexAtlas(atlas) : null;
+  }
+
+  private lambert(params: THREE.MeshLambertMaterialParameters): THREE.MeshLambertMaterial {
+    const m = new THREE.MeshLambertMaterial(params);
+    this.onMaterial?.(m);
+    return m;
   }
 
   /** The map a Lambert copy of `src` should use: the seasonal atlas if `src` is a Hexagon-pack material. */
@@ -125,14 +138,14 @@ export class ModelLibrary {
         const key = `${file}:${teamColor}`;
         m = this.teamMats.get(key);
         if (!m) {
-          m = new THREE.MeshLambertMaterial({ color: teamColor });
+          m = this.lambert({ color: teamColor });
           this.teamMats.set(key, m);
         }
       } else {
         const key = `${file}:${src.name}`;
         m = this.plainMats.get(key);
         if (!m) {
-          m = new THREE.MeshLambertMaterial({ color: src.color ?? 0xffffff, map: this.mapFor(src) });
+          m = this.lambert({ color: src.color ?? 0xffffff, map: this.mapFor(src) });
           this.plainMats.set(key, m);
         }
       }
@@ -168,7 +181,7 @@ export class ModelLibrary {
         const key = `${file}:${src.name}`;
         let m = this.plainMats.get(key);
         if (!m) {
-          m = new THREE.MeshLambertMaterial({ color: src.color ?? 0xffffff, map: this.mapFor(src) });
+          m = this.lambert({ color: src.color ?? 0xffffff, map: this.mapFor(src) });
           this.plainMats.set(key, m);
         }
         material = m;

@@ -8,7 +8,8 @@ import type { World } from './world';
 // owns what is drawn on it (like the renderer owns the 3D canvas).
 // ---------------------------------------------------------------------------
 
-const UNEXPLORED: [number, number, number] = [13, 18, 11];
+/** Same slate as the renderer's fog (scene.ts FOG_COLOR), so the minimap and the board agree on "unknown". */
+const UNEXPLORED: [number, number, number] = [28, 36, 40];
 let image: ImageData | null = null;
 let scratch: HTMLCanvasElement | null = null;
 
@@ -26,7 +27,7 @@ export function drawMinimap(
 ) {
   const st = world.state;
   if (!st) {
-    ctx.fillStyle = '#2f4d24';
+    ctx.fillStyle = '#1c2428';
     ctx.fillRect(0, 0, cw, ch);
     return;
   }

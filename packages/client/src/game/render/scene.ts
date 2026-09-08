@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { HEX_R, buildingMaxHp, hexCentre, idx, unitMaxHp, worldSize, worldToHex } from '@odal/engine';
+import { HEX_R, buildingMaxHp, hexCentre, hexNeighbours, idx, unitMaxHp, worldSize, worldToHex } from '@odal/engine';
 import type { Building, GameState, RallyPoint, ResourceNode, TechTree, Unit, Vec2 } from '@odal/engine';
+import { FOG_COLOR, FogLevel, FogOfWar } from './fow';
 import { ModelLibrary } from './models';
 import type { HexAtlasSeason } from './models';
 import { tileOf } from './shore';
@@ -21,8 +22,12 @@ const shadowed = (m: THREE.Object3D) => {
   m.castShadow = true;
   m.receiveShadow = true;
 };
-/** World units per elevation step (`state.elevation`). Two steps stay within a KayKit tile's 0.5 thickness. */
-const HEIGHT_STEP = 0.2;
+/** World units per elevation step (`state.elevation`). Land neighbours differ by one step, under TILE_WALL. */
+const HEIGHT_STEP = 0.4;
+/** Thickness of a KayKit ground tile: how much of a drop its own side covers before rock has to show. */
+const TILE_WALL = 0.5;
+/** Rock under tiles standing higher than a wall above a neighbour (cliffs at the sea): the atlas' stone. */
+const PLINTH_COLOR = 0x4a5155;
 
 export interface Pick {
   kind: 'unit' | 'building' | 'node';
@@ -115,7 +120,13 @@ export class Renderer {
   private tileSlot: Int32Array | null = null;
   private tileRot: Float32Array | null = null;
   private tileTop: Float32Array | null = null;
-  private fog: { mesh: THREE.Mesh; tex: THREE.DataTexture; data: Uint8Array } | null = null;
+  /** Per hex: instance slot in the plinth mesh (-1 none), and the plinth's bottom and height. */
+  private plinthSlot: Int32Array | null = null;
+  private plinthBase: Float32Array | null = null;
+  private plinthHeight: Float32Array | null = null;
+  private plinths: THREE.InstancedMesh | null = null;
+  /** Fog of war: every fogged material samples it at its world position (render/fow.ts). */
+  private fow = new FogOfWar();
   private raycaster = new THREE.Raycaster();
   private groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private materials = new Map<string, THREE.MeshLambertMaterial>();
@@ -135,18 +146,31 @@ export class Renderer {
     /** A unit-height hex prism, scaled to footprint and height (ghost, building plates). */
     hex: new THREE.CylinderGeometry(HEX_R, HEX_R, 1, 6),
   };
-  private ringMat = new THREE.MeshBasicMaterial({ color: 0x9cff9c, side: THREE.DoubleSide });
-  private ghostOk = new THREE.MeshBasicMaterial({ color: 0x66ff66, transparent: true, opacity: 0.45 });
-  private ghostBad = new THREE.MeshBasicMaterial({ color: 0xff5555, transparent: true, opacity: 0.45 });
+  // Markers use the atlas too (ui/theme.css has the same values): gold for selection, grass and red
+  // for the build ghost, slate behind the health bars.
+  // Not tone mapped: they are UI, and AgX would wash the gold to beige.
+  private ringMat = new THREE.MeshBasicMaterial({ color: 0xfbd365, side: THREE.DoubleSide, toneMapped: false });
+  private ghostOk = new THREE.MeshBasicMaterial({
+    color: 0xaacd61,
+    transparent: true,
+    opacity: 0.45,
+    toneMapped: false,
+  });
+  private ghostBad = new THREE.MeshBasicMaterial({
+    color: 0xd83f35,
+    transparent: true,
+    opacity: 0.45,
+    toneMapped: false,
+  });
   private flashMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-  private barBg = new THREE.MeshBasicMaterial({ color: 0x1a1a1a, depthTest: false });
-  private barGreen = new THREE.MeshBasicMaterial({ color: 0x6fd44a, depthTest: false });
-  private barYellow = new THREE.MeshBasicMaterial({ color: 0xe6c02e, depthTest: false });
-  private barRed = new THREE.MeshBasicMaterial({ color: 0xe04a2e, depthTest: false });
+  private barBg = new THREE.MeshBasicMaterial({ color: 0x1c2428, depthTest: false, toneMapped: false });
+  private barGreen = new THREE.MeshBasicMaterial({ color: 0x7cab48, depthTest: false, toneMapped: false });
+  private barYellow = new THREE.MeshBasicMaterial({ color: 0xfbd365, depthTest: false, toneMapped: false });
+  private barRed = new THREE.MeshBasicMaterial({ color: 0xd83f35, depthTest: false, toneMapped: false });
 
   constructor(canvas: HTMLCanvasElement, opts: { atlas?: HexAtlasSeason } = {}) {
     this.canvas = canvas;
-    this.models = new ModelLibrary(opts.atlas);
+    this.models = new ModelLibrary(opts.atlas, (m) => this.fow.apply(m));
     this.gl = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.gl.setPixelRatio(Math.min(2, window.devicePixelRatio));
     // AgX is Blender's default view transform: the KayKit atlas reads the same here as in Blender
@@ -154,7 +178,14 @@ export class Renderer {
     this.gl.toneMapping = THREE.AgXToneMapping;
     this.gl.shadowMap.enabled = true;
     this.gl.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.scene.background = new THREE.Color(0x060a06); // same as unexplored fog, so the map edge stays invisible
+    // Same as unexplored fog, so the map edge stays invisible (until a skybox takes over). FOG_COLOR is
+    // display bytes, so say so: three would otherwise take the components as linear and clear brighter.
+    this.scene.background = new THREE.Color().setRGB(
+      FOG_COLOR.r / 255,
+      FOG_COLOR.g / 255,
+      FOG_COLOR.b / 255,
+      THREE.SRGBColorSpace,
+    );
     this.camera = new THREE.PerspectiveCamera(50, 1, 0.5, 300);
 
     this.scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x3d5a2a, 0.9));
@@ -194,6 +225,7 @@ export class Renderer {
     for (const g of this.geometries.values()) g.dispose();
     for (const m of this.materials.values()) m.dispose();
     this.models.dispose();
+    this.fow.dispose();
   }
 
   /** Remove every game object (new game / restart). Map is rebuilt by setMap. */
@@ -226,7 +258,7 @@ export class Renderer {
     const size = worldSize(cols, rows);
     this.mapW = size.x;
     this.mapH = size.y;
-    if (this.fog) this.scene.remove(this.fog.mesh);
+    this.fow.setMap(cols, rows, size);
     this.shown = new Uint8Array(cols * rows);
     this.buildGround(state);
     const files = new Set<string>();
@@ -240,22 +272,6 @@ export class Renderer {
       });
     }
 
-    // Fog of war: a dark translucent sheet above everything, alpha from a cols×rows texture
-    // (one texel per hex; odd rows are half a hex off, which the linear filter blurs away).
-    const data = new Uint8Array(cols * rows * 4);
-    const tex = new THREE.DataTexture(data, cols, rows, THREE.RGBAFormat);
-    tex.colorSpace = THREE.SRGBColorSpace; // the bytes are display colours, same as the scene background
-    tex.magFilter = THREE.LinearFilter;
-    tex.minFilter = THREE.LinearFilter;
-    const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(size.x, size.y),
-      new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }),
-    );
-    mesh.rotation.x = -Math.PI / 2;
-    mesh.position.set(size.x / 2, 2.6, size.y / 2);
-    mesh.renderOrder = 10;
-    this.scene.add(mesh);
-    this.fog = { mesh, tex, data };
     this.camTarget = { x: size.x / 2, y: size.y / 2 };
   }
 
@@ -303,7 +319,7 @@ export class Renderer {
       const src = g.file ? this.models.geometryOf(g.file)! : null;
       const mesh = new THREE.InstancedMesh(
         src ? src.geometry : this.geo.tile,
-        src ? src.material : new THREE.MeshLambertMaterial({ color: 0xffffff }),
+        src ? src.material : this.material(0xffffff),
         g.hexes.length,
       );
       for (let k = 0; k < g.hexes.length; k++) {
@@ -324,6 +340,39 @@ export class Renderer {
       this.scene.add(mesh);
       this.ground.push({ mesh });
     }
+
+    // Plinths: a hex of rock from the lowest neighbour's top up to the underside of any tile whose own
+    // wall cannot cover the drop, so cliffs at the sea (and tall steps) do not float.
+    this.plinthSlot = new Int32Array(n).fill(-1);
+    this.plinthBase = new Float32Array(n);
+    this.plinthHeight = new Float32Array(n);
+    let count = 0;
+    for (let i = 0; i < n; i++) {
+      let lowest = this.tileTop[i];
+      for (const nb of hexNeighbours(i % cols, Math.floor(i / cols))) {
+        if (nb.x < 0 || nb.y < 0 || nb.x >= cols || nb.y >= rows) continue;
+        lowest = Math.min(lowest, this.tileTop[nb.y * cols + nb.x]);
+      }
+      const base = lowest - 0.05;
+      const top = this.tileTop[i] - TILE_WALL + 0.05;
+      if (top - base < 0.05) continue;
+      this.plinthSlot[i] = count++;
+      this.plinthBase[i] = base;
+      this.plinthHeight[i] = top - base;
+    }
+    this.plinths = null;
+    if (count) {
+      const mesh = new THREE.InstancedMesh(this.geo.hex, this.material(PLINTH_COLOR), count);
+      for (let k = 0; k < count; k++) mesh.setMatrixAt(k, hidden);
+      mesh.instanceMatrix.needsUpdate = true;
+      mesh.frustumCulled = false;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      this.scene.add(mesh);
+      this.ground.push({ mesh }); // shares the tiles' lifecycle and upload flagging
+      this.plinths = mesh;
+    }
+
     // Re-reveal what the player has already explored.
     if (this.shown) {
       for (let i = 0; i < n; i++) if (this.shown[i]) this.revealTile(i);
@@ -349,33 +398,31 @@ export class Renderer {
     const m = new THREE.Matrix4().makeRotationY(this.tileRot[i]);
     m.setPosition(c.x, this.tileTop[i] - (isPuck ? 0.06 : 0), c.y);
     part.mesh.setMatrixAt(this.tileSlot[i], m);
+    const slot = this.plinthSlot?.[i] ?? -1;
+    if (slot >= 0 && this.plinths && this.plinthBase && this.plinthHeight) {
+      const h = this.plinthHeight[i];
+      const p = new THREE.Matrix4().makeScale(0.99, h, 0.99);
+      p.setPosition(c.x, this.plinthBase[i] + h / 2, c.y);
+      this.plinths.setMatrixAt(slot, p);
+    }
   }
 
-  /** Fog sheet alpha per hex, and ground tiles revealed as hexes become explored. */
+  /**
+   * Fog of war from the player's vision (render/fow.ts), and ground tiles revealed as hexes become
+   * explored or join the fringe beyond. Called every snapshot; does nothing while no hex changed level.
+   */
   updateFog(vision: Uint8Array | null, explored: Uint8Array | null) {
-    if (!this.fog) return;
-    const { data, tex } = this.fog;
-    const w = this.cols;
-    const h = this.rows;
+    if (!this.fow.update(vision, explored) || !this.shown) return;
+    const { level } = this.fow;
     let revealed = false;
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        const i = y * w + x;
-        const o = ((h - 1 - y) * w + x) * 4; // texture rows run bottom-up
-        const alpha = !vision || !explored ? 255 : vision[i] ? 0 : explored[i] ? 120 : 255;
-        data[o] = 6;
-        data[o + 1] = 10;
-        data[o + 2] = 6;
-        data[o + 3] = alpha;
-        if (explored && explored[i] && this.shown && !this.shown[i]) {
-          this.revealTile(i);
-          this.shown[i] = 1;
-          revealed = true;
-        }
+    for (let i = 0; i < level.length; i++) {
+      if (level[i] <= FogLevel.Fringe && !this.shown[i]) {
+        this.revealTile(i);
+        this.shown[i] = 1;
+        revealed = true;
       }
     }
     if (revealed) for (const part of this.ground) part.mesh.instanceMatrix.needsUpdate = true;
-    tex.needsUpdate = true;
   }
 
   // -------------------------------------------------------------------------
@@ -387,6 +434,7 @@ export class Renderer {
     let m = this.materials.get(key);
     if (!m) {
       m = new THREE.MeshLambertMaterial({ color });
+      this.fow.apply(m);
       this.materials.set(key, m);
     }
     return m;
@@ -650,10 +698,9 @@ export class Renderer {
         // Owner-coloured hex plate only where nothing else shows the owner: primitives and remembered
         // enemy ghosts. Pack models carry their team colour and the plate just cluttered the board.
         if (!model || isGhost) {
-          const plate = new THREE.Mesh(
-            this.geo.hex,
-            new THREE.MeshBasicMaterial({ color, transparent: true, opacity: isGhost ? 0.25 : 0.55 }),
-          );
+          const plateMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: isGhost ? 0.25 : 0.55 });
+          this.fow.apply(plateMat);
+          const plate = new THREE.Mesh(this.geo.hex, plateMat);
           plate.scale.set(width * 1.08, 0.02, width * 1.08);
           plate.position.set(0, 0.015, 0);
           group.add(plate);
@@ -666,6 +713,7 @@ export class Renderer {
           transparent: isGhost,
           opacity: isGhost ? 0.4 : 1,
         });
+        this.fow.apply(mat);
         const geometry =
           shape === 'cone'
             ? new THREE.ConeGeometry(width * 0.4, height, 8)
@@ -778,7 +826,7 @@ export class Renderer {
       const g = new THREE.Group();
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.3, 6), this.material(0xdddddd));
       pole.position.y = 0.65;
-      const flag = new THREE.Mesh(this.box(0.45, 0.28, 0.04), this.material(0x9cff9c));
+      const flag = new THREE.Mesh(this.box(0.45, 0.28, 0.04), this.material(0xfbd365));
       flag.position.set(0.24, 1.14, 0);
       g.add(pole, flag);
       this.scene.add(g);

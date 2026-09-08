@@ -1,4 +1,4 @@
-/* Tech tree editor (editor.html) */
+/* Tech tree editor (editor.html). Colours from ui/theme.css (imported by ui/styles.css). */
 html,
 body,
 #root {
@@ -14,9 +14,9 @@ body,
     'toolbar toolbar toolbar'
     'list graph inspector'
     'problems problems problems';
-  background: #101810;
-  color: #eee;
-  font-size: 13px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
 }
 .editor-empty {
   position: fixed;
@@ -26,7 +26,7 @@ body,
   align-items: center;
   justify-content: center;
   gap: 10px;
-  color: #c9b58a;
+  color: var(--muted);
 }
 .editor-toolbar {
   grid-area: toolbar;
@@ -34,30 +34,34 @@ body,
   align-items: center;
   gap: 12px;
   padding: 0 14px;
-  background: rgba(20, 16, 10, 0.95);
-  border-bottom: 2px solid #6b4f2a;
+  background: var(--panel-solid);
+  border-bottom: 3px solid var(--panel-edge);
 }
 .editor-toolbar h1 {
   margin: 0;
-  font-size: 15px;
+  font-size: 19px;
 }
 .editor-toolbar .spacer {
   flex: 1;
 }
 .ok {
-  color: #7cb342;
+  color: var(--ok-text);
 }
 button.small.primary {
-  background: #3b2b16;
-  color: #f1e6cf;
+  background: var(--btn-wood);
+  border-color: var(--btn-wood-edge);
+  color: var(--linen-100);
+}
+button.small.primary:hover {
+  background: var(--btn-wood-hover);
 }
 button.small.primary.dirty {
-  border-color: #ffb74d;
-  color: #ffb74d;
+  border-color: var(--accent);
+  color: var(--accent);
 }
 button.small.danger {
-  border-color: #e05050;
-  color: #ff8a80;
+  border-color: var(--bad);
+  color: var(--bad-text);
 }
 button.small:disabled {
   opacity: 0.45;
@@ -65,9 +69,9 @@ button.small:disabled {
 }
 button.icon {
   background: transparent;
-  border: 1px solid #6b4f2a;
-  color: #c9b58a;
-  border-radius: 4px;
+  border: 1px solid var(--btn-stone-edge);
+  color: var(--muted);
+  border-radius: var(--radius);
   width: 22px;
   height: 22px;
   line-height: 1;
@@ -75,16 +79,16 @@ button.icon {
   padding: 0;
 }
 button.icon:hover {
-  color: #f1e6cf;
-  background: #3b2b16;
+  color: var(--text-strong);
+  background: var(--btn-stone-hover);
 }
 
 /* Left: entity list */
 .editor-list {
   grid-area: list;
   overflow: auto;
-  border-right: 1px solid #4a3620;
-  background: #14100b;
+  border-right: 1px solid var(--line);
+  background: var(--slate-900);
   padding: 8px 0;
 }
 .editor-list section h3 {
@@ -92,10 +96,12 @@ button.icon:hover {
   justify-content: space-between;
   align-items: center;
   margin: 10px 12px 4px;
+  font-family: var(--font-body);
   font-size: 11px;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #a89a80;
+  color: var(--faint);
 }
 .list-row {
   display: flex;
@@ -107,14 +113,14 @@ button.icon:hover {
   background: transparent;
   border: none;
   border-left: 3px solid transparent;
-  color: #f1e6cf;
+  color: var(--text);
   text-align: left;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 14px;
 }
 .list-row small {
-  color: #a89a80;
-  font-size: 11px;
+  color: var(--faint);
+  font-size: 12px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -123,12 +129,12 @@ button.icon:hover {
   background: rgba(255, 255, 255, 0.05);
 }
 .list-row.is-selected {
-  background: #2a2016;
-  border-left-color: #ffb74d;
+  background: var(--slate-800);
+  border-left-color: var(--accent);
 }
 .list-row.rules {
   margin: 0 0 4px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 /* Middle: graph */
@@ -141,11 +147,11 @@ button.icon:hover {
   position: absolute;
   left: 12px;
   bottom: 10px;
-  font-size: 11px;
-  color: #a89a80;
-  background: rgba(16, 12, 8, 0.8);
+  font-size: 12px;
+  color: var(--muted);
+  background: rgba(19, 25, 27, 0.8);
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius);
   pointer-events: none;
 }
 .graph-stale {
@@ -153,11 +159,11 @@ button.icon:hover {
   top: 10px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(120, 20, 20, 0.9);
-  border: 1px solid #e05050;
+  background: rgba(166, 28, 54, 0.92);
+  border: 1px solid var(--red-300);
   padding: 6px 12px;
-  border-radius: 4px;
-  font-size: 12px;
+  border-radius: var(--radius);
+  font-size: 13px;
 }
 .pending-edge {
   position: absolute;
@@ -167,8 +173,8 @@ button.icon:hover {
   display: flex;
   gap: 8px;
   align-items: center;
-  background: rgba(20, 16, 10, 0.96);
-  border: 1px solid #ffb74d;
+  background: var(--panel-deep);
+  border: 1px solid var(--accent);
   padding: 8px 12px;
   border-radius: 6px;
 }
@@ -177,8 +183,8 @@ button.icon:hover {
 .editor-inspector {
   grid-area: inspector;
   overflow: auto;
-  border-left: 1px solid #4a3620;
-  background: #14100b;
+  border-left: 1px solid var(--line);
+  background: var(--slate-900);
   padding: 10px 14px 20px;
 }
 .inspector-head {
@@ -190,7 +196,7 @@ button.icon:hover {
 }
 .inspector-head h2 {
   margin: 0;
-  font-size: 16px;
+  font-size: 20px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -203,14 +209,14 @@ button.icon:hover {
 .inspector-facts {
   margin: 6px 0 12px;
   padding: 8px 10px;
-  border: 1px solid #4a3620;
-  border-radius: 4px;
-  background: #1a140e;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--slate-800);
 }
 .inspector-facts summary {
   cursor: pointer;
-  color: #c9b58a;
-  font-size: 12px;
+  color: var(--muted);
+  font-size: 13px;
   margin-bottom: 6px;
 }
 
@@ -225,14 +231,14 @@ button.icon:hover {
   grid-template-columns: 1fr;
 }
 .schema-form .field > label {
-  color: #c9b58a;
-  font-size: 12px;
+  color: var(--muted);
+  font-size: 13px;
   line-height: 1.2;
 }
 .schema-form .field > label small {
   display: block;
-  color: #7a6e5a;
-  font-size: 10px;
+  color: var(--faint);
+  font-size: 11px;
 }
 .schema-form input:not([type='checkbox']):not([type='color']),
 .schema-form select,
@@ -240,17 +246,17 @@ button.icon:hover {
   width: 100%;
   padding: 4px 6px;
   font: inherit;
-  font-size: 13px;
-  background: #0f0c08;
-  color: #eee;
-  border: 1px solid #4a3620;
+  font-size: 14px;
+  background: var(--slate-900);
+  color: var(--text-strong);
+  border: 1px solid var(--slate-500);
   border-radius: 3px;
 }
 .schema-form input.invalid {
-  border-color: #e05050;
+  border-color: var(--bad);
 }
 .schema-form input[readonly] {
-  color: #a89a80;
+  color: var(--muted);
 }
 .schema-form textarea {
   resize: vertical;
@@ -259,7 +265,7 @@ button.icon:hover {
   width: 32px;
   height: 26px;
   padding: 0;
-  border: 1px solid #4a3620;
+  border: 1px solid var(--slate-500);
   background: transparent;
 }
 .color-field,
@@ -285,8 +291,8 @@ button.icon:hover {
 }
 .record-field label span {
   display: block;
-  font-size: 11px;
-  color: #a89a80;
+  font-size: 12px;
+  color: var(--faint);
 }
 .chips {
   display: flex;
@@ -302,18 +308,18 @@ button.icon:hover {
   align-items: center;
   gap: 4px;
   padding: 2px 4px 2px 8px;
-  border: 1px solid #6b4f2a;
+  border: 1px solid var(--panel-edge);
   border-radius: 12px;
-  background: #2a2016;
+  background: var(--slate-800);
 }
 .chip.bad {
-  border-color: #e05050;
-  color: #ff8a80;
+  border-color: var(--bad);
+  color: var(--bad-text);
 }
 .chip button {
   background: transparent;
   border: none;
-  color: #a89a80;
+  color: var(--muted);
   cursor: pointer;
   font-size: 14px;
   line-height: 1;
@@ -330,8 +336,8 @@ button.icon:hover {
   gap: 6px;
   align-items: start;
   padding: 6px;
-  border: 1px solid #3a2c1c;
-  border-radius: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
 }
 .union-field {
   display: flex;
@@ -342,14 +348,14 @@ button.icon:hover {
   margin-bottom: 4px;
 }
 .object-field {
-  border: 1px solid #3a2c1c;
-  border-radius: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
   padding: 6px 8px 2px;
   margin: 0 0 8px;
 }
 .object-field legend {
-  color: #c9b58a;
-  font-size: 12px;
+  color: var(--muted);
+  font-size: 13px;
   padding: 0 4px;
   display: flex;
   gap: 10px;
@@ -359,8 +365,8 @@ button.icon:hover {
   display: inline-flex;
   gap: 4px;
   align-items: center;
-  font-size: 11px;
-  color: #a89a80;
+  font-size: 12px;
+  color: var(--faint);
 }
 
 /* Bottom: problems */
@@ -368,25 +374,25 @@ button.icon:hover {
   grid-area: problems;
   max-height: 140px;
   overflow: auto;
-  border-top: 2px solid #6b4f2a;
-  background: rgba(60, 16, 16, 0.5);
+  border-top: 3px solid var(--panel-edge);
+  background: rgba(166, 28, 54, 0.25);
   padding: 6px 12px;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 .editor-problems.ok {
-  background: rgba(20, 40, 16, 0.5);
+  background: rgba(78, 137, 48, 0.2);
 }
 .problem {
   background: transparent;
   border: none;
-  color: #ff8a80;
+  color: var(--bad-text);
   text-align: left;
   cursor: pointer;
   padding: 2px 4px;
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
 }
 .problem:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.06);

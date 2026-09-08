@@ -543,7 +543,8 @@ export class Input {
       else this.select([], null);
       return;
     }
-    if (k === 's') {
+    if (k === 'h') {
+      // Halt. S used to be Stop; it now pans (see update()).
       this.stop();
       return;
     }
@@ -571,11 +572,11 @@ export class Input {
     const speed = 22 * r.zoom * dt;
     let dx = 0;
     let dy = 0;
-    // Arrow keys pan; W/D/X too ('S' is Stop, 'A' is attack-move).
-    if (this.keys.has('w') || this.keys.has('arrowup')) dy -= speed;
+    // Arrow keys pan, and the S / Z X C cluster (WASD's shape shifted down a row, since A is attack-move).
+    if (this.keys.has('s') || this.keys.has('arrowup')) dy -= speed;
     if (this.keys.has('x') || this.keys.has('arrowdown')) dy += speed;
-    if (this.keys.has('arrowleft')) dx -= speed;
-    if (this.keys.has('d') || this.keys.has('arrowright')) dx += speed;
+    if (this.keys.has('z') || this.keys.has('arrowleft')) dx -= speed;
+    if (this.keys.has('c') || this.keys.has('arrowright')) dx += speed;
     if (dx || dy) {
       r.camTarget = {
         x: Math.max(0, Math.min(r.mapW, r.camTarget.x + dx)),

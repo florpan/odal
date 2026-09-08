@@ -93,10 +93,18 @@ export class World {
     if (this.selectedNode !== null && !st.nodes[this.selectedNode]) this.selectedNode = null;
   }
 
+  /**
+   * Dev knob (`?fog=0`): see the whole map as if explored and in view. Only what the server already
+   * sends becomes visible (terrain, resources, remembered buildings); other players' units stay
+   * filtered by the server.
+   */
+  noFog = false;
+
   private refreshVision() {
     const st = this.state;
     if (!st) return;
     this.vision = computeVision(st, this.playerId, this.vision ?? undefined);
+    if (this.noFog) this.vision.fill(1);
     if (!this.explored || this.explored.length !== this.vision.length)
       this.explored = new Uint8Array(this.vision.length);
     for (let i = 0; i < this.vision.length; i++) if (this.vision[i]) this.explored[i] = 1;
