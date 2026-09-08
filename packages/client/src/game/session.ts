@@ -232,7 +232,7 @@ export class GameSession {
   }
 
   minimapClick(x01: number, y01: number, button: number) {
-    const p = minimapToWorld(this.world, x01, y01);
+    const p = minimapToWorld(this.world, this.renderer, x01, y01);
     if (!p) return;
     if (button === 2) {
       const ids = this.world.selectedUnits;

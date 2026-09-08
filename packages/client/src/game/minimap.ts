@@ -1,15 +1,27 @@
 import { hexCentre, worldSize } from '@odal/engine';
-import type { Vec2 } from '@odal/engine';
+import type { Building, Vec2 } from '@odal/engine';
 import type { Renderer } from './render/scene';
 import type { World } from './world';
 
 // ---------------------------------------------------------------------------
-// Minimap drawing. The React Minimap component owns the <canvas>; this module
-// owns what is drawn on it (like the renderer owns the 3D canvas).
+// The minimap is a radar: a fixed-scale window centred on the camera, not a
+// chart of the world. Unexplored ground and the void beyond the map are the
+// same slate, so the window never tells you where on the map you are; you
+// learn that by scouting (or, later, by researching Cartography). A flag marks
+// your town hall and sits on the rim pointing home when home is out of view.
+// The React Minimap component owns the <canvas>; this module owns what is
+// drawn on it. Everything goes through `toCanvas`, so a camera yaw can turn
+// the radar later by changing that one function.
 // ---------------------------------------------------------------------------
 
-/** Same slate as the renderer's fog (scene.ts FOG_COLOR), so the minimap and the board agree on "unknown". */
+/** World units across the canvas. Fixed on purpose: the radar does not follow the camera zoom. */
+export const RADAR_SPAN = 44;
+/** Same slate as the renderer's fog (render/fow.ts FOG_COLOR). */
 const UNEXPLORED: [number, number, number] = [28, 36, 40];
+const SLATE = '#1c2428';
+/** How close to the edge the home flag may sit before it is clamped to the rim. */
+const RIM = 8;
+
 let image: ImageData | null = null;
 let scratch: HTMLCanvasElement | null = null;
 
@@ -25,12 +37,14 @@ export function drawMinimap(
   world: World,
   renderer: Renderer | null,
 ) {
+  ctx.fillStyle = SLATE;
+  ctx.fillRect(0, 0, cw, ch);
   const st = world.state;
-  if (!st) {
-    ctx.fillStyle = '#1c2428';
-    ctx.fillRect(0, 0, cw, ch);
-    return;
-  }
+  if (!st || !renderer) return;
+  const cam = renderer.camTarget;
+  const scale = cw / RADAR_SPAN; // canvas px per world unit
+  const toCanvas = (wx: number, wy: number) => ({ x: cw / 2 + (wx - cam.x) * scale, y: ch / 2 + (wy - cam.y) * scale });
+
   const w = st.width;
   const h = st.height;
   if (!image || image.width !== w || image.height !== h) {
@@ -45,8 +59,7 @@ export function drawMinimap(
   for (const n of st.tree.nodes) nodeColors[n.id] = hexToRgb(n.visual.color);
   const terrainColors = st.tree.terrain.map((t) => hexToRgb(t.visual.color));
 
-  // Terrain where explored, nothing where not: the island's shape is something to discover.
-  // Higher ground is drawn a little lighter.
+  // Terrain where explored, slate where not. Higher ground is drawn a little lighter.
   for (let i = 0; i < w * h; i++) {
     const o = i * 4;
     const col = explored && !explored[i] ? UNEXPLORED : terrainColors[st.terrain[i]];
@@ -76,40 +89,102 @@ export function drawMinimap(
     }
   }
   scratch!.getContext('2d')!.putImageData(image, 0, 0);
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(scratch!, 0, 0, cw, ch);
-
+  // One texel per hex, stretched over the map's world rectangle (odd rows' half-hex offset is ignored).
   const size = worldSize(w, h);
-  const sx = cw / size.x;
-  const sy = ch / size.y;
+  const origin = toCanvas(0, 0);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(scratch!, origin.x, origin.y, size.x * scale, size.y * scale);
+
   const buildings = world.renderBuildings();
   for (const id in buildings) {
     const b = buildings[id];
     const c = hexCentre(b.x, b.y);
-    const half = (b.r + 0.5) * sx + 1;
+    const p = toCanvas(c.x, c.y);
+    const half = (b.r + 0.5) * scale + 1;
     ctx.fillStyle = st.players[b.owner]?.color ?? '#fff';
     ctx.globalAlpha = st.buildings[id] ? 1 : 0.5;
-    ctx.fillRect(c.x * sx - half, c.y * sy - half, half * 2, half * 2);
+    ctx.fillRect(p.x - half, p.y - half, half * 2, half * 2);
   }
   ctx.globalAlpha = 1;
   for (const id in st.units) {
     const u = st.units[id];
+    const p = toCanvas(u.x, u.y);
     ctx.fillStyle = st.players[u.owner]?.color ?? '#fff';
-    ctx.fillRect(u.x * sx - 1, u.y * sy - 1, 3, 3);
+    ctx.fillRect(p.x - 1, p.y - 1, 3, 3);
   }
-  if (renderer) {
-    const vw = 30 * renderer.zoom;
-    const vh = 18 * renderer.zoom;
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 1;
-    ctx.strokeRect((renderer.camTarget.x - vw / 2) * sx, (renderer.camTarget.y - vh / 2) * sy, vw * sx, vh * sy);
+
+  // Home: a flag on the town hall, or on the rim in its direction when it is out of the window.
+  const home = homeOf(world);
+  if (home) {
+    const c = hexCentre(home.x, home.y);
+    let p = toCanvas(c.x, c.y);
+    const dx = p.x - cw / 2;
+    const dy = p.y - ch / 2;
+    const k = Math.max(Math.abs(dx) / (cw / 2 - RIM), Math.abs(dy) / (ch / 2 - RIM));
+    const clamped = k > 1;
+    if (clamped) p = { x: cw / 2 + dx / k, y: ch / 2 + dy / k };
+    drawFlag(ctx, p, st.players[home.owner]?.color ?? '#fff', clamped ? Math.atan2(dy, dx) : null);
+  }
+
+  // The camera's view: always in the middle, its size is the zoom.
+  const vw = 30 * renderer.zoom * scale;
+  const vh = 18 * renderer.zoom * scale;
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(cw / 2 - vw / 2, ch / 2 - vh / 2, vw, vh);
+}
+
+/** The player's own starting building, if it still stands. */
+function homeOf(world: World): Building | null {
+  const st = world.state;
+  if (!st) return null;
+  for (const id in st.buildings) {
+    const b = st.buildings[id];
+    if (b.owner === world.playerId && b.type === st.tree.start.building) return b;
+  }
+  return null;
+}
+
+/** A small pennant on a pole; with `pointing` (radians), a chevron in that direction beside it. */
+function drawFlag(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, color: string, pointing: number | null) {
+  ctx.strokeStyle = SLATE;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(p.x + 0.5, p.y + 1);
+  ctx.lineTo(p.x + 0.5, p.y - 12);
+  ctx.stroke();
+  ctx.strokeStyle = '#fefcfa';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.strokeStyle = SLATE;
+  ctx.beginPath();
+  ctx.moveTo(p.x + 1, p.y - 12);
+  ctx.lineTo(p.x + 10, p.y - 9);
+  ctx.lineTo(p.x + 1, p.y - 5);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.fill();
+  if (pointing !== null) {
+    const ax = Math.cos(pointing);
+    const ay = Math.sin(pointing);
+    ctx.strokeStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(p.x + ax * 4 - ay * 3, p.y + ay * 4 + ax * 3);
+    ctx.lineTo(p.x + ax * 7, p.y + ay * 7);
+    ctx.lineTo(p.x + ax * 4 + ay * 3, p.y + ay * 4 - ax * 3);
+    ctx.stroke();
   }
 }
 
-/** Map a 0..1 minimap position to world coordinates. */
-export function minimapToWorld(world: World, x01: number, y01: number): Vec2 | null {
+/** Map a 0..1 minimap position to world coordinates (the window is centred on the camera). */
+export function minimapToWorld(world: World, renderer: Renderer | null, x01: number, y01: number): Vec2 | null {
   const st = world.state;
-  if (!st) return null;
+  if (!st || !renderer) return null;
   const size = worldSize(st.width, st.height);
-  return { x: x01 * size.x, y: y01 * size.y };
+  const cam = renderer.camTarget;
+  return {
+    x: Math.max(0, Math.min(size.x, cam.x + (x01 - 0.5) * RADAR_SPAN)),
+    y: Math.max(0, Math.min(size.y, cam.y + (y01 - 0.5) * RADAR_SPAN)),
+  };
 }

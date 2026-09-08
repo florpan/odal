@@ -145,7 +145,8 @@ client/src/
                         attack-move, control groups, Tab toggles the tech tree overlay
     viewmodel.ts        buildHud(): resolves rules into plain data + action ids for the UI, plus the
                         TreeView (tree + per-item status) for the tech tree screen
-    minimap.ts          Draws the minimap into a 2D context
+    minimap.ts          Draws the minimap into a 2D context: a radar, a fixed-scale window centred on the camera,
+                        with a flag for home that sits on the rim when home is out of view
     render/scene.ts     Three.js scene. Everything in world coordinates. Looks come from tree `visual`s.
     render/fow.ts       Fog of war: a map-sized alpha texture (4 texels per unit, hex-mapped, CPU-blurred) that every
                         fogged material samples at its world x/z (onBeforeCompile), mixing towards the slate fog colour.

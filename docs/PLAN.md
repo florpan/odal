@@ -313,10 +313,11 @@ chart of the whole world, so the fog's frame tells you which corner you are in.
       node type. `zone: 'centre'` became `zone: 'contested'`: the land farthest from every start (top quarter of
       that distance, outside every home zone), successive spots kept apart, so contested gold lies between the
       players wherever they are; with two players that may well be the coast.
-- [ ] **Radar minimap.** A fixed-scale window centred on the camera, not a chart of the world; unexplored and
-      beyond-the-map are the same slate. The camera square stays as a zoom indicator (it rotates with the map,
-      so it reveals nothing else). A flag marks the town hall; when it is outside the window the flag sits at
-      the rim pointing home. Same for attack alerts later. Minimap zoom stays fixed and small.
+- [x] **Radar minimap** (2026-09-09). A fixed-scale window (`RADAR_SPAN` 44 hexes across) centred on the
+      camera, not a chart of the world; unexplored and beyond-the-map are the same slate. The camera square
+      stays as a zoom indicator (it will rotate with the map, so it reveals nothing else). A flag marks the town
+      hall; when it is outside the window the flag sits on the rim with a chevron pointing home. Attack alerts
+      on the rim later. Everything is drawn through one world-to-canvas function, ready for a camera yaw.
 - [ ] **The map as research.** Cartography (late tier) reveals the whole map's terrain; Geography reveals
       resource nodes. Needs a `reveal` effect and a split of "explored" into terrain-known and nodes-known on
       the server (`vision.ts`, `visibility.ts`) since one bit currently shows both. An Intel tech that reveals
