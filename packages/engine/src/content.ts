@@ -94,6 +94,20 @@ export interface ProducibleDef extends EntityDef {
   requires: Requirement[];
 }
 
+/**
+ * A ranged attack's visible flight. The hit is decided when the shot is fired (the engine never
+ * misses and the target cannot dodge); the shot flies `distance / speed` seconds, homing, and only
+ * deals its damage when it lands. Melee attacks have no projectile and hit at once.
+ * `arc`: peak height of the flight above the straight line, as a fraction of the distance (0 = flat).
+ * `visual.size`: length of a bolt or diameter of a ball in world units; a `model` (GLB under /models/,
+ * any orientation, centred on its origin) is scaled so its long axis is `size` long.
+ */
+export interface ProjectileDef {
+  speed: number;
+  arc: number;
+  visual: { shape: 'bolt' | 'ball'; color: string; size: number; model?: string };
+}
+
 export interface UnitDef extends ProducibleDef {
   hp: number;
   speed: number;
@@ -106,6 +120,8 @@ export interface UnitDef extends ProducibleDef {
   /** Resources consumed every `rules.upkeepInterval` seconds while the unit lives. */
   upkeep: Cost;
   abilities: Ability[];
+  /** Present: attacks are shots that fly to the target (archers). Absent: melee, damage lands at once. */
+  projectile?: ProjectileDef;
   /** `model`: a GLB under the client's /models/ (see tools/models); the primitives are the fallback. */
   visual: { width: number; height: number; helmet: boolean; model?: string };
 }
@@ -134,8 +150,8 @@ export interface BuildingDef extends ProducibleDef {
   /** At most this many per player, counting ones under construction (a single shrine). */
   limit?: number;
   produces?: { resource: string; amount: number; interval: number };
-  /** Shoots enemies within `range` tiles once complete (towers). */
-  attack?: { damage: number; range: number; attackTime: number };
+  /** Shoots enemies within `range` tiles once complete (towers); with a `projectile` the shot flies there. */
+  attack?: { damage: number; range: number; attackTime: number; projectile?: ProjectileDef };
   /** The owner's units walk through it; everyone else is blocked (gates). */
   passable: boolean;
   vision: number;

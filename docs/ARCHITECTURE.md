@@ -36,6 +36,7 @@ The engine never names a specific unit, building, tech or resource. It reads:
 - what a unit can do (`abilities`: harvest, build, attack) and its stats
 - what a building trains, upgrades into, produces, unlocks (`requires`), whether it's a drop-off, whether it
   shoots (`attack`), whether its owner walks through it (`passable`), its footprint
+- whether a hit flies as a `projectile` (units and building attacks) and what that looks like
 - what a tech does through generic **effects** (`gatherRate`, `produceRate`, `damage`, `maxHp`, `speed`,
   `buildingHp`, `buildSpeed`, `reveal`) with optional filters
 - requirements: a researched tech, an owned building, or a minimum population
@@ -83,10 +84,14 @@ in `content/schema/` (generated from the zod schemas by `bun run schema:gen`, us
 4. `separateUnits` – push idle/walking units apart (`systems/separation.ts`).
 5. `stepBuildings` – production timers and train/upgrade queues (`systems/production.ts`), rally points;
    then buildings with an `attack` block shoot the nearest enemy in range (`systems/towers.ts`).
-6. `stepResearch` – each player's community-wide research queue, one tech at a time (`systems/research.ts`).
-7. `stepUpkeep` – every `rules.upkeepInterval` seconds, players pay their units' `upkeep` (`systems/upkeep.ts`).
-8. Remove dead units and buildings, emit messages.
-9. `tick++`. Return `TickEvents` (changed/removed nodes, messages) for the server to forward.
+6. `stepShots` – ranged hits in flight (`systems/projectiles.ts`). Combat and towers `fire()` a `Shot` when
+   the attacker has a `projectile`: the hit is decided then (it never misses, the target cannot dodge), the
+   shot homes for `distance / speed` seconds and only then deals its damage; a shot whose target is gone
+   vanishes. Melee damage lands at once. `state.shots` is what the client animates.
+7. `stepResearch` – each player's community-wide research queue, one tech at a time (`systems/research.ts`).
+8. `stepUpkeep` – every `rules.upkeepInterval` seconds, players pay their units' `upkeep` (`systems/upkeep.ts`).
+9. Remove dead units and buildings, emit messages.
+10. `tick++`. Return `TickEvents` (changed/removed nodes, messages) for the server to forward.
 
 Commands (`commands.ts`) check `requires` on units, buildings and techs through `queries.ts`
 (`unitUnlocked`, `buildingUnlocked`, `techUnlocked`); a requirement is a researched tech, an owned
@@ -124,8 +129,9 @@ add a row to the table above, add a test in `game.test.ts`.
 | `conn.ts`       | Per-connection data type and `send`.                                                                                                                                       |
 
 The server is authoritative. It runs `stepGame` at `rules.tickRate`, applies queued commands, and sends each
-member a personal snapshot: full lists of visible units/buildings/players plus node deltas. There is no
-client-side prediction; the client interpolates positions between snapshots.
+member a personal snapshot: full lists of visible units/buildings/shots/players plus node deltas. There is no
+client-side prediction; the client interpolates positions between snapshots (and advances shots along
+their flight by the frame clock).
 
 ## 5. The client
 

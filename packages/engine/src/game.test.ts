@@ -602,6 +602,48 @@ describe('engine with the default tech tree', () => {
     expect(built.hp).toBeGreaterThan(house.hp);
   });
 
+  test('a ranged unit fires a shot that lands its damage later, homing on a target that moved', () => {
+    const archerDef = DEFAULT_TREE.units.find((u) => u.projectile)!;
+    const state = createGame(DEFAULT_TREE, 7);
+    const a = addPlayer(state, 'Alice', emptyEvents());
+    const b = addPlayer(state, 'Bob', emptyEvents());
+    const victim = Object.values(state.units).find((u) => u.owner === b.id)!;
+    for (const n of Object.values(state.nodes)) if (hexDistance(n, worldToHex(victim)) < 8) delete state.nodes[n.id];
+    const archer = makeUnit(state, a.id, archerDef.id, victim.x + archerDef.range - 0.5, victim.y);
+    const hp = victim.hp;
+    run(state, 1, [
+      { playerId: a.id, cmd: { type: 'attack', unitIds: [archer.id], targetId: victim.id, targetKind: 'unit' } },
+    ]);
+    // Fired: the hit is decided (a shot exists) but nothing has landed yet.
+    const shots = Object.values(state.shots);
+    expect(shots.length).toBe(1);
+    expect(shots[0].targetId).toBe(victim.id);
+    expect(shots[0].damage).toBe(archerDef.damage);
+    expect(victim.hp).toBe(hp);
+    // The target walks away and the archer is removed; the arrow still lands on the mover.
+    delete state.units[archer.id];
+    victim.x += 1;
+    run(state, Math.ceil(shots[0].duration / DT) + 1);
+    expect(victim.hp).toBe(hp - archerDef.damage);
+    expect(Object.keys(state.shots).length).toBe(0);
+  });
+
+  test('a shot whose target died in flight just vanishes', () => {
+    const archerDef = DEFAULT_TREE.units.find((u) => u.projectile)!;
+    const state = createGame(DEFAULT_TREE, 7);
+    const a = addPlayer(state, 'Alice', emptyEvents());
+    const b = addPlayer(state, 'Bob', emptyEvents());
+    const victim = Object.values(state.units).find((u) => u.owner === b.id)!;
+    const archer = makeUnit(state, a.id, archerDef.id, victim.x + 1, victim.y);
+    run(state, 1, [
+      { playerId: a.id, cmd: { type: 'attack', unitIds: [archer.id], targetId: victim.id, targetKind: 'unit' } },
+    ]);
+    expect(Object.keys(state.shots).length).toBe(1);
+    delete state.units[victim.id];
+    run(state, 20);
+    expect(Object.keys(state.shots).length).toBe(0);
+  });
+
   test('a reveal effect is known once its tech is researched, and describes itself', () => {
     const tech = DEFAULT_TREE.techs.find((t) => t.effects.some((e) => e.type === 'reveal'))!;
     const what = (tech.effects.find((e) => e.type === 'reveal') as { what: 'terrain' | 'nodes' }).what;

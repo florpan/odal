@@ -389,7 +389,12 @@
     "attack": {
       "damage": 6,
       "range": 6,
-      "attackTime": 1.5
+      "attackTime": 1.5,
+      "projectile": {
+        "speed": 7,
+        "arc": 0.1,
+        "visual": { "shape": "bolt", "color": "#c9a86a", "size": 0.3, "model": "arrow.glb" }
+      }
     },
     "upgrades": ["tower_b"],
     "requires": [
@@ -421,7 +426,12 @@
     "attack": {
       "damage": 9,
       "range": 7,
-      "attackTime": 1.5
+      "attackTime": 1.5,
+      "projectile": {
+        "speed": 7,
+        "arc": 0.1,
+        "visual": { "shape": "bolt", "color": "#c9a86a", "size": 0.3, "model": "arrow.glb" }
+      }
     },
     "upgrades": ["tower_catapult"],
     "requires": [
@@ -452,7 +462,12 @@
     "attack": {
       "damage": 20,
       "range": 8,
-      "attackTime": 3
+      "attackTime": 3,
+      "projectile": {
+        "speed": 6,
+        "arc": 0.18,
+        "visual": { "shape": "bolt", "color": "#7a5a3a", "size": 0.6, "model": "arrow.glb" }
+      }
     },
     "upgrades": ["tower_cannon"],
     "requires": [
@@ -484,7 +499,12 @@
     "attack": {
       "damage": 35,
       "range": 9,
-      "attackTime": 3.5
+      "attackTime": 3.5,
+      "projectile": {
+        "speed": 9,
+        "arc": 0.06,
+        "visual": { "shape": "ball", "color": "#2b2b2b", "size": 0.16 }
+      }
     },
     "requires": [
       {

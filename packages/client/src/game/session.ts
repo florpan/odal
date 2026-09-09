@@ -154,6 +154,7 @@ export class GameSession {
     r.syncNodes(st, this.world.nodesRevealed ? null : this.world.explored);
     r.syncBuildings(st, this.world.renderBuildings(), new Set(Object.keys(this.world.ghosts).map(Number)));
     r.syncUnits(st);
+    r.syncShots(st);
   }
 
   // -------------------------------------------------------------------------

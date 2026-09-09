@@ -1,11 +1,11 @@
-import type { Building, GameMessage, GameState, Player, RallyPoint, ResourceNode, Unit, Vec2 } from './types';
+import type { Building, GameMessage, GameState, Player, RallyPoint, ResourceNode, Shot, Unit, Vec2 } from './types';
 
 // ---------------------------------------------------------------------------
 // Network protocol between client and server. Bump PROTOCOL_VERSION whenever
 // a message shape changes; the client refuses to play on a mismatch.
 // ---------------------------------------------------------------------------
 
-export const PROTOCOL_VERSION = 10;
+export const PROTOCOL_VERSION = 11;
 
 /** What a player can ask the simulation to do. Validated by the engine, never trusted. */
 export type Command =
@@ -55,6 +55,8 @@ export interface Snapshot {
   tick: number;
   units: Unit[];
   buildings: Building[];
+  /** Ranged hits in flight that the player can see (fired from, or aimed at, something in view). */
+  shots: Shot[];
   players: Player[];
   nodesChanged: ResourceNode[];
   nodesRemoved: number[];

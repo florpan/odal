@@ -5,6 +5,7 @@ import type {
   Player,
   ResourceNode,
   ServerMessage,
+  Shot,
   Snapshot,
   TickEvents,
   Unit,
@@ -41,6 +42,26 @@ function visibleBuildings(state: GameState, vision: Uint8Array, playerId: number
   return out;
 }
 
+/** A shot shows when its own, or it left from or is aimed at something in view. */
+function visibleShots(state: GameState, vision: Uint8Array, playerId: number): Shot[] {
+  const out: Shot[] = [];
+  for (const id in state.shots) {
+    const s = state.shots[id];
+    if (s.owner === playerId || isVisible(vision, state.width, s.from.x, s.from.y)) {
+      out.push(s);
+      continue;
+    }
+    if (s.targetKind === 'unit') {
+      const u = state.units[s.targetId];
+      if (u && (u.owner === playerId || isVisible(vision, state.width, u.x, u.y))) out.push(s);
+    } else {
+      const b = state.buildings[s.targetId];
+      if (b && (b.owner === playerId || isBuildingVisible(vision, state.width, b.x, b.y, b.r))) out.push(s);
+    }
+  }
+  return out;
+}
+
 function toRecord<T extends { id: number }>(list: T[]): Record<number, T> {
   const out: Record<number, T> = {};
   for (const item of list) out[item.id] = item;
@@ -57,6 +78,7 @@ export function welcomeFor(state: GameState, playerId: number): ServerMessage {
       ...state,
       units: toRecord(visibleUnits(state, vision, playerId)),
       buildings: toRecord(visibleBuildings(state, vision, playerId)),
+      shots: toRecord(visibleShots(state, vision, playerId)),
       players: toRecord(maskPlayers(state, playerId)),
     },
   };
@@ -74,6 +96,7 @@ export function snapshotFor(
     tick: state.tick,
     units: visibleUnits(state, vision, playerId).map((u) => ({ ...u, path: [] })),
     buildings: visibleBuildings(state, vision, playerId),
+    shots: visibleShots(state, vision, playerId),
     players: maskPlayers(state, playerId),
     nodesChanged,
     nodesRemoved: ev.nodesRemoved,

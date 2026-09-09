@@ -6,10 +6,12 @@ import { unitDamage } from '../queries';
 import type { Building, Unit, UnitTask } from '../types';
 import { goTo, goToAdjacent, stance } from './movement';
 import type { GoResult } from './movement';
+import { fire } from './projectiles';
 
 // ---------------------------------------------------------------------------
-// Combat: chase a target, hit it when in range, resume the previous task when
-// it dies. Units with an aggro radius pick fights on their own, but an idle unit
+// Combat: chase a target, hit it when in range (at once, or as a projectile
+// that lands later for units with one), resume the previous task when it
+// dies. Units with an aggro radius pick fights on their own, but an idle unit
 // only defends against enemy *units* and walks back to its post afterwards;
 // only attack-move (and explicit orders) go after buildings. A scout parked
 // next to a village must not raze it.
@@ -64,7 +66,9 @@ export function stepAttack(ctx: Ctx, u: Unit) {
   u.goal = null;
   if (task.targetKind === 'building') stance(ctx, u, hexCentre(target.x, target.y));
   if (u.cooldown > 0) return;
-  target.hp -= unitDamage(ctx.tree, state.players[u.owner], u.type);
+  const damage = unitDamage(ctx.tree, state.players[u.owner], u.type);
+  if (def.projectile) fire(ctx, u, { id: u.type, kind: 'unit' }, def.projectile, target, task.targetKind, damage);
+  else target.hp -= damage;
   u.cooldown = def.attackTime;
 }
 

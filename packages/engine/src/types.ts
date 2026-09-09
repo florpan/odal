@@ -77,6 +77,25 @@ export interface Building {
   rally: RallyPoint | null;
 }
 
+/**
+ * A ranged hit in flight. Decided when fired: it always lands on its target (homing), after `duration`
+ * seconds, and only then takes `damage` off it. If the target is gone by then the shot just vanishes.
+ * Purely a delay between the decision and the damage; the client draws the flight.
+ */
+export interface Shot {
+  id: number;
+  owner: number;
+  /** The def that fired it (unit or building type), for the projectile's look. */
+  source: string;
+  sourceKind: 'unit' | 'building';
+  from: Vec2; // world position it left from
+  targetId: number;
+  targetKind: 'unit' | 'building';
+  damage: number;
+  t: number; // seconds in flight so far
+  duration: number; // flight time, from the distance and the projectile's speed when fired
+}
+
 export interface Player {
   id: number;
   name: string;
@@ -103,6 +122,8 @@ export interface GameState {
   starts: Vec2[];
   units: Record<number, Unit>;
   buildings: Record<number, Building>;
+  /** Ranged hits in flight (systems/projectiles.ts). */
+  shots: Record<number, Shot>;
   players: Record<number, Player>;
   nextId: number;
 }

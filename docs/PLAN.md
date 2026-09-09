@@ -88,7 +88,7 @@ shipyard, fences, bridge, ruin, scaffolding, stages, projectile.
 | ------- | --------------------------- | --- | ----- | ------ | ----- | ------------- | ----------------------------------- |
 | Worker  | 20 wheat                    | 30  | 1.5   | 2      | 1     | Town hall     | harvest, build, attack              |
 | Soldier | 20 wheat, 15 iron           | 60  | 1.3   | 8      | 1.2   | Barracks      | attack, auto-engages within 6 tiles |
-| Archer  | 20 wheat, 10 lumber, 5 iron | 40  | 1.4   | 6      | 4     | Archery range | attack (no projectile yet)          |
+| Archer  | 20 wheat, 10 lumber, 5 iron | 40  | 1.4   | 6      | 4     | Archery range | attack, shoots arrows               |
 | Knight  | 30 wheat, 40 iron, 20 gold  | 130 | 1.6   | 14     | 1.2   | Castle        | attack, eats 2 wheat                |
 
 Speeds halved 2026-09-08: the old values were tuned when a person was a full hex tall.
@@ -181,7 +181,7 @@ basic combat, multiplayer over WebSocket, minimap, HUD.
 - [x] Defensive building (tower): building `attack` field + `systems/towers.ts`
 - [x] Walls and gates: `passable` buildings, per-owner blocking grid
 - [x] Upkeep: units consume wheat over time. Still open: what starving does.
-- [ ] One ranged unit (archer) — in the tree since 2026-09-08; the projectile and ranged logic are M5
+- [x] One ranged unit (archer) — in the tree since 2026-09-08, shooting arrows since M5 (2026-09-09)
 - [ ] Gathering depth, next candidates: per-resource drop-off buildings (lumber mill, quarry) so distance
       matters; contested deposits placed between players; a second tier of gathering techs
 - [ ] AI opponent for solo play and balancing: an API for LLM agents rather than a scripted bot (backlog below)
@@ -337,13 +337,18 @@ chart of the whole world, so the fog's frame tells you which corner you are in.
 Order: island first (it changes how the other two feel), then starts and contested placement, then the radar,
 then rotation, then the research items.
 
-### M5 — Ranged combat (next, decided 2026-09-09)
+### M5 — Ranged combat
 
-Projectiles and the logic for ranged attacks: arrows for archers, larger arrows for the catapult tower
-(a ballista bolt), cannonballs for the cannon tower. A hit is decided by the engine as now; the projectile
-is the visible flight between shooter and target, so the data is a `projectile` block on a unit's or a
-building's attack (model, speed, arc) and a per-tick list of shots in the snapshot for the client to
-animate. Open: whether a projectile can miss a target that moved (Warcraft II arrows always hit).
+- [x] **Projectiles** (2026-09-09). A `projectile` block on a unit or a building's `attack` (speed, arc,
+      look: bolt or ball, colour, size, optional model) makes its hits fly. Decided with Christer: the server
+      judges the hit when the shot is fired so all parties agree; a shot never misses and the target cannot
+      dodge (Warcraft II). The flight only delays the damage until the shot lands, so the target flashes when
+      the arrow arrives, and shots outlive their shooter. `state.shots` in the snapshot (protocol 11),
+      `systems/projectiles.ts`, drawn as a parabola in `render/scene.ts`. Archers and the tower line shoot
+      arrows (the pack's `projectile_arrow`, `arrow.glb`), the catapult tower a ballista bolt (the same arrow
+      twice the size), the cannon tower a black ball.
+- [ ] A bow in the archer's hands, and the towers' catapult and cannon animating when they fire.
+- [ ] Sounds: a twang, a thud, a boom.
 
 ### Backlog (in Christer's order of appetite, 2026-09-09)
 

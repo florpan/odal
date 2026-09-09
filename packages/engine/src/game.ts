@@ -7,7 +7,7 @@ import { generateMap } from './mapgen';
 import type { PlayerCommand } from './protocol';
 import { mulberry32 } from './rng';
 import type { TechTree } from './content';
-import { separateUnits, stepBuildings, stepResearch, stepUnits, stepUpkeep } from './systems';
+import { separateUnits, stepBuildings, stepResearch, stepShots, stepUnits, stepUpkeep } from './systems';
 import { idx } from './tree';
 import type { GameState, Player, TickEvents, Vec2 } from './types';
 
@@ -31,6 +31,7 @@ export function createGame(tree: TechTree, seed: number): GameState {
     starts,
     units: {},
     buildings: {},
+    shots: {},
     players: {},
     nextId,
   };
@@ -139,6 +140,7 @@ export function stepGame(state: GameState, commands: PlayerCommand[], dt: number
   stepUnits(ctx);
   separateUnits(ctx);
   stepBuildings(ctx);
+  stepShots(ctx);
   stepResearch(ctx);
   stepUpkeep(ctx);
 

@@ -36,7 +36,7 @@
     "id": "archer",
     "name": "Archer",
     "desc": "Shoots from four hexes away. Fragile up close.",
-    "notes": "Trained at the archery range. No projectile yet: hits land at range like a long reach. Model: Ranger from the Adventurers pack later.",
+    "notes": "Trained at the archery range. Its hits fly as arrows and land about half a second later; the hit itself is decided when the arrow leaves. Model: Ranger from the Adventurers pack later.",
     "cost": { "wheat": 20, "lumber": 10, "iron": 5 },
     "time": 12,
     "hp": 40,
@@ -47,6 +47,11 @@
     "vision": 6,
     "upkeep": { "wheat": 1 },
     "abilities": ["attack"],
+    "projectile": {
+      "speed": 7,
+      "arc": 0.12,
+      "visual": { "shape": "bolt", "color": "#c9a86a", "size": 0.3, "model": "arrow.glb" }
+    },
     "visual": { "width": 0.2, "height": 0.34 }
   },
   {

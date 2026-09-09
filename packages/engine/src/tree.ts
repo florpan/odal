@@ -124,6 +124,26 @@ export const NodeSchema = z
   })
   .strict();
 
+/** The visible flight of a ranged hit; the hit itself is decided when fired and lands after the flight. */
+export const ProjectileSchema = z
+  .object({
+    /** World units per second. */
+    speed: Positive,
+    /** Peak height above the straight line as a fraction of the distance; 0 flies flat. */
+    arc: NonNeg.default(0),
+    visual: z
+      .object({
+        shape: z.enum(['bolt', 'ball']),
+        color: Color,
+        /** Length of a bolt or diameter of a ball in world units (a hex is about 1). */
+        size: Positive,
+        /** GLB under /models/, centred on its origin; its long axis is scaled to `size`. */
+        model: z.string().min(1).optional(),
+      })
+      .strict(),
+  })
+  .strict();
+
 export const UnitSchema = z
   .object({
     ...producible,
@@ -137,6 +157,8 @@ export const UnitSchema = z
     pop: NonNeg.default(1),
     upkeep: CostSchema.default({}),
     abilities: z.array(z.enum(['harvest', 'build', 'attack'])).default([]),
+    /** Ranged units: their hits fly there as this projectile. */
+    projectile: ProjectileSchema.optional(),
     visual: z
       .object({
         width: Positive.default(0.4),
@@ -172,7 +194,10 @@ export const BuildingSchema = z
     /** At most this many per player (counting unfinished ones). */
     limit: z.number().int().min(1).optional(),
     produces: z.object({ resource: Id, amount: Positive, interval: Positive }).strict().optional(),
-    attack: z.object({ damage: Positive, range: Positive, attackTime: Positive }).strict().optional(),
+    attack: z
+      .object({ damage: Positive, range: Positive, attackTime: Positive, projectile: ProjectileSchema.optional() })
+      .strict()
+      .optional(),
     passable: z.boolean().default(false),
     vision: Positive.default(6),
     hotkey: z.string().length(1).optional(),

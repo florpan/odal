@@ -160,6 +160,55 @@
             },
             "default": []
           },
+          "projectile": {
+            "type": "object",
+            "properties": {
+              "speed": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "arc": {
+                "type": "number",
+                "minimum": 0,
+                "default": 0
+              },
+              "visual": {
+                "type": "object",
+                "properties": {
+                  "shape": {
+                    "type": "string",
+                    "enum": [
+                      "bolt",
+                      "ball"
+                    ]
+                  },
+                  "color": {
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                  },
+                  "size": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "model": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "shape",
+                  "color",
+                  "size"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "speed",
+              "visual"
+            ],
+            "additionalProperties": false
+          },
           "visual": {
             "type": "object",
             "properties": {

@@ -86,6 +86,8 @@ export class World {
     for (const u of s.units) st.units[u.id] = u;
     st.buildings = {};
     for (const b of s.buildings) st.buildings[b.id] = b;
+    st.shots = {};
+    for (const sh of s.shots) st.shots[sh.id] = sh;
     st.players = {};
     for (const p of s.players) st.players[p.id] = p;
     for (const n of s.nodesChanged) st.nodes[n.id] = n;

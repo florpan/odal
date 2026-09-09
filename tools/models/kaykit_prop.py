@@ -9,6 +9,8 @@ with the texture embedded. Two normalisations:
   scale:F    multiply by a fixed factor F, the same for every asset of a pack family so
              relative sizes are kept. CHARACTER_SCALE (1 / Rogue height) makes a KayKit
              person 1 tile tall; use it for nature, resources and props.
+  centre:F   like scale:F but centred on the origin in all three axes instead of standing
+             on it: for things that fly (projectiles); the client sizes and turns them.
   height     height = 1 unit (legacy; a different factor per asset, avoid).
   hex[:deg]  a Hexagon-pack ground tile: kept centred with its top face at y=0 (the pack
              authors them that way, base below), scaled so flat-to-flat = 1 (one Odal hex),
@@ -72,6 +74,9 @@ DEFAULT_JOBS = [
                    ('fence_wood_straight', 'fence_wood'), ('fence_stone_straight', 'fence_stone'),
                    ('building_grain', 'grain'), ('building_scaffolding', 'scaffolding'), ('building_destroyed', 'ruin'),
                    ('building_bridge_A', 'bridge')]
+] + [
+    # Projectiles: centred so the client can spin them; it scales the long axis to the projectile's `size`.
+    ('centre:0.5', os.path.join(HEX, 'units', 'red', 'projectile_arrow_red_full.gltf'), os.path.join(OUT, 'arrow.glb')),
 ] + [
     (f'scale:{CHARACTER_SCALE}', os.path.join(FOREST, 'Tree_1_C_Color1.gltf'), os.path.join(OUT, 'tree_1.glb')),
     (f'scale:{CHARACTER_SCALE}', os.path.join(FOREST, 'Tree_2_C_Color1.gltf'), os.path.join(OUT, 'tree_2.glb')),
@@ -192,7 +197,10 @@ def convert(mode, src, out):
     ys = [v.co.y for v in obj.data.vertices]
     zs = [v.co.z for v in obj.data.vertices]
     is_hex = mode == 'hex' or mode.startswith('hex:')
+    is_centred = mode.startswith('centre:')
     cx, cy, z0 = (max(xs) + min(xs)) / 2, (max(ys) + min(ys)) / 2, min(zs)
+    if is_centred:
+        z0 = (max(zs) + min(zs)) / 2
     if not is_hex:
         for v in obj.data.vertices:
             v.co -= Vector((cx, cy, z0))
@@ -200,7 +208,7 @@ def convert(mode, src, out):
     height = max(zs) - min(zs)
     if mode == 'footprint':
         s = 1 / extent
-    elif mode.startswith('scale:'):
+    elif mode.startswith('scale:') or is_centred:
         s = float(mode.split(':', 1)[1])
     elif is_hex:
         s = 1 / (max(xs) - min(xs))  # flat-to-flat width becomes one hex

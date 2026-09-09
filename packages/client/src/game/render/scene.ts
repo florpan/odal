@@ -1,6 +1,16 @@
 import * as THREE from 'three';
 import { HEX_R, buildingMaxHp, hexCentre, hexNeighbours, idx, unitMaxHp, worldSize, worldToHex } from '@odal/engine';
-import type { Building, GameState, RallyPoint, ResourceNode, TechTree, Unit, Vec2 } from '@odal/engine';
+import type {
+  Building,
+  GameState,
+  ProjectileDef,
+  RallyPoint,
+  ResourceNode,
+  Shot,
+  TechTree,
+  Unit,
+  Vec2,
+} from '@odal/engine';
 import { FOG_COLOR, FogLevel, FogOfWar } from './fow';
 import { ModelLibrary } from './models';
 import type { HexAtlasSeason } from './models';
@@ -87,6 +97,31 @@ interface Particle {
   life: number;
 }
 
+/**
+ * A shot in flight. The engine only says where it left from, what it is homing on and how far along
+ * it is; the flight is drawn here as a parabola from `from` to the target's current drawn position,
+ * advanced by the frame clock between snapshots (`t` is the snapshot's time, `elapsed` since then).
+ */
+interface ShotView {
+  root: THREE.Object3D;
+  from: THREE.Vector3;
+  /** Where the target was last drawn, kept for the last frames after it dies or slips under fog. */
+  to: THREE.Vector3;
+  targetId: number;
+  targetKind: 'unit' | 'building';
+  t: number;
+  duration: number;
+  elapsed: number;
+  arc: number;
+  color: string;
+  size: number;
+  /** Model still loading; swapped in by syncShots once ready. */
+  wantModel?: string;
+}
+
+/** Height above the ground a shot leaves from and aims at (a person is 0.3, a tower about 1). */
+const SHOT_HEIGHT = { unit: 0.2, building: 0.8 } as const;
+
 export class Renderer {
   readonly scene = new THREE.Scene();
   readonly camera: THREE.PerspectiveCamera;
@@ -111,6 +146,7 @@ export class Renderer {
   private nodeMeshes = new Map<number, THREE.Object3D>();
   private units = new Map<number, EntityView>();
   private buildings = new Map<number, EntityView>();
+  private shots = new Map<number, ShotView>();
   private rings = new Map<string, THREE.Mesh>();
   private particles: Particle[] = [];
   private selectedUnits = new Set<number>();
@@ -240,11 +276,13 @@ export class Renderer {
     for (const m of this.nodeMeshes.values()) this.scene.remove(m);
     for (const v of this.units.values()) this.scene.remove(v.group);
     for (const v of this.buildings.values()) this.scene.remove(v.group);
+    for (const s of this.shots.values()) this.scene.remove(s.root);
     for (const r of this.rings.values()) this.scene.remove(r);
     for (const p of this.particles) this.scene.remove(p.mesh);
     this.nodeMeshes.clear();
     this.units.clear();
     this.buildings.clear();
+    this.shots.clear();
     this.rings.clear();
     this.particles = [];
     this.setGhost(null);
@@ -525,11 +563,16 @@ export class Renderer {
 
   /** Kick off loading every model the tree refers to, so things appear as models from the first frame. */
   preloadModels(tree: TechTree) {
-    for (const u of tree.units) if (u.visual.model) void this.models.load(u.visual.model);
-    for (const b of tree.buildings)
+    for (const u of tree.units) {
+      if (u.visual.model) void this.models.load(u.visual.model);
+      if (u.projectile?.visual.model) void this.models.load(u.projectile.visual.model);
+    }
+    for (const b of tree.buildings) {
       if (b.visual.model)
         for (const c of b.visual.model.includes('{team}') ? TEAM_VARIANTS : [''])
           void this.models.load(b.visual.model.replace('{team}', c));
+      if (b.attack?.projectile?.visual.model) void this.models.load(b.attack.projectile.visual.model);
+    }
     for (const n of tree.nodes) for (const f of n.visual.models ?? []) void this.models.load(f);
     for (const t of tree.terrain)
       for (const f of [t.visual.model, ...(t.visual.shore ?? [])]) if (f) void this.models.load(f);
@@ -681,6 +724,133 @@ export class Renderer {
         const node = tree.nodes.find((n) => n.resource === u.carry!.type);
         v.carry!.material = this.material(node?.visual.color ?? 0xffffff);
       }
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Shots: ranged hits in flight (engine systems/projectiles.ts)
+  // -------------------------------------------------------------------------
+
+  /** The projectile a shot was fired as, from the def that fired it. */
+  private projectileOf(state: GameState, s: Shot): ProjectileDef | undefined {
+    const defs = idx(state.tree);
+    return s.sourceKind === 'unit' ? defs.units[s.source]?.projectile : defs.buildings[s.source]?.attack?.projectile;
+  }
+
+  /**
+   * A body for a projectile, authored to fly along +z: a thin box or a ball in the projectile's colour,
+   * or the model turned so its longest axis points +z and scaled so that axis is `size` long.
+   */
+  private projectileBody(p: ProjectileDef, model: boolean): THREE.Object3D | null {
+    const { shape, color, size } = p.visual;
+    if (model && p.visual.model) {
+      const inst = this.models.instantiate(p.visual.model, '#ffffff');
+      if (!inst) return null;
+      const box = new THREE.Box3().setFromObject(inst.root);
+      const ext = box.getSize(new THREE.Vector3());
+      const centre = box.getCenter(new THREE.Vector3());
+      const wrap = new THREE.Group();
+      inst.root.position.copy(centre).negate();
+      const pivot = new THREE.Group();
+      pivot.add(inst.root);
+      if (ext.x >= ext.y && ext.x >= ext.z) pivot.rotation.y = -Math.PI / 2;
+      else if (ext.y > ext.z) pivot.rotation.x = Math.PI / 2;
+      pivot.scale.setScalar(size / Math.max(ext.x, ext.y, ext.z, 0.001));
+      for (const m of inst.meshes) shadowed(m);
+      wrap.add(pivot);
+      return wrap;
+    }
+    const geo =
+      shape === 'ball'
+        ? new THREE.SphereGeometry(size / 2, 8, 6)
+        : new THREE.BoxGeometry(size * 0.08, size * 0.08, size);
+    const mesh = new THREE.Mesh(geo, this.material(color));
+    shadowed(mesh);
+    return mesh;
+  }
+
+  /** Where a shot is aimed right now: the target's drawn position, or where it was last seen. */
+  private shotTarget(v: ShotView): THREE.Vector3 {
+    const view = v.targetKind === 'unit' ? this.units.get(v.targetId) : this.buildings.get(v.targetId);
+    if (view) v.to.copy(view.group.position).setY(view.group.position.y + SHOT_HEIGHT[v.targetKind]);
+    return v.to;
+  }
+
+  /** Point on the flight at progress `p` (0..1): a straight line lifted by a parabola of height arc × distance. */
+  private shotPoint(v: ShotView, p: number, out: THREE.Vector3): THREE.Vector3 {
+    const to = this.shotTarget(v);
+    out.lerpVectors(v.from, to, p);
+    out.y += v.arc * v.from.distanceTo(to) * 4 * p * (1 - p);
+    return out;
+  }
+
+  syncShots(state: GameState) {
+    const shots = state.shots;
+    const tmp = new THREE.Vector3();
+    for (const [id, v] of this.shots) {
+      if (shots[id]) continue;
+      // Landed (or its target is gone): a few chips where it was.
+      const at = this.shotPoint(v, Math.min(1, (v.t + v.elapsed) / v.duration), tmp);
+      this.spawnBurst(at.x, at.z, v.color, 3, 0.25);
+      this.scene.remove(v.root);
+      this.shots.delete(id);
+    }
+    for (const id in shots) {
+      const s = shots[id];
+      let v = this.shots.get(s.id);
+      if (v?.wantModel && this.models.ready(v.wantModel)) {
+        this.scene.remove(v.root);
+        this.shots.delete(s.id);
+        v = undefined;
+      }
+      if (!v) {
+        const p = this.projectileOf(state, s) ?? {
+          speed: 1,
+          arc: 0,
+          visual: { shape: 'bolt' as const, color: '#ffffff', size: 0.2 },
+        };
+        const model = !!p.visual.model && this.models.ready(p.visual.model);
+        const root = this.projectileBody(p, model);
+        if (!root) continue;
+        if (p.visual.model && !model) void this.models.load(p.visual.model);
+        const from = new THREE.Vector3(
+          s.from.x,
+          this.groundY(s.from.x, s.from.y) + SHOT_HEIGHT[s.sourceKind],
+          s.from.y,
+        );
+        v = {
+          root,
+          from,
+          to: from.clone(),
+          targetId: s.targetId,
+          targetKind: s.targetKind,
+          t: s.t,
+          duration: s.duration,
+          elapsed: 0,
+          arc: p.arc,
+          color: p.visual.color,
+          size: p.visual.size,
+          wantModel: p.visual.model && !model ? p.visual.model : undefined,
+        };
+        this.scene.add(root);
+        this.shots.set(s.id, v);
+      }
+      v.t = s.t;
+      v.duration = s.duration;
+      v.elapsed = 0;
+    }
+  }
+
+  private updateShots(dt: number) {
+    const at = new THREE.Vector3();
+    const ahead = new THREE.Vector3();
+    for (const v of this.shots.values()) {
+      v.elapsed += dt;
+      const p = Math.min(1, (v.t + v.elapsed) / v.duration);
+      this.shotPoint(v, p, at);
+      this.shotPoint(v, Math.min(1, p + 0.02), ahead);
+      v.root.position.copy(at);
+      if (ahead.distanceToSquared(at) > 1e-8) v.root.lookAt(ahead);
     }
   }
 
@@ -919,6 +1089,7 @@ export class Renderer {
 
     for (const [id, v] of this.units) this.updateView(v, this.selectedUnits.has(id));
     for (const [id, v] of this.buildings) this.updateView(v, this.selectedBuilding === id);
+    this.updateShots(dt);
 
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
