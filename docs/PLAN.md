@@ -1,6 +1,6 @@
 # Odal — Design & Plan
 
-_Last updated: 2026-09-04_
+_Last updated: 2026-09-09_
 
 ## Vision
 
@@ -181,11 +181,11 @@ basic combat, multiplayer over WebSocket, minimap, HUD.
 - [x] Defensive building (tower): building `attack` field + `systems/towers.ts`
 - [x] Walls and gates: `passable` buildings, per-owner blocking grid
 - [x] Upkeep: units consume wheat over time. Still open: what starving does.
-- [ ] One ranged unit (archer) — content only, see CONTENT.md walkthrough
+- [ ] One ranged unit (archer) — in the tree since 2026-09-08; the projectile and ranged logic are M5
 - [ ] Gathering depth, next candidates: per-resource drop-off buildings (lumber mill, quarry) so distance
       matters; contested deposits placed between players; a second tier of gathering techs
-- [ ] Simple AI opponent for solo play and balancing
-- [ ] Win condition: destroy all enemy town halls
+- [ ] AI opponent for solo play and balancing: an API for LLM agents rather than a scripted bot (backlog below)
+- [ ] Win condition: destroy all enemy town halls, and say so (backlog below)
 - [ ] Balance pass with real opponents, using the editor
 
 ### Playtest feedback 2026-09-05 (first real match, one player vs an empty base)
@@ -318,10 +318,15 @@ chart of the whole world, so the fog's frame tells you which corner you are in.
       stays as a zoom indicator (it will rotate with the map, so it reveals nothing else). A flag marks the town
       hall; when it is outside the window the flag sits on the rim with a chevron pointing home. Attack alerts
       on the rim later. Everything is drawn through one world-to-canvas function, ready for a camera yaw.
-- [ ] **The map as research.** Cartography (late tier) reveals the whole map's terrain; Geography reveals
-      resource nodes. Needs a `reveal` effect and a split of "explored" into terrain-known and nodes-known on
-      the server (`vision.ts`, `visibility.ts`) since one bit currently shows both. An Intel tech that reveals
-      enemy positions was considered and parked: too strong early, pointless late.
+- [x] **The map as research** (2026-09-09). Cartography (needs a market: the maps come with the traders;
+      60 gold, 40 lumber) charts the whole map's terrain through a `reveal` effect (`what: terrain | nodes`).
+      The client's "explored" split into _explored_ (seen: terrain and nodes known) and _charted_ (terrain
+      known: explored, or every hex after the tech); nodes still need the ground to have been seen. Nothing
+      moved to the server: it already sends everyone the terrain and the nodes, fog is trusted to the client.
+      Geography (`reveal: nodes`, expressible today) is parked until the radar can show resources. An Intel
+      tech that reveals enemy positions was considered and parked: too strong early, pointless late.
+- [ ] **Alerts on the radar rim**: attacks, and _enemy spotted_ (so towers placed as lookouts earn their
+      keep). Idea to go with it: a stealthy scout that only towers see through.
 - [x] **Camera rotation and tilt** (2026-09-09). Right-drag: left/right turns, up/down tilts; a right _click_
       (released within the tap slop) is still the command, now issued on release. Touch: two fingers together
       turn and tilt, pinch zooms, one finger pans. Keys for now: `[` `]` turn, PageUp/PageDown tilt, Home puts
@@ -332,11 +337,34 @@ chart of the whole world, so the fog's frame tells you which corner you are in.
 Order: island first (it changes how the other two feel), then starts and contested placement, then the radar,
 then rotation, then the research items.
 
+### M5 — Ranged combat (next, decided 2026-09-09)
+
+Projectiles and the logic for ranged attacks: arrows for archers, larger arrows for the catapult tower
+(a ballista bolt), cannonballs for the cannon tower. A hit is decided by the engine as now; the projectile
+is the visible flight between shooter and target, so the data is a `projectile` block on a unit's or a
+building's attack (model, speed, arc) and a per-tick list of shots in the snapshot for the client to
+animate. Open: whether a projectile can miss a target that moved (Warcraft II arrows always hit).
+
+### Backlog (in Christer's order of appetite, 2026-09-09)
+
+- **A worker who looks like a worker**: take one of the Adventurers characters, strip its gear, maybe
+  recolour it, so the labourer is not the same Rogue as everyone else. Then the hand tools per clip.
+- **Gold ore and iron ore models**, so a deposit shows what it is before it is selected.
+- **Grass and flowers** scattered at random over the ground, so the world looks alive.
+- **The deferred graphics glitches** from the M4 tweak pass.
+- **A win**: the town hall falling is the obvious condition, but nothing announces it. Show the win and
+  the loss (and then decide elimination versus rebuilding, see the open questions).
+- **An AI opponent as an API**: instead of a scripted bot, expose the game to any LLM. The hard part is
+  the feed: how to summarise a real-time world so an agent gets useful feedback without burning tokens
+  every tick (deltas, events, a coarse map, a turn cadence far slower than the tick). Unsure it is doable,
+  which is the appeal.
+
 ### Ops
 
 - [x] Dockerfile + image at registry.berge.tech/lab/odal (2026-09-04). Test server: stack `odal` on docker2,
       port 3123, updated with Dockhand (pull_image, then deploy with forceRecreate; the routine is in the
-      global Containers skill). Cloudflare tunnel still to be set up.
+      global Containers skill). Reachable through the Cloudflare tunnel at https://odal.berge.tech
+      (live as of 2026-09-09).
 - [ ] Delta snapshots or binary encoding if bandwidth becomes an issue
 - [ ] Multiple rulesets selectable per room (the loader and editor already take any directory)
 

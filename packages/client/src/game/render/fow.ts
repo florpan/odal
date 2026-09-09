@@ -118,10 +118,11 @@ export class FogOfWar {
   }
 
   /**
-   * Recompute levels from the player's vision and upload the blurred texture. Returns false when no
-   * hex changed level (then `level` is untouched and nothing was uploaded).
+   * Recompute levels from the player's vision and charted ground (explored, or all of it after
+   * Cartography) and upload the blurred texture. Returns false when no hex changed level (then `level`
+   * is untouched and nothing was uploaded).
    */
-  update(vision: Uint8Array | null, explored: Uint8Array | null): boolean {
+  update(vision: Uint8Array | null, charted: Uint8Array | null): boolean {
     if (!this.tex) return false;
     const { cols, rows, level } = this;
     const n = cols * rows;
@@ -129,11 +130,11 @@ export class FogOfWar {
     let changed = false;
     for (let i = 0; i < n; i++) {
       const l: FogLevel =
-        !vision || !explored
+        !vision || !charted
           ? FogLevel.Unexplored
           : vision[i]
             ? FogLevel.Visible
-            : explored[i]
+            : charted[i]
               ? FogLevel.Explored
               : FogLevel.Unexplored;
       // A fringe hex's base level is Unexplored; it becomes Fringe below, so compare against that too.

@@ -6,9 +6,10 @@ import { computeBlocked } from './grid';
 import { hexArea, hexCentre, hexDistance, hexNeighbours, worldToHex } from './hex';
 import { findPath } from './pathfinding';
 import type { PlayerCommand } from './protocol';
-import { buildingMaxHp, canPlaceBuilding, countUnits } from './queries';
+import { buildingMaxHp, canPlaceBuilding, countUnits, effectMultiplier, revealed } from './queries';
 import type { GameState, ResourceNode } from './types';
 import { buildGraph, chainCost, findCycle, prerequisites } from './techgraph';
+import { describeEffect } from './tree';
 import { computeVision, isVisible } from './vision';
 
 const DT = 1 / DEFAULT_TREE.rules.tickRate;
@@ -599,6 +600,19 @@ describe('engine with the default tech tree', () => {
     expect(built.progress).toBe(1);
     expect(built.hp).toBeCloseTo(buildingMaxHp(DEFAULT_TREE, p, house.id));
     expect(built.hp).toBeGreaterThan(house.hp);
+  });
+
+  test('a reveal effect is known once its tech is researched, and describes itself', () => {
+    const tech = DEFAULT_TREE.techs.find((t) => t.effects.some((e) => e.type === 'reveal'))!;
+    const what = (tech.effects.find((e) => e.type === 'reveal') as { what: 'terrain' | 'nodes' }).what;
+    const state = createGame(DEFAULT_TREE, 7);
+    const p = addPlayer(state, 'Alice', emptyEvents());
+    expect(revealed(DEFAULT_TREE, p, what)).toBe(false);
+    p.techs.push(tech.id);
+    expect(revealed(DEFAULT_TREE, p, what)).toBe(true);
+    // A reveal effect has no multiplier, so it never leaks into the multiplier products.
+    expect(effectMultiplier(DEFAULT_TREE, p, 'reveal')).toBe(1);
+    expect(describeEffect(DEFAULT_TREE, { type: 'reveal', what })).not.toContain('×');
   });
 
   test('chainCost sums the whole prerequisite chain', () => {

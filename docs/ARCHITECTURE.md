@@ -37,7 +37,7 @@ The engine never names a specific unit, building, tech or resource. It reads:
 - what a building trains, upgrades into, produces, unlocks (`requires`), whether it's a drop-off, whether it
   shoots (`attack`), whether its owner walks through it (`passable`), its footprint
 - what a tech does through generic **effects** (`gatherRate`, `produceRate`, `damage`, `maxHp`, `speed`,
-  `buildingHp`, `buildSpeed`) with optional filters
+  `buildingHp`, `buildSpeed`, `reveal`) with optional filters
 - requirements: a researched tech, an owned building, or a minimum population
 - how nodes spawn on a generated map, and how everything looks (`visual` blocks) so the client can render
   new content without code
@@ -139,7 +139,8 @@ client/src/
   game/                 PURE TS. Never imports React.
     session.ts          GameSession: owns World, Net, and (while mounted) Renderer + Input + frame loop.
                         The controller the UI calls. Publishes the HUD view model to the store.
-    world.ts            Client copy of state, fog (vision/explored), remembered enemy buildings (ghosts)
+    world.ts            Client copy of state, fog (vision / explored / charted: explored or the whole map after a
+                        `reveal` tech), remembered enemy buildings (ghosts)
     net.ts              WebSocket wrapper
     input.ts            Mouse/keyboard/touch on the canvas: selection, context commands, camera (pan, zoom, right-drag orbit), build mode,
                         attack-move, control groups, Tab toggles the tech tree overlay

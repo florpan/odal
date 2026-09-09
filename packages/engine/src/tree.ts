@@ -46,6 +46,7 @@ export const EffectSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('speed'), unit: Id.optional(), multiplier: Positive }).strict(),
   z.object({ type: z.literal('buildingHp'), building: Id.optional(), multiplier: Positive }).strict(),
   z.object({ type: z.literal('buildSpeed'), multiplier: Positive }).strict(),
+  z.object({ type: z.literal('reveal'), what: z.enum(['terrain', 'nodes']) }).strict(),
 ]);
 
 /** How a resource node is scattered over a generated map. */
@@ -466,10 +467,12 @@ export function describeRequirement(tree: TechTree, r: Requirement): string {
 /** One line of plain English for a tech effect, e.g. "Soldier damage ×1.5". */
 export function describeEffect(tree: TechTree, e: Effect): string {
   const i = idx(tree);
-  const pct = `×${e.multiplier}`;
+  const pct = 'multiplier' in e ? `×${e.multiplier}` : '';
   const name = (list: Record<string, { name: string }>, id: string | undefined, all: string) =>
     id ? (list[id]?.name ?? id) : all;
   switch (e.type) {
+    case 'reveal':
+      return e.what === 'terrain' ? 'The whole map is charted' : 'Every resource deposit is known';
     case 'gatherRate':
       return `${name(i.resources, e.resource, 'All')} gathering ${pct}`;
     case 'produceRate':

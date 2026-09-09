@@ -330,6 +330,29 @@
     ]
   },
   {
+    "id": "cartography",
+    "name": "Cartography",
+    "desc": "Charts the whole map: every coast, hill and cliff, though not what lies on them.",
+    "notes": "Late. Needs a market: the maps come with the traders. Reveals terrain only; resource deposits still have to be scouted (a Geography tech is parked until the radar can show them).",
+    "cost": {
+      "gold": 60,
+      "lumber": 40
+    },
+    "time": 40,
+    "effects": [
+      {
+        "type": "reveal",
+        "what": "terrain"
+      }
+    ],
+    "requires": [
+      {
+        "type": "building",
+        "id": "market"
+      }
+    ]
+  },
+  {
     "id": "blessing_harvest",
     "name": "Blessing of the Harvest",
     "desc": "All gathering 20% faster.",

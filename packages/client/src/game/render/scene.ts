@@ -416,10 +416,11 @@ export class Renderer {
 
   /**
    * Fog of war from the player's vision (render/fow.ts), and ground tiles revealed as hexes become
-   * explored or join the fringe beyond. Called every snapshot; does nothing while no hex changed level.
+   * charted (explored, or the whole map after Cartography) or join the fringe beyond. Called every
+   * snapshot; does nothing while no hex changed level.
    */
-  updateFog(vision: Uint8Array | null, explored: Uint8Array | null) {
-    if (!this.fow.update(vision, explored) || !this.shown) return;
+  updateFog(vision: Uint8Array | null, charted: Uint8Array | null) {
+    if (!this.fow.update(vision, charted) || !this.shown) return;
     const { level } = this.fow;
     let revealed = false;
     for (let i = 0; i < level.length; i++) {
@@ -475,6 +476,7 @@ export class Renderer {
   // Sync scene objects with game state
   // -------------------------------------------------------------------------
 
+  /** Nodes are drawn where `explored` is set; pass null to show every node (a tech revealed them). */
   syncNodes(state: GameState, explored: Uint8Array | null) {
     const defs = idx(state.tree).nodes;
     const nodes = state.nodes;

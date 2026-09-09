@@ -252,6 +252,27 @@
                     "multiplier"
                   ],
                   "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "reveal"
+                    },
+                    "what": {
+                      "type": "string",
+                      "enum": [
+                        "terrain",
+                        "nodes"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "what"
+                  ],
+                  "additionalProperties": false
                 }
               ]
             },

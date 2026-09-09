@@ -150,8 +150,8 @@ export class GameSession {
     const r = this.renderer;
     const st = this.world.state;
     if (!r || !st) return;
-    r.updateFog(this.world.vision, this.world.explored);
-    r.syncNodes(st, this.world.explored);
+    r.updateFog(this.world.vision, this.world.charted);
+    r.syncNodes(st, this.world.nodesRevealed ? null : this.world.explored);
     r.syncBuildings(st, this.world.renderBuildings(), new Set(Object.keys(this.world.ghosts).map(Number)));
     r.syncUnits(st);
   }

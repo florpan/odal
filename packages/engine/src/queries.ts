@@ -1,6 +1,6 @@
 import { canPlaceFootprint, footprintDistance } from './grid';
 import { hexCentre } from './hex';
-import type { Ability, Effect, EffectType, Requirement, TechTree } from './content';
+import type { Ability, Effect, EffectType, Requirement, RevealWhat, TechTree } from './content';
 import { idx } from './tree';
 import type { Building, GameState, Player, ResourceNode, Resources, Unit, Vec2 } from './types';
 
@@ -45,9 +45,20 @@ export function effectMultiplier(
   for (const id of player.techs) {
     const tech = techs[id];
     if (!tech) continue;
-    for (const e of tech.effects) if (e.type === type && matches(e)) m *= e.multiplier;
+    for (const e of tech.effects) if (e.type === type && 'multiplier' in e && matches(e)) m *= e.multiplier;
   }
   return m;
+}
+
+/** True when a researched tech reveals `what` (the map's terrain, or every resource node) without scouting. */
+export function revealed(tree: TechTree, player: Player, what: RevealWhat): boolean {
+  const techs = idx(tree).techs;
+  for (const id of player.techs) {
+    const tech = techs[id];
+    if (!tech) continue;
+    for (const e of tech.effects) if (e.type === 'reveal' && e.what === what) return true;
+  }
+  return false;
 }
 
 /** True when an effect's optional filter (e.g. `unit`) is absent or equals `value`. */

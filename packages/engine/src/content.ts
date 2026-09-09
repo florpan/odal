@@ -36,8 +36,11 @@ export type Effect =
   | { type: 'maxHp'; unit?: string; multiplier: number }
   | { type: 'speed'; unit?: string; multiplier: number }
   | { type: 'buildingHp'; building?: string; multiplier: number }
-  | { type: 'buildSpeed'; multiplier: number };
+  | { type: 'buildSpeed'; multiplier: number }
+  /** The player knows the whole map's `terrain`, or every resource node (`nodes`), without scouting it. */
+  | { type: 'reveal'; what: RevealWhat };
 export type EffectType = Effect['type'];
+export type RevealWhat = 'terrain' | 'nodes';
 
 /** Where the per-1000-tiles scatter may land: anywhere, or on the land farthest from every start (contested). */
 export type SpawnZone = 'anywhere' | 'contested';

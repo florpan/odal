@@ -213,19 +213,25 @@ not the start building) must appear in some building's `upgrades`.
 
 ### effects
 
-All effects multiply. Filters are optional; omit them to affect everything of that kind.
+Every effect but `reveal` has a `multiplier`; they stack by multiplying. Filters are optional; omit them
+to affect everything of that kind.
 
-| `type`        | Filter     | Applies to                                                                          |
-| ------------- | ---------- | ----------------------------------------------------------------------------------- |
-| `gatherRate`  | `resource` | Gathering speed of that resource                                                    |
-| `produceRate` | `building` | `produces` interval of that building                                                |
-| `damage`      | `unit`     | Damage per hit                                                                      |
-| `maxHp`       | `unit`     | Max HP (new units; existing keep current HP)                                        |
-| `speed`       | `unit`     | Movement speed                                                                      |
-| `buildingHp`  | `building` | Max HP of buildings completed after the research (existing buildings are unchanged) |
-| `buildSpeed`  | –          | Construction speed of all builders                                                  |
+| `type`        | Filter     | Applies to                                                                                     |
+| ------------- | ---------- | ---------------------------------------------------------------------------------------------- |
+| `gatherRate`  | `resource` | Gathering speed of that resource                                                               |
+| `produceRate` | `building` | `produces` interval of that building                                                           |
+| `damage`      | `unit`     | Damage per hit                                                                                 |
+| `maxHp`       | `unit`     | Max HP (new units; existing keep current HP)                                                   |
+| `speed`       | `unit`     | Movement speed                                                                                 |
+| `buildingHp`  | `building` | Max HP of buildings completed after the research (existing buildings are unchanged)            |
+| `buildSpeed`  | –          | Construction speed of all builders                                                             |
+| `reveal`      | `what`     | No multiplier. `terrain`: the whole map is charted (Cartography); `nodes`: every deposit shows |
 
 Example: `{ "type": "damage", "unit": "soldier", "multiplier": 1.5 }`.
+
+`reveal` is a client matter: the server already sends every player the terrain and the nodes (fog is trusted
+to the client, see ARCHITECTURE.md); the effect only lifts the "unexplored" veil in the client's own
+`explored`/`charted` grids. Units and buildings under fog stay filtered by the server regardless.
 
 Need a new effect? Add it to `Effect` in `engine/src/content.ts` and `EffectSchema` in `tree.ts`, apply
 it in the relevant system via a helper in `engine/src/queries.ts`, add a case to `describeEffect`, add a

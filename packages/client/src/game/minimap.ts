@@ -61,34 +61,37 @@ export function drawMinimap(
     scratch.height = h;
   }
   const px = image.data;
-  const { vision, explored } = world;
+  const { vision, charted } = world;
+  const nodesKnown = world.nodesRevealed ? null : world.explored;
   const nodeColors: Record<string, [number, number, number]> = {};
   for (const n of st.tree.nodes) nodeColors[n.id] = hexToRgb(n.visual.color);
   const terrainColors = st.tree.terrain.map((t) => hexToRgb(t.visual.color));
 
-  // Terrain where explored, slate where not. Higher ground is drawn a little lighter.
+  // Terrain where charted (explored, or the whole map after Cartography), slate where not. Higher
+  // ground is drawn a little lighter.
   for (let i = 0; i < w * h; i++) {
     const o = i * 4;
-    const col = explored && !explored[i] ? UNEXPLORED : terrainColors[st.terrain[i]];
-    const lift = explored && !explored[i] ? 1 : 1 + 0.12 * (st.elevation[i] ?? 0);
+    const col = charted && !charted[i] ? UNEXPLORED : terrainColors[st.terrain[i]];
+    const lift = charted && !charted[i] ? 1 : 1 + 0.12 * (st.elevation[i] ?? 0);
     px[o] = Math.min(255, col[0] * lift);
     px[o + 1] = Math.min(255, col[1] * lift);
     px[o + 2] = Math.min(255, col[2] * lift);
     px[o + 3] = 255;
   }
+  // Resources only where the ground was actually seen (charts do not show them).
   for (const id in st.nodes) {
     const n = st.nodes[id];
     const i = n.y * w + n.x;
-    if (explored && !explored[i]) continue;
+    if (nodesKnown && !nodesKnown[i]) continue;
     const o = i * 4;
     const col = nodeColors[n.type] ?? terrainColors[st.terrain[i]];
     px[o] = col[0];
     px[o + 1] = col[1];
     px[o + 2] = col[2];
   }
-  if (vision && explored) {
+  if (vision && charted) {
     for (let i = 0; i < w * h; i++) {
-      if (vision[i] || !explored[i]) continue;
+      if (vision[i] || !charted[i]) continue;
       const o = i * 4;
       px[o] *= 0.55;
       px[o + 1] *= 0.55;

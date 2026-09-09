@@ -1,4 +1,4 @@
-import { computeVision, isBuildingVisible } from '@odal/engine';
+import { computeVision, isBuildingVisible, revealed } from '@odal/engine';
 import type { Building, GameState, Player, ServerMessage, Snapshot } from '@odal/engine';
 import type { MessageView } from './viewmodel';
 
@@ -12,7 +12,11 @@ export class World {
   messages: MessageView[] = [];
 
   vision: Uint8Array | null = null; // currently visible tiles
-  explored: Uint8Array | null = null; // ever seen tiles
+  explored: Uint8Array | null = null; // ever seen tiles: their terrain and resources are known
+  /** Tiles whose terrain is known: explored ones, or every tile once a tech reveals the map (Cartography). */
+  charted: Uint8Array | null = null;
+  /** A tech reveals every resource node, so nodes show on unexplored ground too (none does yet). */
+  nodesRevealed = false;
   ghosts: Record<number, Building> = {}; // enemy buildings remembered under fog
   private lastSeen: Record<number, Building> = {};
   private nextMessageId = 1;
@@ -45,6 +49,8 @@ export class World {
     this.lastSeen = {};
     this.vision = null;
     this.explored = null;
+    this.charted = null;
+    this.nodesRevealed = false;
   }
 
   me(): Player | null {
@@ -105,9 +111,15 @@ export class World {
     if (!st) return;
     this.vision = computeVision(st, this.playerId, this.vision ?? undefined);
     if (this.noFog) this.vision.fill(1);
-    if (!this.explored || this.explored.length !== this.vision.length)
-      this.explored = new Uint8Array(this.vision.length);
-    for (let i = 0; i < this.vision.length; i++) if (this.vision[i]) this.explored[i] = 1;
+    const n = this.vision.length;
+    if (!this.explored || this.explored.length !== n) this.explored = new Uint8Array(n);
+    if (!this.charted || this.charted.length !== n) this.charted = new Uint8Array(n);
+    for (let i = 0; i < n; i++) if (this.vision[i]) this.explored[i] = 1;
+    // What research has revealed: the terrain everywhere (Cartography), or the nodes (nothing yet).
+    const me = this.me();
+    if (me && revealed(st.tree, me, 'terrain')) this.charted.fill(1);
+    else for (let i = 0; i < n; i++) if (this.explored[i]) this.charted[i] = 1;
+    this.nodesRevealed = !!me && revealed(st.tree, me, 'nodes');
   }
 
   private updateGhosts() {
