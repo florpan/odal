@@ -48,6 +48,44 @@
                   "minLength": 1
                 },
                 "minItems": 1
+              },
+              "scatter": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "models": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "minItems": 1
+                    },
+                    "density": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    "scale": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "default": 1
+                    },
+                    "lift": {
+                      "type": "number",
+                      "default": 0
+                    },
+                    "border": {
+                      "type": "boolean",
+                      "default": false
+                    }
+                  },
+                  "required": [
+                    "models",
+                    "density"
+                  ],
+                  "additionalProperties": false
+                }
               }
             },
             "required": [

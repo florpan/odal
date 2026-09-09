@@ -70,8 +70,25 @@ export interface TerrainDef extends EntityDef {
    * `model`: a GLB hex tile under /models/ (one hex wide, top at y=0); without it a flat coloured hex is drawn.
    * `shore`: tiles for a hex of this terrain that borders impassable terrain, by number of consecutive
    * water edges (index 0 = one edge); authored with the water side centred on +z, the renderer turns them.
+   * `scatter`: cosmetic props the client sprinkles over hexes of this terrain (grass, bushes, pebbles,
+   * water plants); never part of the state.
    */
-  visual: { color: string; height: number; model?: string; shore?: string[] };
+  visual: { color: string; height: number; model?: string; shore?: string[]; scatter?: Scatter[] };
+}
+
+/**
+ * One kind of prop sprinkled over a terrain: `models` (GLBs under /models/, base at y=0) placed `density`
+ * times per hex on average at `scale` (times a little jitter), `lift` above the tile top (negative sinks:
+ * the pack's water surface is 0.1 below its tile), only on hexes that border another terrain when
+ * `border` is set (water plants along the shore). Placement is decided per hex from its index, so every
+ * client sees the same board; buildings hide what stands under them.
+ */
+export interface Scatter {
+  models: string[];
+  density: number;
+  scale: number;
+  lift: number;
+  border: boolean;
 }
 
 export interface NodeDef extends EntityDef {

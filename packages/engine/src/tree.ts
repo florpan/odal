@@ -85,6 +85,22 @@ const producible = {
 
 export const ResourceSchema = z.object({ ...entity, icon: z.string().default('') }).strict();
 
+/** Cosmetic props sprinkled over a terrain by the client (grass, bushes, water plants). */
+export const ScatterSchema = z
+  .object({
+    /** GLBs under /models/, base at y=0; picked at random per prop. */
+    models: z.array(z.string().min(1)).min(1),
+    /** Props per hex on average. */
+    density: Positive,
+    /** Size multiplier (a hex is about 1 unit wide). */
+    scale: Positive.default(1),
+    /** Height above the tile top; negative sinks (the pack's water surface is 0.1 below its tile). */
+    lift: z.number().default(0),
+    /** Only on hexes that border another terrain (water plants along the shore). */
+    border: z.boolean().default(false),
+  })
+  .strict();
+
 export const TerrainSchema = z
   .object({
     ...entity,
@@ -98,6 +114,7 @@ export const TerrainSchema = z
         model: z.string().min(1).optional(),
         /** Coast tiles by consecutive water edges (1..n), water side authored towards +z. */
         shore: z.array(z.string().min(1)).min(1).optional(),
+        scatter: z.array(ScatterSchema).optional(),
       })
       .strict(),
   })

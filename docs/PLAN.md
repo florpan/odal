@@ -230,23 +230,28 @@ only if road and river rules ever exist. Units come from the Adventurers charact
 the shared animation set. **Roster decided 2026-09-09** (the pack has six characters, so each unit gets
 one; only the cape is a removable part, so the rest is done by recolouring):
 
-| Unit    | Character                        | Trained at    | Team colour on             |
-| ------- | -------------------------------- | ------------- | -------------------------- |
-| Worker  | Rogue, no cape, shirt dyed brown | Town hall     | scarf, collar, cuffs (1,1) |
-| Soldier | Barbarian                        | Barracks      | its cloth (1,3), no cape   |
-| Scout   | Rogue_Hooded                     | Barracks      | hood, cape, scarf (1,1)    |
-| Knight  | Knight                           | Castle        | cape and tunic trim (0,1)  |
-| Archer  | Ranger                           | Archery range | cape and tunic (0,1)       |
-| Mage    | Mage                             | Church        | cape (2,1)                 |
+| Unit    | Character                        | Trained at    | Team colour on             | In hand (pack prop)                  |
+| ------- | -------------------------------- | ------------- | -------------------------- | ------------------------------------ |
+| Worker  | Rogue, no cape, shirt dyed brown | Town hall     | scarf, collar, cuffs (1,1) | axe_1handed (no pickaxe in the pack) |
+| Soldier | Barbarian                        | Barracks      | kilt and bracers (6,0)     | axe_2handed                          |
+| Scout   | Rogue_Hooded                     | Barracks      | hood, cape, scarf (1,1)    | dagger                               |
+| Knight  | Knight                           | Castle        | cape and tunic trim (0,1)  | sword_2handed                        |
+| Archer  | Ranger                           | Archery range | cape and tunic (0,1)       | bow_withString, left hand            |
+| Mage    | Mage                             | Church        | cape (2,1)                 | staff                                |
 
-Scout and mage do not exist as units yet (a scout needs a reason beyond speed and vision, a mage a
-spell or a heal); the table is the look they get when they do. Only the worker has a model so far.
+All six GLBs are built (`kaykit_character.py`, one `UNITS` entry each, 2026-09-10); scout and mage do
+not exist as units yet (a scout needs a reason beyond speed and vision, a mage a spell or a heal). Props
+are skinned geometry weighted to the rig's `handslot.r` / `handslot.l` bone, placed at that joint's rest
+frame read from the original file, so no bone-parenting round trip through Blender is involved. The
+archer's attack clip is the bow draw and release played back to back (`+` in a clip name). In dev mode
+(`ODAL_DEV=1`) every unit of the ruleset stands at the town hall from the start, for looking at them.
 Each character's texture is a palette of 8×4 gradient cells and every face sits in one cell, which is
 what `kaykit_character.py --paint` and `--team-cell` work on. Cells (column,row from the top-left)
 per character, from a UV survey on 2026-09-09: Rogue shirt+sleeves 0,1 · scarf/collar/cape/cuffs 1,1 ·
 hair 1,0 · skin 0,0 · belt/bracers 5,0 · trousers/boots 3,2. Rogue_Hooded adds hood+mask 1,1/0,1.
-Barbarian body cloth 1,3 · fur 7,0 · straps 2,1. Knight armour 3,0 · cape 0,1 (red) · body 0,1 68
-faces. Ranger tunic 7,0 and 3,0 · cape+tunic 0,1 · quiver 6,1. Mage robe 0,1 · cape 2,1 · hat 1,1.
+Barbarian kilt+bracers 6,0 · necklace teeth 1,3 · fur 7,0 · straps 2,1. Knight armour 3,0 · cape 0,1
+(red) · body 0,1 68 faces. Ranger tunic 7,0 and 3,0 · cape+tunic 0,1 · quiver 6,1. Mage robe 0,1 ·
+cape 2,1 · hat 1,1.
 
 ### M3 — Looks
 
@@ -289,11 +294,16 @@ faces. Ranger tunic 7,0 and 3,0 · cape+tunic 0,1 · quiver 6,1. Mage robe 0,1 �
   - Done 2026-09-06: hex grid, island terrain, ground tiles, relief, decorations, palette nudge, all pack
     buildings in (12 real, 21 cheap test ones, see the M2 content plan), pack walls and gate, ownership
     plate dropped under modelled buildings.
-  - **Next:** path smoothing; tools in the worker's hands per clip (axe / pickaxe / hammer on the
-    hand slot); Knight with sword and shield as the soldier; walls turned to face their neighbours (same
-    trick as the coast tiles); an upgrade-in-place command for the tower line; construction scaffolding and
-    ruin stages from the pack; one shared texture per pack instead of a copy in every GLB (files are
-    100–360 KB each); the four-colour conversion of test buildings once they get a role.
+  - Done 2026-09-10: the roster's six characters with hand props (table under "Buildings"), iron and
+    gold ore as Forest Nature rocks in the resource's colour with a specular material (`kaykit_prop.py`
+    job option `material`; the client turns an untextured low-roughness material into Phong), and
+    foliage: `terrain.visual.scatter` sprinkles grass, bushes and pebbles over grass hexes and water
+    plants along the shore, instanced per model, placed from the hex index, hidden under buildings.
+  - **Next:** path smoothing; a shield for the knight (second hand slot); walls turned to face their
+    neighbours (same trick as the coast tiles); an upgrade-in-place command for the tower line;
+    construction scaffolding and ruin stages from the pack; one shared texture per pack instead of a copy
+    in every GLB (the 14 foliage files each embed the 50 KB forest texture); the four-colour conversion
+    of test buildings once they get a role.
 - [x] Terrain layer: `terrain.json`, island with water as the natural border, unexplored hexes hidden (2026-09-06)
 - [x] KayKit hex tiles as ground: grass, water, coast A–D picked by consecutive water edges and turned
       towards the sea (2026-09-06). Flat coloured pucks remain the fallback without the GLBs.

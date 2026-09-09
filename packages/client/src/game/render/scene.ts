@@ -1,5 +1,16 @@
 import * as THREE from 'three';
-import { HEX_R, buildingMaxHp, hexCentre, hexNeighbours, idx, unitMaxHp, worldSize, worldToHex } from '@odal/engine';
+import {
+  HEX_R,
+  buildingMaxHp,
+  footprintTiles,
+  hexCentre,
+  hexNeighbours,
+  idx,
+  mulberry32,
+  unitMaxHp,
+  worldSize,
+  worldToHex,
+} from '@odal/engine';
 import type {
   Building,
   GameState,
@@ -39,6 +50,8 @@ const HEIGHT_STEP = 0.4;
 const TILE_WALL = 0.5;
 /** Rock under tiles standing higher than a wall above a neighbour (cliffs at the sea): the atlas' stone. */
 const PLINTH_COLOR = 0x4a5155;
+/** An instance scaled to nothing: how tiles and scatter wait to be revealed. */
+const HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0);
 
 export interface Pick {
   kind: 'unit' | 'building' | 'node';
@@ -73,6 +86,8 @@ interface EntityView {
   modelScale?: number;
   /** Units: selection ring scale, from the unit's visual width. */
   ringScale?: number;
+  /** Buildings: the hex indices under it, whose scatter it hides. */
+  footprint?: number[];
   /** Animation state for skinned models. `workClip` is what the task wants when standing still. */
   mixer?: THREE.AnimationMixer;
   clips?: Record<string, THREE.AnimationClip>;
@@ -176,6 +191,9 @@ export class Renderer {
   private plinthBase: Float32Array | null = null;
   private plinthHeight: Float32Array | null = null;
   private plinths: THREE.InstancedMesh | null = null;
+  /** Per hex: the scatter instances on it (terrain.visual.scatter), and 1 while a building hides them. */
+  private scatterOf: ({ part: number; slot: number; m: THREE.Matrix4 }[] | undefined)[] | null = null;
+  private scatterHidden: Uint8Array | null = null;
   /** Fog of war: every fogged material samples it at its world position (render/fow.ts). */
   private fow = new FogOfWar();
   private raycaster = new THREE.Raycaster();
@@ -312,11 +330,13 @@ export class Renderer {
     this.mapH = size.y;
     this.fow.setMap(cols, rows, size);
     this.shown = new Uint8Array(cols * rows);
+    this.scatterHidden = new Uint8Array(cols * rows);
     this.buildGround(state);
     const files = new Set<string>();
     for (const t of state.tree.terrain) {
       if (t.visual.model) files.add(t.visual.model);
       for (const f of t.visual.shore ?? []) files.add(f);
+      for (const s of t.visual.scatter ?? []) for (const f of s.models) files.add(f);
     }
     if (files.size) {
       void Promise.all([...files].map((f) => this.models.load(f))).then(() => {
@@ -431,6 +451,8 @@ export class Renderer {
       this.plinths = mesh;
     }
 
+    this.buildScatter(state, hidden);
+
     // Re-reveal what the player has already explored.
     if (this.shown) {
       for (let i = 0; i < n; i++) if (this.shown[i]) this.revealTile(i);
@@ -463,6 +485,102 @@ export class Renderer {
       p.setPosition(c.x, this.plinthBase[i] + h / 2, c.y);
       this.plinths.setMatrixAt(slot, p);
     }
+    this.placeScatter(i);
+  }
+
+  /**
+   * Cosmetic scatter (terrain.visual.scatter): grass, bushes, pebbles, water plants. One InstancedMesh
+   * per model file, placed per hex by a generator seeded with the hex index so every client sees the same
+   * board. Instances start scaled away like the tiles and appear with them (revealTile); a building hides
+   * the ones under its footprint. Files still loading are skipped; setMap rebuilds once they are in.
+   */
+  private buildScatter(state: GameState, hidden: THREE.Matrix4) {
+    const cols = state.width;
+    const rows = state.height;
+    const n = cols * rows;
+    const terrain = state.tree.terrain;
+    const perHex: ({ part: number; slot: number; m: THREE.Matrix4 }[] | undefined)[] = new Array(n);
+    const byFile = new Map<string, { hex: number; m: THREE.Matrix4 }[]>();
+    const pos = new THREE.Vector3();
+    const rot = new THREE.Quaternion();
+    const up = new THREE.Vector3(0, 1, 0);
+    const scl = new THREE.Vector3();
+    for (let i = 0; i < n; i++) {
+      const groups = terrain[state.terrain[i]].visual.scatter;
+      if (!groups?.length || !this.tileTop) continue;
+      const x = i % cols;
+      const y = Math.floor(i / cols);
+      const border = hexNeighbours(x, y).some(
+        (nb) =>
+          nb.x >= 0 &&
+          nb.y >= 0 &&
+          nb.x < cols &&
+          nb.y < rows &&
+          state.terrain[nb.y * cols + nb.x] !== state.terrain[i],
+      );
+      const rnd = mulberry32(i * 7919 + 13);
+      const c = hexCentre(x, y);
+      for (const g of groups) {
+        if (g.border && !border) continue;
+        let count = Math.floor(g.density);
+        if (rnd() < g.density - count) count++;
+        for (let k = 0; k < count; k++) {
+          const file = g.models[Math.floor(rnd() * g.models.length)];
+          const r = 0.42 * Math.sqrt(rnd()); // inside the hex, away from its seams
+          const a = rnd() * Math.PI * 2;
+          pos.set(c.x + r * Math.cos(a), this.tileTop[i] + g.lift, c.y + r * Math.sin(a));
+          rot.setFromAxisAngle(up, rnd() * Math.PI * 2);
+          scl.setScalar(g.scale * (0.8 + 0.4 * rnd()));
+          let list = byFile.get(file);
+          if (!list) {
+            list = [];
+            byFile.set(file, list);
+          }
+          list.push({ hex: i, m: new THREE.Matrix4().compose(pos, rot, scl) });
+        }
+      }
+    }
+    for (const [file, items] of byFile) {
+      const src = this.models.geometryOf(file);
+      if (!src) continue;
+      const mesh = new THREE.InstancedMesh(src.geometry, src.material, items.length);
+      const part = this.ground.length;
+      for (let k = 0; k < items.length; k++) {
+        mesh.setMatrixAt(k, hidden);
+        const list = perHex[items[k].hex] ?? (perHex[items[k].hex] = []);
+        list.push({ part, slot: k, m: items[k].m });
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+      mesh.frustumCulled = false;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      this.scene.add(mesh);
+      this.ground.push({ mesh });
+    }
+    this.scatterOf = perHex;
+  }
+
+  /** Put a revealed hex's scatter where it belongs, or scale it away while a building stands on it. */
+  private placeScatter(i: number) {
+    const items = this.scatterOf?.[i];
+    if (!items) return;
+    const show = !this.scatterHidden?.[i];
+    for (const it of items) this.ground[it.part]?.mesh.setMatrixAt(it.slot, show ? it.m : HIDDEN);
+  }
+
+  /** Buildings hide the scatter under their footprint (and give it back when they go). */
+  private setScatterHidden(hexes: number[], hide: boolean) {
+    if (!this.scatterHidden) return;
+    let changed = false;
+    for (const i of hexes) {
+      if (i < 0 || i >= this.scatterHidden.length) continue;
+      this.scatterHidden[i] = hide ? 1 : 0;
+      if (this.shown?.[i] && this.scatterOf?.[i]) {
+        this.placeScatter(i);
+        changed = true;
+      }
+    }
+    if (changed) for (const part of this.ground) part.mesh.instanceMatrix.needsUpdate = true;
   }
 
   /**
@@ -884,6 +1002,7 @@ export class Renderer {
       const b = buildings[id];
       if (!b || !!v.ghost !== ghostIds.has(Number(id))) {
         if (!b && !v.ghost) this.spawnBurst(v.group.position.x, v.group.position.z, v.color, 24, 1.6);
+        if (v.footprint) this.setScatterHidden(v.footprint, false);
         this.scene.remove(v.group);
         this.buildings.delete(id);
       }
@@ -952,8 +1071,10 @@ export class Renderer {
           target: group.position.clone(),
           color,
           ghost: isGhost,
+          footprint: footprintTiles(b.x, b.y, b.r).map((t) => t.y * this.cols + t.x),
         };
         this.buildings.set(b.id, v);
+        this.setScatterHidden(v.footprint!, true);
       }
       v.body.rotation.y = -b.rot * (Math.PI / 3); // clockwise seen from above
       if (v.wantModel) this.attachModel(v, v.wantModel, v.modelScale ?? 1);
