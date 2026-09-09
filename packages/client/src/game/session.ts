@@ -129,6 +129,7 @@ export class GameSession {
     r.update(dt);
     r.render();
     if (this.world.pruneMessages(now, MESSAGE_TTL_MS)) this.publish();
+    this.world.pruneAlerts(now);
   }
 
   /** New map: clear the scene and centre the camera on the player's start building. */

@@ -1,14 +1,16 @@
 import { hexCentre, worldSize } from '@odal/engine';
 import type { Building, Vec2 } from '@odal/engine';
 import type { Renderer } from './render/scene';
+import { ALERT_TTL_MS } from './world';
 import type { World } from './world';
 
 // ---------------------------------------------------------------------------
 // The minimap is a radar: a fixed-scale window centred on the camera, not a
 // chart of the world. Unexplored ground and the void beyond the map are the
 // same slate, so the window never tells you where on the map you are; you
-// learn that by scouting (or, later, by researching Cartography). A flag marks
-// your town hall and sits on the rim pointing home when home is out of view.
+// learn that by scouting (or by researching Cartography). A flag marks your
+// town hall and sits on the rim pointing home when home is out of view; alerts
+// (attacks, enemies spotted) pulse where they happened or on the rim likewise.
 // The React Minimap component owns the <canvas>; this module owns what is
 // drawn on it. Everything goes through `toCanvas`, so a camera yaw can turn
 // the radar later by changing that one function.
@@ -19,7 +21,10 @@ export const RADAR_SPAN = 44;
 /** Same slate as the renderer's fog (render/fow.ts FOG_COLOR). */
 const UNEXPLORED: [number, number, number] = [28, 36, 40];
 const SLATE = '#1c2428';
-/** How close to the edge the home flag may sit before it is clamped to the rim. */
+/** Alert colours: the theme's red and gold (ui/theme.css). */
+const ATTACK = '#d83f35';
+const SPOTTED = '#fbd365';
+/** How close to the edge the home flag and alerts may sit before they are clamped to the rim. */
 const RIM = 8;
 
 let image: ImageData | null = null;
@@ -129,17 +134,32 @@ export function drawMinimap(
     ctx.fillRect(p.x - 1, p.y - 1, 3, 3);
   }
 
+  // Anything outside the window sits on the rim in its direction, with the direction to point at.
+  const onRim = (wx: number, wy: number): { p: { x: number; y: number }; pointing: number | null } => {
+    const p = toCanvas(wx, wy);
+    const dx = p.x - cw / 2;
+    const dy = p.y - ch / 2;
+    const k = Math.max(Math.abs(dx) / (cw / 2 - RIM), Math.abs(dy) / (ch / 2 - RIM));
+    if (k <= 1) return { p, pointing: null };
+    return { p: { x: cw / 2 + dx / k, y: ch / 2 + dy / k }, pointing: Math.atan2(dy, dx) };
+  };
+
   // Home: a flag on the town hall, or on the rim in its direction when it is out of the window.
   const home = homeOf(world);
   if (home) {
     const c = hexCentre(home.x, home.y);
-    let p = toCanvas(c.x, c.y);
-    const dx = p.x - cw / 2;
-    const dy = p.y - ch / 2;
-    const k = Math.max(Math.abs(dx) / (cw / 2 - RIM), Math.abs(dy) / (ch / 2 - RIM));
-    const clamped = k > 1;
-    if (clamped) p = { x: cw / 2 + dx / k, y: ch / 2 + dy / k };
-    drawFlag(ctx, p, st.players[home.owner]?.color ?? '#fff', clamped ? Math.atan2(dy, dx) : null);
+    const { p, pointing } = onRim(c.x, c.y);
+    drawFlag(ctx, p, st.players[home.owner]?.color ?? '#fff', pointing);
+  }
+
+  // Alerts: a pulsing ring where something happened, red for attacks, gold for an enemy spotted; on
+  // the rim with a chevron when it is out of the window. They fade over ALERT_TTL_MS.
+  const now = world.now();
+  for (const a of world.alerts) {
+    const age = (now - a.at) / 1000;
+    if (age * 1000 >= ALERT_TTL_MS) continue;
+    const { p, pointing } = onRim(a.x, a.y);
+    drawAlert(ctx, p, a.kind === 'attack' ? ATTACK : SPOTTED, age, 1 - (age * 1000) / ALERT_TTL_MS, pointing);
   }
 
   // The camera's view: always in the middle, its size is the zoom.
@@ -191,6 +211,39 @@ function drawFlag(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, co
     ctx.lineTo(p.x + ax * 4 + ay * 3, p.y + ay * 4 - ax * 3);
     ctx.stroke();
   }
+}
+
+/** A ring that pulses (radius from `age`), fading with `alpha`; with `pointing`, a chevron in that direction. */
+function drawAlert(
+  ctx: CanvasRenderingContext2D,
+  p: { x: number; y: number },
+  color: string,
+  age: number,
+  alpha: number,
+  pointing: number | null,
+) {
+  const r = 4 + 3 * (0.5 + 0.5 * Math.sin(age * 7));
+  ctx.save();
+  ctx.globalAlpha = Math.max(0.15, alpha);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+  ctx.fill();
+  if (pointing !== null) {
+    const ax = Math.cos(pointing);
+    const ay = Math.sin(pointing);
+    ctx.beginPath();
+    ctx.moveTo(p.x + ax * (r + 2) - ay * 4, p.y + ay * (r + 2) + ax * 4);
+    ctx.lineTo(p.x + ax * (r + 6), p.y + ay * (r + 6));
+    ctx.lineTo(p.x + ax * (r + 2) + ay * 4, p.y + ay * (r + 2) - ax * 4);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 /** Map a 0..1 minimap position to world coordinates (the window is centred on the camera). */

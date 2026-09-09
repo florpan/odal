@@ -590,6 +590,13 @@ export class Input {
       this.stop();
       return;
     }
+    if (k === ' ') {
+      // Jump to the latest alert (an attack, an enemy spotted).
+      e.preventDefault();
+      const a = this.world.latestAlert();
+      if (a) this.moveCameraTo({ x: a.x, y: a.y });
+      return;
+    }
     if (k === 'q') {
       this.rotateSelected(e.shiftKey);
       return;

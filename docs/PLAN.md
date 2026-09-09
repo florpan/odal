@@ -336,8 +336,12 @@ chart of the whole world, so the fog's frame tells you which corner you are in.
       moved to the server: it already sends everyone the terrain and the nodes, fog is trusted to the client.
       Geography (`reveal: nodes`, expressible today) is parked until the radar can show resources. An Intel
       tech that reveals enemy positions was considered and parked: too strong early, pointless late.
-- [ ] **Alerts on the radar rim**: attacks, and _enemy spotted_ (so towers placed as lookouts earn their
-      keep). Idea to go with it: a stealthy scout that only towers see through.
+- [x] **Alerts** (2026-09-09). Derived on the client from snapshot differences (`world.ts`): an own unit or
+      building losing HP or vanishing is an _attack_, an enemy unit or building in view that was not seen in
+      the last 20 s is _spotted_ (so towers placed as lookouts earn their keep). Alerts of one kind within
+      8 hexes and 8 s merge; each new one also posts a message. The radar pulses them where they happened,
+      red for attacks and gold for spotted, on the rim with a chevron when out of the window; Space jumps
+      the camera to the latest. Idea to go with it: a stealthy scout that only towers see through.
 - [x] **Camera rotation and tilt** (2026-09-09). Right-drag: left/right turns, up/down tilts; a right _click_
       (released within the tap slop) is still the command, now issued on release. Touch: two fingers together
       turn and tilt, pinch zooms, one finger pans. Keys for now: `[` `]` turn, PageUp/PageDown tilt, Home puts

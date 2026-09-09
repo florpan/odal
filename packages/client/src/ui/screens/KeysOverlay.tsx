@@ -41,6 +41,10 @@ export function KeysOverlay() {
       'Tap selects, hold a finger to command (the right click), one-finger drag pans, pinch zooms, two fingers together turn (left/right) and tilt (up/down)',
     ],
     ['Minimap', 'Right-click sends the selected units there'],
+    [
+      'Alerts',
+      'Attacks (red) and enemies spotted (gold) pulse on the minimap, on its rim when out of view. Space jumps the camera to the latest',
+    ],
     ['Tech tree', 'Tab. Research can be queued from the tree'],
     ['This card', 'F1 or ?'],
     ['Cancel', 'Esc: cancel placement or attack-move, close a screen, clear the selection'],

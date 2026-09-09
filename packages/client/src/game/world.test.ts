@@ -24,7 +24,7 @@ function tinyState(techs: string[]): GameState {
       terrain: [{ id: 'grass' }],
       nodes: [],
     },
-    units: { 1: { id: 1, owner: 1, type: 'scout', x: 2, y: 2 } },
+    units: { 1: { id: 1, owner: 1, type: 'scout', x: 2, y: 2, hp: 30 } },
     buildings: {},
     shots: {},
     nodes: {},
@@ -39,7 +39,8 @@ function tinyState(techs: string[]): GameState {
 function join(techs: string[] = []): { state: GameState; world: World } {
   const state = tinyState(techs);
   const world = new World();
-  world.handle({ type: 'welcome', version: 0, playerId: 1, state });
+  // Copies, as the network would deliver them: the test mutates `state` between snapshots.
+  world.handle({ type: 'welcome', version: 0, playerId: 1, state: structuredClone(state) });
   return { state, world };
 }
 
@@ -47,8 +48,8 @@ function snapshotOf(state: GameState): Snapshot {
   return {
     type: 'snapshot',
     tick: state.tick + 1,
-    units: Object.values(state.units),
-    buildings: Object.values(state.buildings),
+    units: Object.values(structuredClone(state.units)),
+    buildings: Object.values(structuredClone(state.buildings)),
     shots: [],
     players: Object.values(state.players),
     nodesChanged: [],
@@ -83,5 +84,75 @@ describe('client world fog grids', () => {
     const { world } = join(['geography']);
     expect(world.nodesRevealed).toBe(true);
     expect(count(world.charted!)).toBeLessThan(W * W);
+  });
+});
+
+describe('client world alerts', () => {
+  const enemy = (id: number, x: number, y: number, hp = 30) => ({ id, owner: 2, type: 'scout', x, y, hp });
+
+  function withClock() {
+    const { state, world } = join();
+    let clock = 1000;
+    world.now = () => clock;
+    const tick = (ms: number) => (clock += ms);
+    const snap = () => world.handle(snapshotOf(state));
+    return { state, world, tick, snap };
+  }
+
+  test('own unit losing HP raises an attack alert once, refreshed rather than repeated nearby', () => {
+    const { state, world, snap } = withClock();
+    state.units[1].hp = 25;
+    snap();
+    expect(world.alerts.map((a) => a.kind)).toEqual(['attack']);
+    expect(world.messages.some((m) => m.text === 'Under attack!')).toBe(true);
+    state.units[1].hp = 20;
+    snap();
+    expect(world.alerts.length).toBe(1);
+  });
+
+  test('an own unit that vanishes counts as an attack at its last position', () => {
+    const { state, world, snap } = withClock();
+    delete state.units[1];
+    snap();
+    expect(world.alerts[0]).toMatchObject({ kind: 'attack', x: 2, y: 2 });
+  });
+
+  test('an enemy coming into view is spotted once, and again only after it has been out of view a while', () => {
+    const { state, world, tick, snap } = withClock();
+    state.units[7] = enemy(7, 10, 10) as never;
+    snap();
+    expect(world.alerts.map((a) => a.kind)).toEqual(['spotted']);
+    snap();
+    expect(world.alerts.length).toBe(1);
+    // Out of view for a moment: still remembered, no new alert when it reappears.
+    delete state.units[7];
+    snap();
+    tick(5000);
+    state.units[7] = enemy(7, 10, 10) as never;
+    snap();
+    expect(world.alerts.length).toBe(1);
+    // Alerts expire; an enemy gone for long enough is news again.
+    tick(30000);
+    world.pruneAlerts(world.now());
+    expect(world.alerts.length).toBe(0);
+    delete state.units[7];
+    snap();
+    state.units[7] = enemy(7, 10, 10) as never;
+    snap();
+    expect(world.alerts.map((a) => a.kind)).toEqual(['spotted']);
+  });
+
+  test('the latest alert is the most recently raised or refreshed one', () => {
+    const { state, world, tick, snap } = withClock();
+    state.units[1].hp = 25;
+    snap();
+    tick(100);
+    state.units[9] = enemy(9, 15, 15) as never;
+    snap();
+    expect(world.latestAlert()?.kind).toBe('spotted');
+    tick(100);
+    state.units[1].hp = 20;
+    snap();
+    expect(world.latestAlert()?.kind).toBe('attack');
   });
 });

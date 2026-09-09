@@ -146,14 +146,15 @@ client/src/
     session.ts          GameSession: owns World, Net, and (while mounted) Renderer + Input + frame loop.
                         The controller the UI calls. Publishes the HUD view model to the store.
     world.ts            Client copy of state, fog (vision / explored / charted: explored or the whole map after a
-                        `reveal` tech), remembered enemy buildings (ghosts)
+                        `reveal` tech), remembered enemy buildings (ghosts), alerts from snapshot differences
+                        (own things hurt = attack, enemies newly in view = spotted; merged nearby, expire)
     net.ts              WebSocket wrapper
     input.ts            Mouse/keyboard/touch on the canvas: selection, context commands, camera (pan, zoom, right-drag orbit), build mode,
                         attack-move, control groups, Tab toggles the tech tree overlay
     viewmodel.ts        buildHud(): resolves rules into plain data + action ids for the UI, plus the
                         TreeView (tree + per-item status) for the tech tree screen
     minimap.ts          Draws the minimap into a 2D context: a radar, a fixed-scale window centred on the camera,
-                        with a flag for home that sits on the rim when home is out of view
+                        with a flag for home and pulsing alerts that sit on the rim when out of view
     render/scene.ts     Three.js scene. Everything in world coordinates. Looks come from tree `visual`s.
     render/fow.ts       Fog of war: a map-sized alpha texture (4 texels per unit, hex-mapped, CPU-blurred) that every
                         fogged material samples at its world x/z (onBeforeCompile), mixing towards the slate fog colour.

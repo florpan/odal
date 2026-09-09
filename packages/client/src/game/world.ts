@@ -1,6 +1,26 @@
-import { computeVision, isBuildingVisible, revealed } from '@odal/engine';
-import type { Building, GameState, Player, ServerMessage, Snapshot } from '@odal/engine';
+import { computeVision, hexCentre, isBuildingVisible, revealed } from '@odal/engine';
+import type { Building, GameState, Player, ServerMessage, Snapshot, Unit } from '@odal/engine';
 import type { MessageView } from './viewmodel';
+
+/**
+ * Something the player should look at: their own unit or building took damage or died (`attack`), or an
+ * enemy came into view that had not been seen for a while (`spotted`). Derived on the client from
+ * snapshot differences; the radar shows them on its rim and Space jumps the camera to the latest.
+ */
+export interface Alert {
+  id: number;
+  kind: 'attack' | 'spotted';
+  x: number;
+  y: number;
+  /** performance.now() when it was raised or last refreshed. */
+  at: number;
+}
+
+/** Alerts of one kind this close (world units) and this fresh (ms) merge into one instead of piling up. */
+export const ALERT_MERGE_RADIUS = 8;
+export const ALERT_TTL_MS = 8000;
+/** An enemy seen within this long ago is not "spotted" again when it comes back into view. */
+const SPOTTED_MEMORY_MS = 20000;
 
 /** Client-side copy of the game state, fog of war and UI selection. Pure TS, no React. */
 export class World {
@@ -10,6 +30,13 @@ export class World {
   selectedBuilding: number | null = null;
   selectedNode: number | null = null;
   messages: MessageView[] = [];
+  /** Live alerts, oldest first (pruneAlerts drops the expired ones). */
+  alerts: Alert[] = [];
+  private nextAlertId = 1;
+  /** When each enemy unit or building was last in view, for the "spotted" alert. */
+  private enemySeenAt: Record<number, number> = {};
+  /** The clock alerts are stamped with; tests override it. */
+  now: () => number = () => performance.now();
 
   vision: Uint8Array | null = null; // currently visible tiles
   explored: Uint8Array | null = null; // ever seen tiles: their terrain and resources are known
@@ -51,6 +78,77 @@ export class World {
     this.explored = null;
     this.charted = null;
     this.nodesRevealed = false;
+    this.alerts = [];
+    this.enemySeenAt = {};
+  }
+
+  /** The most recent alert, for jumping the camera to it. */
+  latestAlert(): Alert | null {
+    return this.alerts.length ? this.alerts[this.alerts.length - 1] : null;
+  }
+
+  /** Drop alerts older than ALERT_TTL_MS; returns true if anything changed. */
+  pruneAlerts(now: number): boolean {
+    const live = this.alerts.filter((a) => now - a.at < ALERT_TTL_MS);
+    if (live.length === this.alerts.length) return false;
+    this.alerts = live;
+    return true;
+  }
+
+  /** Raise an alert, or refresh a live one of the same kind nearby (moved to the back as the latest). */
+  private raiseAlert(kind: Alert['kind'], x: number, y: number) {
+    const now = this.now();
+    const i = this.alerts.findIndex(
+      (a) => a.kind === kind && now - a.at < ALERT_TTL_MS && Math.hypot(a.x - x, a.y - y) <= ALERT_MERGE_RADIUS,
+    );
+    if (i >= 0) {
+      const [a] = this.alerts.splice(i, 1);
+      this.alerts.push({ ...a, x, y, at: now });
+      return;
+    }
+    this.alerts.push({ id: this.nextAlertId++, kind, x, y, at: now });
+    this.addMessage(kind === 'attack' ? 'Under attack!' : 'Enemy spotted!');
+  }
+
+  /**
+   * Compare the previous snapshot with the new one: own things that lost HP or vanished are attacks;
+   * enemies in view that were not seen for SPOTTED_MEMORY_MS are spotted.
+   */
+  private detectAlerts(prevUnits: Record<number, Unit>, prevBuildings: Record<number, Building>) {
+    const st = this.state!;
+    const now = this.now();
+    for (const id in prevUnits) {
+      const was = prevUnits[id];
+      if (was.owner !== this.playerId) continue;
+      const is = st.units[id];
+      if (!is || is.hp < was.hp) this.raiseAlert('attack', (is ?? was).x, (is ?? was).y);
+    }
+    for (const id in prevBuildings) {
+      const was = prevBuildings[id];
+      if (was.owner !== this.playerId) continue;
+      const is = st.buildings[id];
+      if (!is || is.hp < was.hp) {
+        const c = hexCentre(was.x, was.y);
+        this.raiseAlert('attack', c.x, c.y);
+      }
+    }
+    for (const id in st.units) {
+      const u = st.units[id];
+      if (u.owner === this.playerId) continue;
+      const seen = this.enemySeenAt[id];
+      if (seen === undefined || now - seen > SPOTTED_MEMORY_MS) this.raiseAlert('spotted', u.x, u.y);
+      this.enemySeenAt[id] = now;
+    }
+    for (const id in st.buildings) {
+      const b = st.buildings[id];
+      if (b.owner === this.playerId) continue;
+      const seen = this.enemySeenAt[id];
+      if (seen === undefined || now - seen > SPOTTED_MEMORY_MS) {
+        const c = hexCentre(b.x, b.y);
+        this.raiseAlert('spotted', c.x, c.y);
+      }
+      this.enemySeenAt[id] = now;
+    }
   }
 
   me(): Player | null {
@@ -82,6 +180,8 @@ export class World {
     const st = this.state;
     if (!st) return;
     st.tick = s.tick;
+    const prevUnits = st.units;
+    const prevBuildings = st.buildings;
     st.units = {};
     for (const u of s.units) st.units[u.id] = u;
     st.buildings = {};
@@ -94,6 +194,7 @@ export class World {
     for (const id of s.nodesRemoved) delete st.nodes[id];
     for (const m of s.messages) this.addMessage(m.text);
 
+    this.detectAlerts(prevUnits, prevBuildings);
     this.refreshVision();
     this.updateGhosts();
     this.selectedUnits = this.selectedUnits.filter((id) => st.units[id]);
