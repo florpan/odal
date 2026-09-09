@@ -1,5 +1,6 @@
 import { join } from 'node:path';
 import { DEFAULT_TREE, DEFAULT_TREE_DIR, loadTreeDir } from '@odal/content';
+import type { TechTree } from '@odal/engine';
 import type { Conn } from './conn';
 import { RoomManager } from './room';
 import { handleClose, handleMessage } from './session';
@@ -16,12 +17,23 @@ const PORT = Number(process.env.PORT ?? 3000);
 const EMPTY_ROOM_TTL_MS = Number(process.env.EMPTY_ROOM_TTL_MS ?? 5 * 60_000);
 const TREE_DIR = process.env.TREE_DIR ?? DEFAULT_TREE_DIR;
 const DEV = process.env.ODAL_DEV === '1';
-const tree = process.env.TREE_DIR ? loadTreeDir(process.env.TREE_DIR) : DEFAULT_TREE;
+const loaded = process.env.TREE_DIR ? loadTreeDir(process.env.TREE_DIR) : DEFAULT_TREE;
+
+/**
+ * Development: every unit of the ruleset stands at the town hall from the first second, on top of the
+ * ruleset's own start, so models, clips and props can be looked at without playing up to them.
+ */
+function withEveryUnit(t: TechTree): TechTree {
+  const have = new Set(t.start.units.map((u) => u.type));
+  const extra = t.units.filter((u) => !have.has(u.id)).map((u) => ({ type: u.id, count: 1 }));
+  return { ...t, start: { ...t.start, units: [...t.start.units, ...extra] } };
+}
+const tree = DEV ? withEveryUnit(loaded) : loaded;
 
 const rooms = new RoomManager(tree, EMPTY_ROOM_TTL_MS);
 const serveStatic = staticHandler(join(import.meta.dir, '../../client/dist'));
 // dev.ts pulls in prettier (a devDependency), so it is only loaded when the editor routes are on.
-const serveDev = DEV ? (await import('./dev')).devHandler(TREE_DIR, (t) => rooms.setTree(t)) : null;
+const serveDev = DEV ? (await import('./dev')).devHandler(TREE_DIR, (t) => rooms.setTree(withEveryUnit(t))) : null;
 
 // `bun --watch` restarts the process while the old one may still hold the port for a moment, and
 // Bun then dies with EADDRINUSE, leaving nothing listening. Retry the bind for a few seconds.
