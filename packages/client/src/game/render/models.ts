@@ -58,7 +58,7 @@ export class ModelLibrary {
   private templates = new Map<string, Template>();
   private pending = new Map<string, Promise<void>>();
   private teamMats = new Map<string, THREE.MeshLambertMaterial>();
-  private plainMats = new Map<string, THREE.MeshLambertMaterial>();
+  private plainMats = new Map<string, THREE.MeshLambertMaterial | THREE.MeshPhongMaterial>();
   private geometries = new Map<string, { geometry: THREE.BufferGeometry; material: THREE.Material }>();
 
   /**
@@ -82,6 +82,31 @@ export class ModelLibrary {
   private mapFor(src: THREE.MeshStandardMaterial): THREE.Texture | null {
     if (this.atlas && src.name.startsWith(HEX_ATLAS_MATERIAL)) return this.atlas;
     return src.map ?? null;
+  }
+
+  /**
+   * The scene's copy of a GLB material, cached per file and material name. Lambert like the primitives;
+   * an untextured material authored shiny (low roughness, as the ore rocks are) becomes Phong with a
+   * highlight, since the scene has no environment to reflect and a metal would otherwise go black.
+   */
+  private plainFor(file: string, src: THREE.MeshStandardMaterial): THREE.Material {
+    const key = `${file}:${src.name}`;
+    let m = this.plainMats.get(key);
+    if (!m) {
+      const map = this.mapFor(src);
+      if (!map && src.roughness < 0.6) {
+        m = new THREE.MeshPhongMaterial({
+          color: src.color,
+          specular: new THREE.Color().setScalar(0.2 + 0.6 * src.metalness),
+          shininess: 20 + 100 * (1 - src.roughness),
+        });
+        this.onMaterial?.(m);
+      } else {
+        m = this.lambert({ color: src.color ?? 0xffffff, map });
+      }
+      this.plainMats.set(key, m);
+    }
+    return m;
   }
 
   /** Start loading; resolves (never rejects) when the file is usable or has failed. */
@@ -133,21 +158,17 @@ export class ModelLibrary {
     root.traverse((o) => {
       if (!(o instanceof THREE.Mesh)) return;
       const src = (Array.isArray(o.material) ? o.material[0] : o.material) as THREE.MeshStandardMaterial;
-      let m: THREE.MeshLambertMaterial | undefined;
+      let m: THREE.Material;
       if (src.name === 'Team') {
         const key = `${file}:${teamColor}`;
-        m = this.teamMats.get(key);
-        if (!m) {
-          m = this.lambert({ color: teamColor });
-          this.teamMats.set(key, m);
+        let team = this.teamMats.get(key);
+        if (!team) {
+          team = this.lambert({ color: teamColor });
+          this.teamMats.set(key, team);
         }
+        m = team;
       } else {
-        const key = `${file}:${src.name}`;
-        m = this.plainMats.get(key);
-        if (!m) {
-          m = this.lambert({ color: src.color ?? 0xffffff, map: this.mapFor(src) });
-          this.plainMats.set(key, m);
-        }
+        m = this.plainFor(file, src);
       }
       o.material = m;
       meshes.push(o);
@@ -178,13 +199,7 @@ export class ModelLibrary {
       parts.push(g);
       if (!material) {
         const src = (Array.isArray(o.material) ? o.material[0] : o.material) as THREE.MeshStandardMaterial;
-        const key = `${file}:${src.name}`;
-        let m = this.plainMats.get(key);
-        if (!m) {
-          m = this.lambert({ color: src.color ?? 0xffffff, map: this.mapFor(src) });
-          this.plainMats.set(key, m);
-        }
-        material = m;
+        material = this.plainFor(file, src);
       }
     });
     if (!parts.length || !material) return null;

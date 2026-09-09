@@ -56,7 +56,9 @@
     },
     "visual": {
       "shape": "rock",
-      "color": "#8a8f98"
+      "color": "#8a8f98",
+      "models": ["ore_iron_1.glb", "ore_iron_2.glb"],
+      "scale": 0.4
     }
   },
   {
@@ -76,7 +78,9 @@
     },
     "visual": {
       "shape": "rock",
-      "color": "#f5c518"
+      "color": "#f5c518",
+      "models": ["ore_gold_1.glb", "ore_gold_2.glb"],
+      "scale": 0.32
     }
   }
 ]

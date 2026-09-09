@@ -17,8 +17,14 @@ with the texture embedded. Two normalisations:
              optionally rotated `deg` about the vertical axis first. Coast tiles are rotated so
              the water side is centred on +z (screen bottom); the renderer turns them from there.
 
+A job may carry a fourth element, options: {'material': {'color': '#rrggbb', 'metallic': 0..1,
+'roughness': 0..1}} replaces every material with one flat Principled material (the ore rocks: the
+resource's own colour, shiny; the client turns low roughness into a specular material).
+
 Run inside Blender, headless:
 
+    blender -b -P tools/models/kaykit_prop.py                       # every DEFAULT_JOBS entry
+    blender -b -P tools/models/kaykit_prop.py -- group ores          # one JOB_GROUPS entry
     blender -b -P tools/models/kaykit_prop.py -- footprint <in.gltf> <out.glb> [more in out pairs]
 
 or through the Blender MCP: set JOBS = [(mode, in, out), ...] before exec()-ing.
@@ -98,6 +104,50 @@ DEFAULT_JOBS = [
               'rock_single_E']
 ]
 
+# Ore deposits: Forest Nature rocks in the resource's own colour (nodes.json), shiny so they read as
+# metal next to the grey stone outcrops. Picked by Christer on 2026-09-09.
+ORE = {'iron': ('#8a8f98', ['Rock_2_G', 'Rock_2_H']), 'gold': ('#f5c518', ['Rock_3_Q', 'Rock_3_R'])}
+JOB_GROUPS = {
+    'ores': [
+        (f'scale:{CHARACTER_SCALE}', os.path.join(FOREST, f'{rock}_Color1.gltf'), os.path.join(OUT, f'ore_{res}_{i + 1}.glb'),
+         {'material': {'color': colour, 'metallic': 0.85, 'roughness': 0.3}})
+        for res, (colour, rocks) in ORE.items() for i, rock in enumerate(rocks)
+    ],
+    # Foliage sprinkled over the ground by terrain.visual.scatter (CONTENT.md): grass tufts, bushes and
+    # pebbles from Forest Nature at character scale, water plants from the Hexagon pack at tile scale.
+    'foliage': [
+        (f'scale:{CHARACTER_SCALE}', os.path.join(FOREST, f'{n}_Color1.gltf'), os.path.join(OUT, f'{n.lower()}.glb'))
+        for n in ['Grass_1_A', 'Grass_1_B', 'Grass_2_A', 'Grass_2_B', 'Grass_2_C', 'Grass_2_D',
+                  'Bush_1_A', 'Bush_1_B', 'Bush_2_A', 'Rock_3_A', 'Rock_3_B', 'Rock_3_C', 'Rock_3_D', 'Rock_3_E']
+    ] + [
+        ('scale:0.5', os.path.join(HEX, 'decoration', 'nature', f'{n}.gltf'), os.path.join(OUT, f'{n.lower()}.glb'))
+        for n in ['waterplant_A', 'waterplant_B', 'waterplant_C']
+    ],
+}
+DEFAULT_JOBS += [job for group in JOB_GROUPS.values() for job in group]
+
+
+def srgb_to_linear(hex_colour):
+    out = []
+    for i in (1, 3, 5):
+        c = int(hex_colour[i:i + 2], 16) / 255
+        out.append(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4)
+    return tuple(out)
+
+
+def flat_material(obj, spec):
+    """One untextured Principled material for the whole object (colour as sRGB hex)."""
+    mat = bpy.data.materials.new(obj.name)
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes['Principled BSDF']
+    bsdf.inputs['Base Color'].default_value = (*srgb_to_linear(spec['color']), 1)
+    bsdf.inputs['Metallic'].default_value = spec.get('metallic', 0)
+    bsdf.inputs['Roughness'].default_value = spec.get('roughness', 0.5)
+    obj.data.materials.clear()
+    obj.data.materials.append(mat)
+    for poly in obj.data.polygons:
+        poly.material_index = 0
+
 
 def remap_palette(images):
     """Replace PALETTE swatches in the given images (in place, packed so the export carries the change)."""
@@ -159,7 +209,8 @@ def reset_scene():
                 coll.remove(block)
 
 
-def convert(mode, src, out):
+def convert(mode, src, out, opts=None):
+    opts = opts or {}
     reset_scene()
     before = set(bpy.data.objects)
     bpy.ops.import_scene.gltf(filepath=src)
@@ -226,6 +277,8 @@ def convert(mode, src, out):
     # Textures go out as the pack ships them (ATLAS picks which of the pack's own atlases).
     # remap_palette(images_of(obj)) is kept as a tool for deliberate swatch swaps; not part of the export.
     use_atlas(obj)
+    if 'material' in opts:
+        flat_material(obj, opts['material'])
     bpy.ops.object.select_all(action='DESELECT')
     obj.select_set(True)
     bpy.context.view_layer.objects.active = obj
@@ -249,6 +302,8 @@ def parse_cli():
         return None
     argv = sys.argv[sys.argv.index('--') + 1:]
     mode = argv[0]
+    if mode == 'group':
+        return [job for name in argv[1:] for job in JOB_GROUPS[name]]
     pairs = argv[1:]
     return [(mode, pairs[i], pairs[i + 1]) for i in range(0, len(pairs) - 1, 2)]
 
