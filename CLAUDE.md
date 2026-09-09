@@ -35,7 +35,7 @@ bun run validate:content    # validate the default ruleset (or: bun packages/con
 bun run schema:gen          # regenerate packages/content/schema/*.json after changing engine/src/tree.ts
 bun run tree:graph unit:soldier   # what leads to something (prerequisites + Mermaid); no arg = whole tree
 bun run model:worker        # regenerate the procedural labourer GLB (tools/models); KayKit conversions run in Blender
-#                             model viewer: http://localhost:5173/models.html?m=rogue.glb (needs dev:client)
+#                             model viewer: http://localhost:5173/models.html?m=worker.glb (needs dev:client)
 #                             ?atlas=default|fall|winter (game or viewer) swaps the Hexagon pack's texture (exports carry Summer)
 #                             ?fog=0 (game) shows the whole map, for looking at map generation
 #                             contact sheets of the whole pack: blender -b -P tools/models/kaykit_sheet.py -> C:\Dev\KayKit\sheets

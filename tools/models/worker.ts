@@ -4,8 +4,9 @@
 // to build or dig, not tied to farming.
 // Height 1 unit = one tile; feet at y=0, facing +z. Flat shaded, chamfered edges, ~900 tris.
 //
-//   bun run model:worker      → packages/client/public/models/worker.glb
+//   bun run model:worker      → packages/client/public/models/labourer.glb
 //
+// Kept as a reference; the game's worker.glb is the KayKit Rogue (kaykit_character.py).
 // Materials are named so the client can recolour "Team" per player.
 
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -101,10 +102,10 @@ export function buildWorker(): Part[] {
 
 if (import.meta.main) {
   const parts = buildWorker();
-  const glb = writeGlb('worker', parts);
+  const glb = writeGlb('labourer', parts);
   const dir = join(import.meta.dir, '../../packages/client/public/models');
   mkdirSync(dir, { recursive: true });
-  const file = join(dir, 'worker.glb');
+  const file = join(dir, 'labourer.glb');
   writeFileSync(file, glb);
   const tris = parts.reduce((s, p) => s + p.triangles, 0);
   console.log(

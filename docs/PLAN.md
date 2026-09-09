@@ -226,9 +226,27 @@ Decided 2026-09-08 from the pack's contact sheets (`tools/models/kaykit_sheet.py
 `upgrade` command (protocol 9). Still to come for the tree: a wall tool that lays runs and picks
 corners; scaffolding and ruin stages as looks; the Resource Bits stacks next to a mine to show its kind;
 healer or mage from the church; siege units; projectiles for archers and towers; road and river tiles
-only if road and river rules ever exist. Units in the plan (worker with tools, soldier with sword and
-shield, archer, knight) come from the Adventurers characters plus hand props and the shared animation
-set; only the worker has a model.
+only if road and river rules ever exist. Units come from the Adventurers characters plus hand props and
+the shared animation set. **Roster decided 2026-09-09** (the pack has six characters, so each unit gets
+one; only the cape is a removable part, so the rest is done by recolouring):
+
+| Unit    | Character                        | Trained at    | Team colour on             |
+| ------- | -------------------------------- | ------------- | -------------------------- |
+| Worker  | Rogue, no cape, shirt dyed brown | Town hall     | scarf, collar, cuffs (1,1) |
+| Soldier | Barbarian                        | Barracks      | its cloth (1,3), no cape   |
+| Scout   | Rogue_Hooded                     | Barracks      | hood, cape, scarf (1,1)    |
+| Knight  | Knight                           | Castle        | cape and tunic trim (0,1)  |
+| Archer  | Ranger                           | Archery range | cape and tunic (0,1)       |
+| Mage    | Mage                             | Church        | cape (2,1)                 |
+
+Scout and mage do not exist as units yet (a scout needs a reason beyond speed and vision, a mage a
+spell or a heal); the table is the look they get when they do. Only the worker has a model so far.
+Each character's texture is a palette of 8×4 gradient cells and every face sits in one cell, which is
+what `kaykit_character.py --paint` and `--team-cell` work on. Cells (column,row from the top-left)
+per character, from a UV survey on 2026-09-09: Rogue shirt+sleeves 0,1 · scarf/collar/cape/cuffs 1,1 ·
+hair 1,0 · skin 0,0 · belt/bracers 5,0 · trousers/boots 3,2. Rogue_Hooded adds hood+mask 1,1/0,1.
+Barbarian body cloth 1,3 · fur 7,0 · straps 2,1. Knight armour 3,0 · cape 0,1 (red) · body 0,1 68
+faces. Ranger tunic 7,0 and 3,0 · cape+tunic 0,1 · quiver 6,1. Mage robe 0,1 · cape 2,1 · hat 1,1.
 
 ### M3 — Looks
 

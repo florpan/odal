@@ -13,7 +13,7 @@
     "vision": 5,
     "upkeep": {},
     "abilities": ["harvest", "build", "attack"],
-    "visual": { "width": 0.2, "height": 0.3, "model": "rogue.glb" }
+    "visual": { "width": 0.2, "height": 0.3, "model": "worker.glb" }
   },
   {
     "id": "soldier",
