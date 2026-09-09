@@ -14,6 +14,7 @@ import type {
 import { FOG_COLOR, FogLevel, FogOfWar } from './fow';
 import { ModelLibrary } from './models';
 import type { HexAtlasSeason } from './models';
+import { marchGround } from './pick';
 import { tileOf } from './shore';
 
 // ---------------------------------------------------------------------------
@@ -167,6 +168,9 @@ export class Renderer {
   private tileSlot: Int32Array | null = null;
   private tileRot: Float32Array | null = null;
   private tileTop: Float32Array | null = null;
+  /** Highest and lowest tile top on the map, the band ground picking searches. */
+  private tileTopMax = 0;
+  private tileTopMin = 0;
   /** Per hex: instance slot in the plinth mesh (-1 none), and the plinth's bottom and height. */
   private plinthSlot: Int32Array | null = null;
   private plinthBase: Float32Array | null = null;
@@ -175,7 +179,6 @@ export class Renderer {
   /** Fog of war: every fogged material samples it at its world position (render/fow.ts). */
   private fow = new FogOfWar();
   private raycaster = new THREE.Raycaster();
-  private groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private materials = new Map<string, THREE.MeshLambertMaterial>();
   private geometries = new Map<string, THREE.BufferGeometry>();
   private resize: ResizeObserver;
@@ -361,6 +364,12 @@ export class Renderer {
         this.tileTop[i] = terrain[terrainIdx].visual.height + (state.elevation[i] ?? 0) * HEIGHT_STEP;
         g.hexes.push(i);
       }
+    }
+    this.tileTopMax = 0;
+    this.tileTopMin = 0;
+    for (const h of this.tileTop) {
+      if (h > this.tileTopMax) this.tileTopMax = h;
+      if (h < this.tileTopMin) this.tileTopMin = h;
     }
     const hidden = new THREE.Matrix4().makeScale(0, 0, 0);
     const col = new THREE.Color();
@@ -1180,10 +1189,20 @@ export class Renderer {
     return new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
   }
 
+  /**
+   * The ground point under a screen position, on the stepped tiles (render/pick.ts): a flat plane
+   * would land far behind a raised tile at a low camera tilt.
+   */
   pickGround(clientX: number, clientY: number): Vec2 | null {
     this.raycaster.setFromCamera(this.ndc(clientX, clientY), this.camera);
-    const p = new THREE.Vector3();
-    if (!this.raycaster.ray.intersectPlane(this.groundPlane, p)) return null;
+    const { origin: o, direction: d } = this.raycaster.ray;
+    const p = marchGround(
+      { ox: o.x, oy: o.y, oz: o.z, dx: d.x, dy: d.y, dz: d.z },
+      (x, z) => this.groundY(x, z),
+      this.tileTopMax,
+      this.tileTopMin,
+    );
+    if (!p) return null;
     return { x: Math.max(0, Math.min(this.mapW - 0.001, p.x)), y: Math.max(0, Math.min(this.mapH - 0.001, p.z)) };
   }
 

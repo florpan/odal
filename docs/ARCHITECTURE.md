@@ -156,6 +156,8 @@ client/src/
     minimap.ts          Draws the minimap into a 2D context: a radar, a fixed-scale window centred on the camera,
                         with a flag for home and pulsing alerts that sit on the rim when out of view
     render/scene.ts     Three.js scene. Everything in world coordinates. Looks come from tree `visual`s.
+    render/pick.ts      Ground picking on the stepped tiles: walks the ray down through the height band instead of
+                        hitting a flat plane (which lands hexes behind a raised tile at a low tilt). Pure, tested.
     render/fow.ts       Fog of war: a map-sized alpha texture (4 texels per unit, hex-mapped, CPU-blurred) that every
                         fogged material samples at its world x/z (onBeforeCompile), mixing towards the slate fog colour.
                         Two rings of "fringe" tiles are drawn beyond the explored ones, deeper than the blur's reach, so
