@@ -30,6 +30,14 @@
           "patches": 0.85,
           "patchScale": 4,
           "shore": "none"
+        },
+        {
+          "models": ["waterplant_a.glb", "waterplant_b.glb", "waterplant_c.glb"],
+          "density": 0.5,
+          "scale": 1.6,
+          "patches": 0.85,
+          "patchScale": 4,
+          "shore": "none"
         }
       ]
     }
@@ -41,16 +49,7 @@
     "passable": false,
     "visual": {
       "color": "#2f6f9f",
-      "model": "hex_water.glb",
-      "scatter": [
-        {
-          "models": ["waterplant_a.glb", "waterplant_b.glb", "waterplant_c.glb"],
-          "density": 0.6,
-          "scale": 1.6,
-          "lift": -0.1,
-          "shore": "only"
-        }
-      ]
+      "model": "hex_water.glb"
     }
   },
   {
