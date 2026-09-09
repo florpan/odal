@@ -45,8 +45,11 @@ const shadowed = (m: THREE.Object3D) => {
   m.castShadow = true;
   m.receiveShadow = true;
 };
-/** World units per elevation step (`state.elevation`). Land neighbours differ by one step, under TILE_WALL. */
-const HEIGHT_STEP = 0.4;
+/**
+ * World units per elevation step (`state.elevation`). Land neighbours differ by one step, under TILE_WALL.
+ * Halved from 0.4 on 2026-09-10: a step reached the town hall's roof, which read as a cliff everywhere.
+ */
+const HEIGHT_STEP = 0.2;
 /** Thickness of a KayKit ground tile: how much of a drop its own side covers before rock has to show. */
 const TILE_WALL = 0.5;
 /** Rock under tiles standing higher than a wall above a neighbour (cliffs at the sea): the atlas' stone. */
@@ -529,16 +532,22 @@ export class Renderer {
       if (!groups?.length) continue;
       const x = i % cols;
       const y = Math.floor(i / cols);
-      const shore = hexNeighbours(x, y).some(
-        (nb) =>
-          nb.x >= 0 &&
-          nb.y >= 0 &&
-          nb.x < cols &&
-          nb.y < rows &&
-          terrain[state.terrain[nb.y * cols + nb.x]].passable !== t.passable,
-      );
       const rnd = mulberry32(i * 7919 + 13);
       const c = hexCentre(x, y);
+      // Neighbours of the other passability (land beside water, water beside land) make this a shore
+      // hex; their mean direction is where the shoreline runs, for props that belong along it.
+      let shore = false;
+      let shoreX = 0;
+      let shoreY = 0;
+      for (const nb of hexNeighbours(x, y)) {
+        if (nb.x < 0 || nb.y < 0 || nb.x >= cols || nb.y >= rows) continue;
+        if (terrain[state.terrain[nb.y * cols + nb.x]].passable === t.passable) continue;
+        const nc = hexCentre(nb.x, nb.y);
+        shoreX += nc.x - c.x;
+        shoreY += nc.y - c.y;
+        shore = true;
+      }
+      const shoreLen = Math.hypot(shoreX, shoreY);
       const chunk = `${Math.floor(x / SCATTER_CHUNK)}:${Math.floor(y / SCATTER_CHUNK)}`;
       groups.forEach((g, gi) => {
         if ((g.shore === 'only' && !shore) || (g.shore === 'none' && shore)) return;
@@ -556,9 +565,18 @@ export class Renderer {
         if (rnd() < density - count) count++;
         for (let k = 0; k < count; k++) {
           const file = g.models[Math.floor(rnd() * g.models.length)];
-          const r = 0.42 * Math.sqrt(rnd()); // inside the hex, away from its seams
+          let px = c.x;
+          let py = c.y;
+          let spread = 0.42; // inside the hex, away from its seams
+          if (g.shore === 'only' && shoreLen > 0) {
+            // Along the shoreline, not mid-hex: a water plant in the middle of a sea hex reads as open sea.
+            px += (shoreX / shoreLen) * 0.3;
+            py += (shoreY / shoreLen) * 0.3;
+            spread = 0.18;
+          }
+          const r = spread * Math.sqrt(rnd());
           const a = rnd() * Math.PI * 2;
-          pos.set(c.x + r * Math.cos(a), tops[i] + g.lift, c.y + r * Math.sin(a));
+          pos.set(px + r * Math.cos(a), tops[i] + g.lift, py + r * Math.sin(a));
           rot.setFromAxisAngle(up, rnd() * Math.PI * 2);
           scl.setScalar(g.scale * (0.8 + 0.4 * rnd()));
           const key = `${file}@${chunk}`;

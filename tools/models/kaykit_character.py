@@ -106,7 +106,7 @@ UNITS = {
     'archer': {
         'character': 'Ranger',
         'team_cells': [(0, 1)],  # cape and tunic
-        'props': [prop('bow_withString', 'handslot.l')],
+        'props': [prop('bow_withString', 'handslot.l', rot=(0, 0, 180))],  # string towards the archer
         'anims': ['General', 'MovementBasic', 'CombatRanged'],
         'clips': {**COMMON_CLIPS, 'attack': 'Ranged_Bow_Draw+Ranged_Bow_Release'},
     },

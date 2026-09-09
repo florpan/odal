@@ -17,18 +17,18 @@
             "grass_2_c.glb",
             "grass_2_d.glb"
           ],
-          "density": 1.4,
+          "density": 2.5,
           "scale": 0.35,
-          "patches": 0.7,
-          "patchScale": 5,
+          "patches": 0.85,
+          "patchScale": 3,
           "shore": "none"
         },
         {
           "models": ["bush_1_a.glb", "bush_1_b.glb", "bush_2_a.glb"],
-          "density": 0.25,
+          "density": 0.45,
           "scale": 0.6,
-          "patches": 0.8,
-          "patchScale": 8,
+          "patches": 0.85,
+          "patchScale": 4,
           "shore": "none"
         }
       ]

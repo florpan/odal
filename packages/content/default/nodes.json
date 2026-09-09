@@ -16,7 +16,7 @@
       "shape": "cone",
       "color": "#2e7d32",
       "models": ["hex_trees_a_large.glb", "hex_trees_b_large.glb", "hex_trees_a_medium.glb", "hex_trees_b_medium.glb"],
-      "scale": 1
+      "scale": 1.25
     },
     "notes": "Hexagon-pack forest clusters (one hex = a wood). Forest Nature trees (tree_1..4.glb, scale 0.6) are the alternative."
   },
