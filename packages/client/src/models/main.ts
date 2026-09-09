@@ -10,7 +10,8 @@ import { HEX_ATLAS_MATERIAL, hexAtlasSeason, loadHexAtlas } from '../game/render
 // by the game.
 // ---------------------------------------------------------------------------
 
-const TEAM_COLOURS = ['#e53935', '#1e88e5', '#43a047', '#fdd835', '#8e24aa'];
+// The first five of rules.playerColors, in order.
+const TEAM_COLOURS = ['#1e88e5', '#43a047', '#fdd835', '#8e24aa', '#fb8c00'];
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(innerWidth, innerHeight);
