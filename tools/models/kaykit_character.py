@@ -1,6 +1,7 @@
 """Turn a KayKit character into an Odal unit model: one GLB with the character mesh,
-a flat "Team" material where the owner's colour goes, the animation clips we use
-renamed to Odal's task names, and the whole thing scaled to 1 unit tall.
+a flat "Team" material where the owner's colour goes, a prop in its hand, the
+animation clips we use renamed to Odal's task names, and the whole thing scaled to
+1 unit tall.
 
 KayKit packs (CC0, Kay Lousberg, www.kaylousberg.com) ship characters and animations
 as separate GLBs that share the Rig_Medium skeleton, so clips can be copied across.
@@ -10,55 +11,127 @@ gradient cells, and every face's UVs sit inside one cell. That makes two things 
     --paint COL,ROW=#top[:#bottom]   recolour a cell (e.g. the Rogue's green shirt to brown)
     --team-cell COL,ROW              give every face in that cell the Team material
 Cells count from the top-left, so the Rogue's shirt is 0,1 and its scarf, collar and cape 1,1.
-Survey a character's cells before choosing: see the UV-cell listing in docs/PLAN.md § M3.
+Survey a character's cells before choosing: see the UV-cell listing in docs/PLAN.md.
     --drop MESH                      leave a mesh out (Rogue_Cape)
     --team MESH                      the whole mesh gets the Team material (the old way)
+    --prop FILE[@BONE]               a pack prop (axe, bow, ...) held in BONE (default handslot.r).
+                                     The prop becomes skinned geometry weighted to that bone, placed
+                                     at the bone's rest frame as the pack authored it.
+    --clip NAME=ACTION[+ACTION...]   an Odal clip from one action, or several played back to back
+                                     (the archer's attack is the bow draw followed by the release)
 
-Run inside Blender, headless:
+Run inside Blender, headless. Every unit in UNITS, or one of them:
+
+    blender -b -P tools/models/kaykit_character.py
+    blender -b -P tools/models/kaykit_character.py -- --unit soldier
+
+or an ad-hoc conversion:
 
     blender -b -P tools/models/kaykit_character.py -- <character.glb> <out.glb> \
         --anim <animations.glb> [--anim ...] --clip idle=Idle_A --clip walk=Walking_A ... \
         [--drop Rogue_Cape] [--paint 0,1=#9a7550:#5f4630] [--team-cell 1,1] \
-        [--team Rogue_Cape] [--team-color 0.8,0.2,0.18]
+        [--prop axe_1handed.gltf@handslot.r] [--team Rogue_Cape] [--team-color 0.8,0.2,0.18]
 
 or through the Blender MCP by setting ARGS before exec()-ing this file.
 """
 
+import json
 import math
 import os
+import struct
 import sys
 
 import bpy
 import numpy as np
+from mathutils import Matrix, Quaternion
 
 PALETTE_COLS, PALETTE_ROWS = 8, 4
 
-DEFAULT_ARGS = {
-    'character': r'C:\Dev\KayKit\KayKit_Adventurers_2.0\Characters\gltf\Rogue.glb',
-    'out': r'C:\Dev\odal\packages\client\public\models\worker.glb',
-    'anims': [
-        r'C:\Dev\KayKit\KayKit_Character_Animations_1.1\Animations\gltf\Rig_Medium\Rig_Medium_General.glb',
-        r'C:\Dev\KayKit\KayKit_Character_Animations_1.1\Animations\gltf\Rig_Medium\Rig_Medium_MovementBasic.glb',
-        r'C:\Dev\KayKit\KayKit_Character_Animations_1.1\Animations\gltf\Rig_Medium\Rig_Medium_Tools.glb',
-        r'C:\Dev\KayKit\KayKit_Character_Animations_1.1\Animations\gltf\Rig_Medium\Rig_Medium_CombatMelee.glb',
-    ],
-    # Odal clip name -> KayKit action name. The renderer picks by task (see render/scene.ts).
-    'clips': {
-        'idle': 'Idle_A',
-        'walk': 'Walking_A',
-        'chop': 'Chopping',
-        'mine': 'Pickaxing',
-        'build': 'Hammering',
-        'attack': 'Melee_Unarmed_Attack_Punch_A',
-        'hit': 'Hit_A',
-        'death': 'Death_A',
+ADVENTURERS = r'C:\Dev\KayKit\KayKit_Adventurers_2.0'
+CHARACTERS = os.path.join(ADVENTURERS, 'Characters', 'gltf')
+PROPS = os.path.join(ADVENTURERS, 'Assets', 'gltf')
+ANIMATIONS = r'C:\Dev\KayKit\KayKit_Character_Animations_1.1\Animations\gltf\Rig_Medium'
+OUT = r'C:\Dev\odal\packages\client\public\models'
+
+
+def anim(name):
+    return os.path.join(ANIMATIONS, f'Rig_Medium_{name}.glb')
+
+
+def prop(name, bone='handslot.r'):
+    return (os.path.join(PROPS, f'{name}.gltf'), bone)
+
+
+COMMON_CLIPS = {'idle': 'Idle_A', 'walk': 'Walking_A', 'hit': 'Hit_A', 'death': 'Death_A'}
+
+# One entry per unit: the character, what to change on it, its prop and its clips. The roster and the
+# palette cells behind `paint` / `team_cells` are in docs/PLAN.md ("Roster decided 2026-09-09").
+UNITS = {
+    'worker': {
+        'character': 'Rogue',
+        'drop': ['Rogue_Cape'],
+        'paint': {(0, 1): ('#9a7550', '#5f4630')},  # shirt and sleeves: undyed wool instead of green
+        'team_cells': [(1, 1)],  # scarf, collar and cuffs carry the owner's colour
+        'props': [prop('axe_1handed')],  # no pickaxe in the pack: the axe does rock too
+        'anims': ['General', 'MovementBasic', 'Tools', 'CombatMelee'],
+        'clips': {**COMMON_CLIPS, 'chop': 'Chopping', 'mine': 'Pickaxing', 'build': 'Hammering',
+                  'attack': 'Melee_1H_Attack_Chop'},
     },
-    'drop': ['Rogue_Cape'],
-    'paint': {(0, 1): ('#9a7550', '#5f4630')},  # shirt and sleeves: undyed wool instead of green
-    'team_cells': [(1, 1)],  # scarf, collar and cuffs carry the owner's colour
-    'team': [],
-    'team_color': (0.8, 0.2, 0.18),
+    'soldier': {
+        'character': 'Barbarian',
+        'team_cells': [(6, 0)],  # kilt and bracers (1,3 is the necklace teeth)
+        'props': [prop('axe_2handed')],
+        'anims': ['General', 'MovementBasic', 'CombatMelee'],
+        'clips': {**COMMON_CLIPS, 'attack': 'Melee_2H_Attack_Chop'},
+    },
+    'scout': {
+        'character': 'Rogue_Hooded',
+        'team_cells': [(1, 1)],  # hood, cape and scarf
+        'props': [prop('dagger')],
+        'anims': ['General', 'MovementBasic', 'CombatMelee'],
+        'clips': {**COMMON_CLIPS, 'attack': 'Melee_1H_Attack_Stab'},
+    },
+    'knight': {
+        'character': 'Knight',
+        'team_cells': [(0, 1)],  # cape and tunic trim
+        'props': [prop('sword_2handed')],
+        'anims': ['General', 'MovementBasic', 'CombatMelee'],
+        'clips': {**COMMON_CLIPS, 'attack': 'Melee_2H_Attack_Slice'},
+    },
+    'archer': {
+        'character': 'Ranger',
+        'team_cells': [(0, 1)],  # cape and tunic
+        'props': [prop('bow_withString', 'handslot.l')],
+        'anims': ['General', 'MovementBasic', 'CombatRanged'],
+        'clips': {**COMMON_CLIPS, 'attack': 'Ranged_Bow_Draw+Ranged_Bow_Release'},
+    },
+    'mage': {
+        'character': 'Mage',
+        'team_cells': [(2, 1)],  # cape
+        'props': [prop('staff')],
+        'anims': ['General', 'MovementBasic', 'CombatRanged'],
+        'clips': {**COMMON_CLIPS, 'attack': 'Ranged_Magic_Shoot'},
+    },
 }
+
+TEAM_COLOR = (0.8, 0.2, 0.18)
+
+
+def unit_args(name):
+    u = UNITS[name]
+    return {
+        'name': name,
+        'character': os.path.join(CHARACTERS, f'{u["character"]}.glb'),
+        'out': os.path.join(OUT, f'{name}.glb'),
+        'anims': [anim(a) for a in u['anims']],
+        'clips': u['clips'],
+        'drop': u.get('drop', []),
+        'paint': u.get('paint', {}),
+        'team_cells': u.get('team_cells', []),
+        'team': u.get('team', []),
+        'props': u.get('props', []),
+        'team_color': TEAM_COLOR,
+    }
 
 
 def parse_cell(text):
@@ -72,21 +145,20 @@ def parse_hex(text):
 
 
 def parse_cli():
+    """A list of arg dicts to build, or None when the script runs without `--` (then: every unit)."""
     if '--' not in sys.argv:
         return None
     argv = sys.argv[sys.argv.index('--') + 1:]
-    a = dict(DEFAULT_ARGS)
-    a['anims'] = []
-    a['clips'] = {}
-    a['drop'] = []
-    a['paint'] = {}
-    a['team_cells'] = []
-    a['team'] = []
+    a = {'name': 'custom', 'anims': [], 'clips': {}, 'drop': [], 'paint': {}, 'team_cells': [], 'team': [],
+         'props': [], 'team_color': TEAM_COLOR}
+    units = []
     pos = []
     i = 0
     while i < len(argv):
         t = argv[i]
-        if t == '--anim':
+        if t == '--unit':
+            units.append(argv[i + 1]); i += 2
+        elif t == '--anim':
             a['anims'].append(argv[i + 1]); i += 2
         elif t == '--clip':
             k, v = argv[i + 1].split('=', 1); a['clips'][k] = v; i += 2
@@ -102,22 +174,48 @@ def parse_cli():
             a['team'].append(argv[i + 1]); i += 2
         elif t == '--team-color':
             a['team_color'] = tuple(float(x) for x in argv[i + 1].split(',')); i += 2
+        elif t == '--prop':
+            path, _, bone = argv[i + 1].partition('@')
+            a['props'].append((path, bone or 'handslot.r')); i += 2
         else:
             pos.append(t); i += 1
-    if len(pos) >= 2:
-        a['character'], a['out'] = pos[0], pos[1]
-    if not a['clips']:
-        a['clips'] = DEFAULT_ARGS['clips']
-    # A character named on the command line gets exactly the options given, no Rogue defaults.
+    if units:
+        return [unit_args(u) for u in units]
     if len(pos) < 2:
-        for k in ('drop', 'paint', 'team_cells', 'team'):
-            if not a[k]:
-                a[k] = DEFAULT_ARGS[k]
-    return a
+        return None
+    a['character'], a['out'] = pos[0], pos[1]
+    if not a['clips']:
+        a['clips'] = COMMON_CLIPS
+    return [a]
 
 
 def matches(name, patterns):
     return name in patterns or any(name.endswith(p) for p in patterns)
+
+
+def reset_scene():
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+    for coll in (bpy.data.meshes, bpy.data.armatures, bpy.data.actions, bpy.data.materials, bpy.data.images):
+        for block in list(coll):
+            if block.users == 0:
+                coll.remove(block)
+
+
+def import_glb(path):
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=path)
+    return [o for o in bpy.data.objects if o not in before]
+
+
+def find_action(name):
+    """KayKit actions import as e.g. 'Walking_A' or 'Rig_Medium|Walking_A' (possibly with .001)."""
+    for a in bpy.data.actions:
+        base = a.name.split('|')[-1]
+        base = base.split('.')[0] if base.split('.')[-1].isdigit() else base
+        if base == name:
+            return a
+    return None
 
 
 def uv_cell(mesh, poly, uv):
@@ -152,29 +250,61 @@ def paint_cells(meshes, paint):
         img.pack()  # the exporter embeds the packed bytes; repack so it sees the new pixels
 
 
-def reset_scene():
-    bpy.ops.object.select_all(action='SELECT')
-    bpy.ops.object.delete()
-    for coll in (bpy.data.meshes, bpy.data.armatures, bpy.data.actions, bpy.data.materials, bpy.data.images):
-        for block in list(coll):
-            if block.users == 0:
-                coll.remove(block)
+# glTF is y-up, Blender z-up: (x, y, z) -> (x, -z, y).
+GLTF_TO_BLENDER = Matrix(((1, 0, 0, 0), (0, 0, -1, 0), (0, 1, 0, 0), (0, 0, 0, 1)))
 
 
-def import_glb(path):
-    before = set(bpy.data.objects)
-    bpy.ops.import_scene.gltf(filepath=path)
-    return [o for o in bpy.data.objects if o not in before]
+def joint_rest(glb, bone):
+    """Rest transform of joint `bone` in the character file's own coordinates (glTF, y-up), composed
+    from its node chain. Read straight from the file: what the pack's users attach props to."""
+    with open(glb, 'rb') as f:
+        data = f.read()
+    length = struct.unpack_from('<I', data, 12)[0]
+    nodes = json.loads(data[20:20 + length])['nodes']
+    parent = {c: i for i, n in enumerate(nodes) for c in n.get('children', [])}
+    i = next((i for i, n in enumerate(nodes) if n.get('name') == bone), None)
+    if i is None:
+        raise RuntimeError(f'{glb} has no joint {bone}')
+    m = Matrix.Identity(4)
+    while i is not None:
+        n = nodes[i]
+        t = Matrix.Translation(n.get('translation', (0, 0, 0)))
+        q = n.get('rotation', (0, 0, 0, 1))
+        r = Quaternion((q[3], q[0], q[1], q[2])).to_matrix().to_4x4()
+        s = Matrix.Diagonal((*n.get('scale', (1, 1, 1)), 1))
+        m = t @ r @ s @ m
+        i = parent.get(i)
+    return m
 
 
-def find_action(name):
-    """KayKit actions import as e.g. 'Walking_A' or 'Rig_Medium|Walking_A' (possibly with .001)."""
-    for a in bpy.data.actions:
-        base = a.name.split('|')[-1]
-        base = base.split('.')[0] if base.split('.')[-1].isdigit() else base
-        if base == name:
-            return a
-    return None
+def attach_prop(armature, character_file, path, bone):
+    """Import a pack prop and make it skinned geometry that follows `bone`: vertices moved to the
+    bone's rest frame, one vertex group with full weight, an Armature modifier."""
+    rest = joint_rest(character_file, bone)
+    imported = import_glb(path)
+    names = {o.name for o in imported}
+    parts = [o for o in imported if o.type == 'MESH']
+    if not parts:
+        raise RuntimeError(f'no meshes in {path}')
+    bpy.ops.object.select_all(action='DESELECT')
+    for o in parts:
+        o.select_set(True)
+    bpy.context.view_layer.objects.active = parts[0]
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    if len(parts) > 1:
+        bpy.ops.object.join()
+    held = bpy.context.active_object
+    for o in [o for o in bpy.data.objects if o.name in names and o is not held]:
+        bpy.data.objects.remove(o)
+    world = GLTF_TO_BLENDER @ rest @ GLTF_TO_BLENDER.inverted()
+    for v in held.data.vertices:
+        v.co = world @ v.co
+    held.name = os.path.splitext(os.path.basename(path))[0]
+    held.parent = armature
+    group = held.vertex_groups.new(name=bone)
+    group.add([v.index for v in held.data.vertices], 1.0, 'REPLACE')
+    held.modifiers.new('Armature', 'ARMATURE').object = armature
+    return held
 
 
 def build(args):
@@ -189,10 +319,10 @@ def build(args):
             if o in meshes:
                 meshes.remove(o)
             bpy.data.objects.remove(o)
-    armature.name = 'worker'
+    armature.name = args['name']
 
     # Bring in the clips: import each animation file, keep its actions, drop its mannequin.
-    wanted = set(args['clips'].values())
+    wanted = {part for v in args['clips'].values() for part in v.split('+')}
     for path in args['anims']:
         imported = import_glb(path)
         for a in bpy.data.actions:
@@ -205,8 +335,8 @@ def build(args):
         if base not in wanted and a.name not in wanted:
             bpy.data.actions.remove(a)
 
-    # Stash each wanted action as an NLA track named after Odal's clip name; the exporter
-    # (NLA_TRACKS mode) turns every track into one glTF animation with that name.
+    # Stash each wanted clip as an NLA track named after Odal's clip name, its actions as strips back
+    # to back; the exporter (NLA_TRACKS mode) turns every track into one glTF animation with that name.
     if armature.animation_data is None:
         armature.animation_data_create()
     armature.animation_data.action = None
@@ -214,15 +344,18 @@ def build(args):
         armature.animation_data.nla_tracks.remove(track)
     missing = []
     for ours, theirs in args['clips'].items():
-        action = find_action(theirs)
-        if action is None:
+        actions = [find_action(t) for t in theirs.split('+')]
+        if None in actions:
             missing.append(theirs)
             continue
-        action.name = ours
         track = armature.animation_data.nla_tracks.new()
         track.name = ours
-        track.strips.new(ours, int(action.frame_range[0]), action)
         track.mute = False
+        start = int(actions[0].frame_range[0])
+        for n, action in enumerate(actions):
+            action.name = ours if n == 0 else f'{ours}.{n}'
+            strip = track.strips.new(action.name, start, action)
+            start = int(math.ceil(strip.frame_end)) + 1
     if missing:
         print('WARNING missing clips:', missing)
 
@@ -256,13 +389,19 @@ def build(args):
     if (args['team'] or team_cells) and not team_faces:
         print('WARNING no face got the Team material; the owner colour will not show on this model')
 
-    # Normalise height to 1 unit (feet stay at 0) by scaling the armature object.
-    # Measure the bind pose straight from the vertex data (mesh objects sit under the armature at scale 1).
+    # Height of the character alone (a raised sword must not shrink the body), measured from the bind
+    # pose straight from the vertex data (mesh objects sit under the armature at scale 1).
     zs = []
     for m in meshes:
         mw = m.matrix_world
         zs.extend((mw @ v.co).z for v in m.data.vertices)
     height = max(zs) - min(zs)
+
+    # Props, after the team pass (their own textures must not be mistaken for palette cells).
+    for path, bone in args['props']:
+        meshes.append(attach_prop(armature, args['character'], path, bone))
+
+    # Normalise height to 1 unit (feet stay at 0) by scaling the armature object; the props follow.
     armature.scale = (1 / height, 1 / height, 1 / height)
     bpy.context.view_layer.update()
 
@@ -288,10 +427,14 @@ def build(args):
         export_image_format='AUTO',
     )
     tris = sum(sum(len(p.vertices) - 2 for p in m.data.polygons) for m in meshes)
-    print(f'wrote {out}: {tris} triangles, {team_faces} team faces, height was {height:.3f}, '
-          f'clips {list(args["clips"])}, missing {missing}')
+    print(f'wrote {out}: {tris} triangles, {team_faces} team faces, {len(args["props"])} props, height was '
+          f'{height:.3f}, clips {list(args["clips"])}, missing {missing}')
     return out
 
 
 if __name__ == '__main__':
-    build(parse_cli() or globals().get('ARGS') or DEFAULT_ARGS)
+    jobs = parse_cli() or globals().get('ARGS') or [unit_args(u) for u in UNITS]
+    if isinstance(jobs, dict):
+        jobs = [jobs]
+    for job in jobs:
+        build(job)

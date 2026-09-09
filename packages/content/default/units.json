@@ -30,7 +30,7 @@
     "vision": 5,
     "upkeep": { "wheat": 1 },
     "abilities": ["attack"],
-    "visual": { "width": 0.22, "height": 0.36, "helmet": true }
+    "visual": { "width": 0.22, "height": 0.36, "helmet": true, "model": "soldier.glb" }
   },
   {
     "id": "archer",
@@ -52,7 +52,7 @@
       "arc": 0.12,
       "visual": { "shape": "bolt", "color": "#c9a86a", "size": 0.3, "model": "arrow.glb" }
     },
-    "visual": { "width": 0.2, "height": 0.34 }
+    "visual": { "width": 0.2, "height": 0.34, "model": "archer.glb" }
   },
   {
     "id": "knight",
@@ -69,6 +69,6 @@
     "vision": 6,
     "upkeep": { "wheat": 2 },
     "abilities": ["attack"],
-    "visual": { "width": 0.26, "height": 0.4, "helmet": true }
+    "visual": { "width": 0.26, "height": 0.4, "helmet": true, "model": "knight.glb" }
   }
 ]
