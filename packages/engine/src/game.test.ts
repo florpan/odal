@@ -329,24 +329,44 @@ describe('engine with the default tech tree', () => {
     expect(state.buildings[hall.id].queue.length).toBe(0);
   });
 
-  test('a harvester only delivers to a drop-off that takes what it carries', () => {
+  test('a harvester delivers to the closest drop-off that takes its load; the town hall takes everything', () => {
     const state = createGame(DEFAULT_TREE, 7);
     const p = addPlayer(state, 'Alice', emptyEvents());
     const worker = Object.values(state.units)[0];
     const hall = Object.values(state.buildings)[0];
-    const mill = DEFAULT_TREE.buildings.find((b) => b.dropOff && b.accepts.includes('lumber'))!;
-    expect(DEFAULT_TREE.buildings.find((b) => b.id === hall.type)!.accepts).not.toContain('lumber');
+    expect(DEFAULT_TREE.buildings.find((b) => b.id === hall.type)!.accepts).toEqual([]);
+    const toDrop = { kind: 'harvest', nodeId: -1, nodeType: 'tree', phase: 'toDrop', progress: 0 } as const;
+
+    // No mill yet: lumber goes to the town hall, nobody is stranded.
     worker.carry = { type: 'lumber', amount: 10 };
-    worker.task = { kind: 'harvest', nodeId: -1, nodeType: 'tree', phase: 'toDrop', progress: 0 };
+    worker.task = { ...toDrop };
     const before = p.resources.lumber;
-    const ev = stepGame(state, [], DT);
-    expect(state.units[worker.id].task.kind).toBe('idle');
-    expect(ev.messages.some((m) => m.text.includes('Nowhere to deliver'))).toBe(true);
-    expect(p.resources.lumber).toBe(before);
-    makeBuilding(state, p.id, mill.id, hall.x + 2, hall.y).progress = 1;
-    worker.task = { kind: 'harvest', nodeId: -1, nodeType: 'tree', phase: 'toDrop', progress: 0 };
     run(state, 60);
     expect(p.resources.lumber).toBe(before + 10);
+
+    // A mill a walk away from the hall, with the worker standing next to it: it is the closer drop-off,
+    // so the load is in the same tick without a walk back to the hall.
+    const mill = DEFAULT_TREE.buildings.find((b) => b.dropOff && b.accepts.includes('lumber'))!;
+    for (const n of Object.values(state.nodes)) if (hexDistance(n, hall) < 8) delete state.nodes[n.id];
+    const m = makeBuilding(state, p.id, mill.id, hall.x + 5, hall.y);
+    m.progress = 1;
+    const beside = hexCentre(m.x + 1, m.y);
+    worker.x = beside.x;
+    worker.y = beside.y;
+    worker.carry = { type: 'lumber', amount: 10 };
+    worker.task = { ...toDrop };
+    stepGame(state, [], DT);
+    expect(p.resources.lumber).toBe(before + 20);
+
+    // With every drop-off gone the worker stops and says so.
+    delete state.buildings[hall.id];
+    delete state.buildings[m.id];
+    worker.carry = { type: 'lumber', amount: 10 };
+    worker.task = { ...toDrop };
+    const ev = stepGame(state, [], DT);
+    expect(state.units[worker.id].task.kind).toBe('idle');
+    expect(ev.messages.some((msg) => msg.text.includes('Nowhere to deliver'))).toBe(true);
+    expect(p.resources.lumber).toBe(before + 20);
   });
 
   test('a building with a limit cannot be placed beyond it', () => {

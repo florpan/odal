@@ -3,7 +3,7 @@
     "id": "townhall",
     "name": "Town hall",
     "desc": "The heart of the village. Trains workers, directs the community's research, and can become a castle.",
-    "notes": "Research is community-wide and chosen from the tech tree; this is where the button lives (research: true). It takes no harvested goods: lumber goes to the lumber mill, ore to the mines. Upgrades to the castle after Feudalism.",
+    "notes": "Research is community-wide and chosen from the tech tree; this is where the button lives (research: true). Takes every harvested good (accepts: []): the lumber mill and the mines are drop-offs closer to the source, never a requirement (decided 2026-09-09 after a worker sent to gold stood idle with nowhere to deliver). Upgrades to the castle after Feudalism.",
     "buildable": false,
     "time": 0,
     "hp": 400,
@@ -11,7 +11,7 @@
     "trains": ["worker"],
     "upgrades": ["castle"],
     "dropOff": true,
-    "accepts": ["wheat"],
+    "accepts": [],
     "vision": 7,
     "visual": {
       "color": "#8d6e63",
@@ -36,7 +36,7 @@
     "pop": 10,
     "trains": ["worker", "knight"],
     "dropOff": true,
-    "accepts": ["wheat"],
+    "accepts": [],
     "requires": [
       {
         "type": "tech",
@@ -114,8 +114,8 @@
   {
     "id": "lumbermill",
     "name": "Lumber mill",
-    "desc": "Takes in lumber. Build it by the woods.",
-    "notes": "The only place lumber can be delivered, so it is the first building of every game. Cheap for that reason.",
+    "desc": "Takes in lumber. Build it by the woods so the walk back is short.",
+    "notes": "A drop-off closer to the trees than the town hall, which also takes lumber. Cheap so that it pays for itself quickly.",
     "cost": {
       "lumber": 30
     },
@@ -133,7 +133,7 @@
   {
     "id": "quarry",
     "name": "Quarry",
-    "desc": "Takes in stone. Build it by the rocks.",
+    "desc": "Takes in stone. Build it by the rocks so the walk back is short.",
     "notes": "Same pack model as the mines for now; a stack of the Resource Bits stone next to it later.",
     "cost": {
       "lumber": 40
@@ -158,7 +158,7 @@
   {
     "id": "iron_mine",
     "name": "Iron mine",
-    "desc": "Takes in iron. Build it by the iron deposit.",
+    "desc": "Takes in iron. Build it by the iron deposit so the walk back is short.",
     "cost": {
       "lumber": 40
     },
@@ -182,7 +182,7 @@
   {
     "id": "gold_mine",
     "name": "Gold mine",
-    "desc": "Takes in gold. Build it by the gold deposit.",
+    "desc": "Takes in gold. Build it by the gold deposit so the walk back is short.",
     "cost": {
       "lumber": 40
     },

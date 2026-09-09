@@ -52,8 +52,12 @@ be a strategy rather than a chore: wall, gate, watchtower and Masonry at launch.
 ### Buildings
 
 Every building occupies one hex (ADR 0008: board-game scale, a tile represents what is on it). Tree
-decided 2026-09-08 from the Hexagon pack's contact sheets. Research happens at the town hall (no library);
-harvested goods go to the building that takes them (`accepts`), never to the town hall.
+decided 2026-09-08 from the Hexagon pack's contact sheets. Research happens at the town hall (no library).
+Harvested goods go to the closest drop-off that takes them (`accepts`): the town hall takes everything, the
+lumber mill and the mines are drop-offs closer to the source, never a requirement. Decided 2026-09-09 after
+a playtest where a worker sent to gold stood idle with nowhere to deliver; the alternative, resource
+buildings that do the harvesting with workers assigned to them, was judged to add nothing over assigning
+more workers to the same deposit.
 
 | Building                       | Cost                           | Effect                                                                       | Requires       |
 | ------------------------------ | ------------------------------ | ---------------------------------------------------------------------------- | -------------- |
@@ -62,8 +66,8 @@ harvested goods go to the building that takes them (`accepts`), never to the tow
 | House                          | 25 lumber                      | +5 population cap.                                                           | —              |
 | Windmill                       | 20 lumber                      | +4 wheat every 8 s.                                                          | —              |
 | Grain field                    | 10 lumber                      | +2 wheat every 8 s.                                                          | —              |
-| Lumber mill                    | 30 lumber                      | Takes lumber. First building of every game.                                  | —              |
-| Quarry / Iron mine / Gold mine | 40 lumber                      | Take stone / iron / gold (same pack model for now).                          | Mining         |
+| Lumber mill                    | 30 lumber                      | Takes lumber, closer to the woods than the town hall.                        | —              |
+| Quarry / Iron mine / Gold mine | 40 lumber                      | Take stone / iron / gold near the deposit (same pack model for now).         | Mining         |
 | Barracks                       | 50 lumber                      | Trains soldiers.                                                             | House          |
 | Blacksmith                     | 40 lumber, 10 iron             | Steel weapons and chainmail need one.                                        | Ironworking    |
 | Archery range                  | 40 lumber                      | Trains archers. Longbows need one.                                           | Fletching      |
@@ -182,8 +186,11 @@ basic combat, multiplayer over WebSocket, minimap, HUD.
 - [x] Walls and gates: `passable` buildings, per-owner blocking grid
 - [x] Upkeep: units consume wheat over time. Still open: what starving does.
 - [x] One ranged unit (archer) — in the tree since 2026-09-08, shooting arrows since M5 (2026-09-09)
-- [ ] Gathering depth, next candidates: per-resource drop-off buildings (lumber mill, quarry) so distance
-      matters; contested deposits placed between players; a second tier of gathering techs
+- [x] Gathering depth: per-resource drop-off buildings so distance matters (2026-09-08, made optional
+      2026-09-09: the town hall takes everything); contested deposits between players (2026-09-09)
+- [ ] A second tier of gathering techs. Open since the town hall takes everything: Mining no longer gates
+      stone, iron or gold gathering, only the closer drop-offs. Either accept that, or give nodes a
+      `requires` so a deposit needs the tech before workers can harvest it.
 - [ ] AI opponent for solo play and balancing: an API for LLM agents rather than a scripted bot (backlog below)
 - [ ] Win condition: destroy all enemy town halls, and say so (backlog below)
 - [ ] Balance pass with real opponents, using the editor
