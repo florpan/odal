@@ -16,7 +16,8 @@ Survey a character's cells before choosing: see the UV-cell listing in docs/PLAN
     --team MESH                      the whole mesh gets the Team material (the old way)
     --prop FILE[@BONE]               a pack prop (axe, bow, ...) held in BONE (default handslot.r).
                                      The prop becomes skinned geometry weighted to that bone, placed
-                                     at the bone's rest frame as the pack authored it.
+                                     at the bone's rest frame as the pack authored it (UNITS entries
+                                     can add a rotation for props that need turning, see prop()).
     --clip NAME=ACTION[+ACTION...]   an Odal clip from one action, or several played back to back
                                      (the archer's attack is the bow draw followed by the release)
 
@@ -43,7 +44,7 @@ import sys
 
 import bpy
 import numpy as np
-from mathutils import Matrix, Quaternion
+from mathutils import Euler, Matrix, Quaternion
 
 PALETTE_COLS, PALETTE_ROWS = 8, 4
 
@@ -58,8 +59,12 @@ def anim(name):
     return os.path.join(ANIMATIONS, f'Rig_Medium_{name}.glb')
 
 
-def prop(name, bone='handslot.r'):
-    return (os.path.join(PROPS, f'{name}.gltf'), bone)
+def prop(name, bone='handslot.r', rot=(0, 0, 0)):
+    """A pack prop and the bone that holds it. `rot` (degrees, XYZ, in the prop's own frame) corrects
+    props that do not fit the slot as authored. The slot's +Y is the grip axis (a sword's blade), +Z its
+    up (a bow's limbs), and both slots share one frame (they are not mirrored), which is why the
+    one-handed axe's head faces the body in the right hand and gets turned around."""
+    return (os.path.join(PROPS, f'{name}.gltf'), bone, rot)
 
 
 COMMON_CLIPS = {'idle': 'Idle_A', 'walk': 'Walking_A', 'hit': 'Hit_A', 'death': 'Death_A'}
@@ -72,7 +77,7 @@ UNITS = {
         'drop': ['Rogue_Cape'],
         'paint': {(0, 1): ('#9a7550', '#5f4630')},  # shirt and sleeves: undyed wool instead of green
         'team_cells': [(1, 1)],  # scarf, collar and cuffs carry the owner's colour
-        'props': [prop('axe_1handed')],  # no pickaxe in the pack: the axe does rock too
+        'props': [prop('axe_1handed', rot=(0, 180, 0))],  # no pickaxe in the pack: the axe does rock too
         'anims': ['General', 'MovementBasic', 'Tools', 'CombatMelee'],
         'clips': {**COMMON_CLIPS, 'chop': 'Chopping', 'mine': 'Pickaxing', 'build': 'Hammering',
                   'attack': 'Melee_1H_Attack_Chop'},
@@ -176,7 +181,7 @@ def parse_cli():
             a['team_color'] = tuple(float(x) for x in argv[i + 1].split(',')); i += 2
         elif t == '--prop':
             path, _, bone = argv[i + 1].partition('@')
-            a['props'].append((path, bone or 'handslot.r')); i += 2
+            a['props'].append((path, bone or 'handslot.r', (0, 0, 0))); i += 2
         else:
             pos.append(t); i += 1
     if units:
@@ -277,10 +282,11 @@ def joint_rest(glb, bone):
     return m
 
 
-def attach_prop(armature, character_file, path, bone):
-    """Import a pack prop and make it skinned geometry that follows `bone`: vertices moved to the
-    bone's rest frame, one vertex group with full weight, an Armature modifier."""
-    rest = joint_rest(character_file, bone)
+def attach_prop(armature, character_file, path, bone, rot=(0, 0, 0)):
+    """Import a pack prop and make it skinned geometry that follows `bone`: vertices turned by `rot`
+    (degrees) in the prop's frame, moved to the bone's rest frame, one vertex group with full weight,
+    an Armature modifier."""
+    rest = joint_rest(character_file, bone) @ Euler([math.radians(d) for d in rot], 'XYZ').to_matrix().to_4x4()
     imported = import_glb(path)
     names = {o.name for o in imported}
     parts = [o for o in imported if o.type == 'MESH']
@@ -296,6 +302,10 @@ def attach_prop(armature, character_file, path, bone):
     held = bpy.context.active_object
     for o in [o for o in bpy.data.objects if o.name in names and o is not held]:
         bpy.data.objects.remove(o)
+    # The bow carries a shape key that animates its string. With shape keys the export takes the key's
+    # coordinates, not the vertices moved below, so the prop would stay at the origin: drop them.
+    if held.data.shape_keys:
+        held.shape_key_clear()
     world = GLTF_TO_BLENDER @ rest @ GLTF_TO_BLENDER.inverted()
     for v in held.data.vertices:
         v.co = world @ v.co
@@ -398,8 +408,8 @@ def build(args):
     height = max(zs) - min(zs)
 
     # Props, after the team pass (their own textures must not be mistaken for palette cells).
-    for path, bone in args['props']:
-        meshes.append(attach_prop(armature, args['character'], path, bone))
+    for path, bone, rot in args['props']:
+        meshes.append(attach_prop(armature, args['character'], path, bone, rot))
 
     # Normalise height to 1 unit (feet stay at 0) by scaling the armature object; the props follow.
     armature.scale = (1 / height, 1 / height, 1 / height)
