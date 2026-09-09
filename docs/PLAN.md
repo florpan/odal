@@ -297,8 +297,15 @@ cape 2,1 · hat 1,1.
   - Done 2026-09-10: the roster's six characters with hand props (table under "Buildings"), iron and
     gold ore as Forest Nature rocks in the resource's colour with a specular material (`kaykit_prop.py`
     job option `material`; the client turns an untextured low-roughness material into Phong), and
-    foliage: `terrain.visual.scatter` sprinkles grass, bushes and pebbles over grass hexes and water
-    plants along the shore, instanced per model, placed from the hex index, hidden under buildings.
+    foliage: `terrain.visual.scatter` sprinkles grass and bushes over grass hexes in noise-shaped
+    patches (`patches`, `patchScale`) and water plants along the shore (`shore: only`; grass keeps off
+    coast tiles with `shore: none`), one InstancedMesh per model and 10-hex chunk with its own bounding
+    sphere so the frustum culls what is off screen, no cast shadows, placed from the hex index, hidden
+    under buildings. Pebbles were tried and dropped (ore, stone and cliffs are rock enough). Sky:
+    Christer's equirectangular painting in `client/public/skybox` as `scene.background`, a stand-in
+    until a sharper one. Prop lessons: the slot's +Y is the grip axis and +Z its up, both hand slots
+    share one frame (not mirrored) so the one-handed axe is turned 180° about Y for the right hand;
+    a prop with shape keys (the bow's string) exports the key's coordinates, so keys are cleared.
   - **Next:** path smoothing; a shield for the knight (second hand slot); walls turned to face their
     neighbours (same trick as the coast tiles); an upgrade-in-place command for the tower line;
     construction scaffolding and ruin stages from the pack; one shared texture per pack instead of a copy

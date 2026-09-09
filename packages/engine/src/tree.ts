@@ -96,8 +96,12 @@ export const ScatterSchema = z
     scale: Positive.default(1),
     /** Height above the tile top; negative sinks (the pack's water surface is 0.1 below its tile). */
     lift: z.number().default(0),
-    /** Only on hexes that border another terrain (water plants along the shore). */
-    border: z.boolean().default(false),
+    /** 0 = spread evenly, 1 = clumps with bare ground between. */
+    patches: z.number().min(0).max(1).default(0),
+    /** Size of the clumps in hexes. */
+    patchScale: Positive.default(6),
+    /** Hexes bordering terrain of the other passability (coast, or the water beside it): `only` there, or `none` there. */
+    shore: z.enum(['any', 'only', 'none']).default('any'),
   })
   .strict();
 

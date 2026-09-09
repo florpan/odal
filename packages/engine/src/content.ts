@@ -79,16 +79,21 @@ export interface TerrainDef extends EntityDef {
 /**
  * One kind of prop sprinkled over a terrain: `models` (GLBs under /models/, base at y=0) placed `density`
  * times per hex on average at `scale` (times a little jitter), `lift` above the tile top (negative sinks:
- * the pack's water surface is 0.1 below its tile), only on hexes that border another terrain when
- * `border` is set (water plants along the shore). Placement is decided per hex from its index, so every
- * client sees the same board; buildings hide what stands under them.
+ * the pack's water surface is 0.1 below its tile). `patches` above 0 gathers them into clumps about
+ * `patchScale` hexes across with bare ground between (1 = all clumps). `shore` is about hexes whose
+ * neighbour differs in passability (a coast tile, or the water next to it): `only` puts the props
+ * nowhere else (water plants), `none` keeps them off such hexes (grass would stand in a coast tile's
+ * water). Placement is decided per hex from its index, so every client sees the same board; buildings
+ * hide what stands under them.
  */
 export interface Scatter {
   models: string[];
   density: number;
   scale: number;
   lift: number;
-  border: boolean;
+  patches: number;
+  patchScale: number;
+  shore: 'any' | 'only' | 'none';
 }
 
 export interface NodeDef extends EntityDef {

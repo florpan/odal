@@ -113,12 +113,13 @@ JOB_GROUPS = {
          {'material': {'color': colour, 'metallic': 0.85, 'roughness': 0.3}})
         for res, (colour, rocks) in ORE.items() for i, rock in enumerate(rocks)
     ],
-    # Foliage sprinkled over the ground by terrain.visual.scatter (CONTENT.md): grass tufts, bushes and
-    # pebbles from Forest Nature at character scale, water plants from the Hexagon pack at tile scale.
+    # Foliage sprinkled over the ground by terrain.visual.scatter (CONTENT.md): grass tufts and bushes
+    # from Forest Nature at character scale, water plants from the Hexagon pack at tile scale. (Pebbles,
+    # Rock_3 A-E, were tried and dropped: the ore, stone and cliffs are rock enough.)
     'foliage': [
         (f'scale:{CHARACTER_SCALE}', os.path.join(FOREST, f'{n}_Color1.gltf'), os.path.join(OUT, f'{n.lower()}.glb'))
         for n in ['Grass_1_A', 'Grass_1_B', 'Grass_2_A', 'Grass_2_B', 'Grass_2_C', 'Grass_2_D',
-                  'Bush_1_A', 'Bush_1_B', 'Bush_2_A', 'Rock_3_A', 'Rock_3_B', 'Rock_3_C', 'Rock_3_D', 'Rock_3_E']
+                  'Bush_1_A', 'Bush_1_B', 'Bush_2_A']
     ] + [
         ('scale:0.5', os.path.join(HEX, 'decoration', 'nature', f'{n}.gltf'), os.path.join(OUT, f'{n.lower()}.glb'))
         for n in ['waterplant_A', 'waterplant_B', 'waterplant_C']

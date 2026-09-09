@@ -75,9 +75,25 @@
                       "type": "number",
                       "default": 0
                     },
-                    "border": {
-                      "type": "boolean",
-                      "default": false
+                    "patches": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1,
+                      "default": 0
+                    },
+                    "patchScale": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "default": 6
+                    },
+                    "shore": {
+                      "type": "string",
+                      "enum": [
+                        "any",
+                        "only",
+                        "none"
+                      ],
+                      "default": "any"
                     }
                   },
                   "required": [

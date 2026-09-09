@@ -17,14 +17,19 @@
             "grass_2_c.glb",
             "grass_2_d.glb"
           ],
-          "density": 0.9,
-          "scale": 0.35
+          "density": 1.4,
+          "scale": 0.35,
+          "patches": 0.7,
+          "patchScale": 5,
+          "shore": "none"
         },
-        { "models": ["bush_1_a.glb", "bush_1_b.glb", "bush_2_a.glb"], "density": 0.25, "scale": 0.6 },
         {
-          "models": ["rock_3_a.glb", "rock_3_b.glb", "rock_3_c.glb", "rock_3_d.glb", "rock_3_e.glb"],
-          "density": 0.12,
-          "scale": 0.35
+          "models": ["bush_1_a.glb", "bush_1_b.glb", "bush_2_a.glb"],
+          "density": 0.25,
+          "scale": 0.6,
+          "patches": 0.8,
+          "patchScale": 8,
+          "shore": "none"
         }
       ]
     }
@@ -43,7 +48,7 @@
           "density": 0.6,
           "scale": 1.6,
           "lift": -0.1,
-          "border": true
+          "shore": "only"
         }
       ]
     }

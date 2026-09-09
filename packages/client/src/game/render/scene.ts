@@ -3,6 +3,7 @@ import {
   HEX_R,
   buildingMaxHp,
   footprintTiles,
+  fractalNoise,
   hexCentre,
   hexNeighbours,
   idx,
@@ -52,6 +53,10 @@ const TILE_WALL = 0.5;
 const PLINTH_COLOR = 0x4a5155;
 /** An instance scaled to nothing: how tiles and scatter wait to be revealed. */
 const HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0);
+/** Side of the square of hexes that shares one scatter InstancedMesh per model (frustum-culled as a whole). */
+const SCATTER_CHUNK = 10;
+/** Equirectangular sky image, served from client/public. */
+const SKYBOX = '/skybox/sky.png';
 
 export interface Pick {
   kind: 'unit' | 'building' | 'node';
@@ -246,7 +251,7 @@ export class Renderer {
     this.gl.toneMapping = THREE.AgXToneMapping;
     this.gl.shadowMap.enabled = true;
     this.gl.shadowMap.type = THREE.PCFSoftShadowMap;
-    // Same as unexplored fog, so the map edge stays invisible (until a skybox takes over). FOG_COLOR is
+    // The fog colour until the sky arrives, so the map edge stays invisible meanwhile. FOG_COLOR is
     // display bytes, so say so: three would otherwise take the components as linear and clear brighter.
     this.scene.background = new THREE.Color().setRGB(
       FOG_COLOR.r / 255,
@@ -254,6 +259,13 @@ export class Renderer {
       FOG_COLOR.b / 255,
       THREE.SRGBColorSpace,
     );
+    // Sky: an equirectangular painting (client/public/skybox, Christer's stand-in until a sharper one),
+    // drawn behind the board; the fringe under full fog now meets it instead of a flat clear colour.
+    new THREE.TextureLoader().load(SKYBOX, (tex) => {
+      tex.mapping = THREE.EquirectangularReflectionMapping;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      this.scene.background = tex;
+    });
     this.camera = new THREE.PerspectiveCamera(50, 1, 0.5, 300);
 
     this.scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x3d5a2a, 0.9));
@@ -489,70 +501,96 @@ export class Renderer {
   }
 
   /**
-   * Cosmetic scatter (terrain.visual.scatter): grass, bushes, pebbles, water plants. One InstancedMesh
-   * per model file, placed per hex by a generator seeded with the hex index so every client sees the same
-   * board. Instances start scaled away like the tiles and appear with them (revealTile); a building hides
-   * the ones under its footprint. Files still loading are skipped; setMap rebuilds once they are in.
+   * Cosmetic scatter (terrain.visual.scatter): grass, bushes, water plants. Placed per hex by a
+   * generator seeded with the hex index so every client sees the same board; `patches` thins the
+   * density by a noise field so the props gather in clumps. One InstancedMesh per model file and
+   * SCATTER_CHUNK-hex square, each with its own bounding sphere, so the camera frustum culls whole
+   * chunks and only the board in view is drawn; foliage casts no shadow, that doubled its cost for
+   * nothing visible. Instances start scaled away like the tiles and appear with them (revealTile); a
+   * building hides the ones under its footprint. Files still loading are skipped; setMap rebuilds once
+   * they are in.
    */
   private buildScatter(state: GameState, hidden: THREE.Matrix4) {
     const cols = state.width;
     const rows = state.height;
     const n = cols * rows;
     const terrain = state.tree.terrain;
+    const tops = this.tileTop;
+    if (!tops) return;
     const perHex: ({ part: number; slot: number; m: THREE.Matrix4 }[] | undefined)[] = new Array(n);
-    const byFile = new Map<string, { hex: number; m: THREE.Matrix4 }[]>();
+    const chunks = new Map<string, { file: string; items: { hex: number; m: THREE.Matrix4 }[] }>();
     const pos = new THREE.Vector3();
     const rot = new THREE.Quaternion();
     const up = new THREE.Vector3(0, 1, 0);
     const scl = new THREE.Vector3();
     for (let i = 0; i < n; i++) {
-      const groups = terrain[state.terrain[i]].visual.scatter;
-      if (!groups?.length || !this.tileTop) continue;
+      const t = terrain[state.terrain[i]];
+      const groups = t.visual.scatter;
+      if (!groups?.length) continue;
       const x = i % cols;
       const y = Math.floor(i / cols);
-      const border = hexNeighbours(x, y).some(
+      const shore = hexNeighbours(x, y).some(
         (nb) =>
           nb.x >= 0 &&
           nb.y >= 0 &&
           nb.x < cols &&
           nb.y < rows &&
-          state.terrain[nb.y * cols + nb.x] !== state.terrain[i],
+          terrain[state.terrain[nb.y * cols + nb.x]].passable !== t.passable,
       );
       const rnd = mulberry32(i * 7919 + 13);
       const c = hexCentre(x, y);
-      for (const g of groups) {
-        if (g.border && !border) continue;
-        let count = Math.floor(g.density);
-        if (rnd() < g.density - count) count++;
+      const chunk = `${Math.floor(x / SCATTER_CHUNK)}:${Math.floor(y / SCATTER_CHUNK)}`;
+      groups.forEach((g, gi) => {
+        if ((g.shore === 'only' && !shore) || (g.shore === 'none' && shore)) return;
+        let density = g.density;
+        if (g.patches > 0) {
+          // The noise sits tightly around 0.5, so stretch it to the full range first; then keep the part
+          // above a cut that rises with `patches`, the rest is bare ground. The survivors get denser so
+          // a patchy field carries about as much as an even one.
+          const stretched = (fractalNoise(x, y, g.patchScale, 101 + gi * 17, 3) - 0.5) * 3 + 0.5;
+          const cut = 0.65 * g.patches;
+          const w = (stretched - cut) / (1 - cut);
+          density *= Math.max(0, Math.min(1, w)) * (1 + g.patches);
+        }
+        let count = Math.floor(density);
+        if (rnd() < density - count) count++;
         for (let k = 0; k < count; k++) {
           const file = g.models[Math.floor(rnd() * g.models.length)];
           const r = 0.42 * Math.sqrt(rnd()); // inside the hex, away from its seams
           const a = rnd() * Math.PI * 2;
-          pos.set(c.x + r * Math.cos(a), this.tileTop[i] + g.lift, c.y + r * Math.sin(a));
+          pos.set(c.x + r * Math.cos(a), tops[i] + g.lift, c.y + r * Math.sin(a));
           rot.setFromAxisAngle(up, rnd() * Math.PI * 2);
           scl.setScalar(g.scale * (0.8 + 0.4 * rnd()));
-          let list = byFile.get(file);
-          if (!list) {
-            list = [];
-            byFile.set(file, list);
+          const key = `${file}@${chunk}`;
+          let ch = chunks.get(key);
+          if (!ch) {
+            ch = { file, items: [] };
+            chunks.set(key, ch);
           }
-          list.push({ hex: i, m: new THREE.Matrix4().compose(pos, rot, scl) });
+          ch.items.push({ hex: i, m: new THREE.Matrix4().compose(pos, rot, scl) });
         }
-      }
+      });
     }
-    for (const [file, items] of byFile) {
+    const centre = new THREE.Vector3();
+    const p = new THREE.Vector3();
+    for (const { file, items } of chunks.values()) {
       const src = this.models.geometryOf(file);
       if (!src) continue;
       const mesh = new THREE.InstancedMesh(src.geometry, src.material, items.length);
       const part = this.ground.length;
+      centre.set(0, 0, 0);
       for (let k = 0; k < items.length; k++) {
         mesh.setMatrixAt(k, hidden);
         const list = perHex[items[k].hex] ?? (perHex[items[k].hex] = []);
         list.push({ part, slot: k, m: items[k].m });
+        centre.add(p.setFromMatrixPosition(items[k].m));
       }
+      // Bounds by hand: the instances start scaled away, which would give an empty sphere for good.
+      centre.divideScalar(items.length);
+      let radius = 0;
+      for (const it of items) radius = Math.max(radius, p.setFromMatrixPosition(it.m).distanceTo(centre));
+      mesh.boundingSphere = new THREE.Sphere(centre.clone(), radius + 1);
       mesh.instanceMatrix.needsUpdate = true;
-      mesh.frustumCulled = false;
-      mesh.castShadow = true;
       mesh.receiveShadow = true;
       this.scene.add(mesh);
       this.ground.push({ mesh });
