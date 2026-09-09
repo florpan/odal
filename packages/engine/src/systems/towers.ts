@@ -19,7 +19,7 @@ export function stepTower(ctx: Ctx, b: Building) {
     b.cooldown -= ctx.dt;
     return;
   }
-  const centre = { owner: b.owner, ...hexCentre(b.x, b.y) };
+  const centre = { id: b.id, owner: b.owner, ...hexCentre(b.x, b.y) };
   const enemy = findEnemyInRange(ctx, centre, def.attack.range);
   if (!enemy) return;
   const target = enemy.targetKind === 'unit' ? ctx.state.units[enemy.targetId] : ctx.state.buildings[enemy.targetId];

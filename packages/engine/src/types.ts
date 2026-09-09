@@ -85,9 +85,10 @@ export interface Building {
 export interface Shot {
   id: number;
   owner: number;
-  /** The def that fired it (unit or building type), for the projectile's look. */
+  /** What fired it: the def (unit or building type) for the projectile's look, and the entity's id. */
   source: string;
   sourceKind: 'unit' | 'building';
+  sourceId: number;
   from: Vec2; // world position it left from
   targetId: number;
   targetKind: 'unit' | 'building';

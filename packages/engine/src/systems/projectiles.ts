@@ -20,7 +20,7 @@ function targetPoint(target: Unit | Building, kind: 'unit' | 'building'): Vec2 {
 /** Fire a projectile from `from` at the target; the damage is fixed now and dealt when it lands. */
 export function fire(
   ctx: Ctx,
-  from: { owner: number; x: number; y: number },
+  from: { id: number; owner: number; x: number; y: number },
   source: { id: string; kind: 'unit' | 'building' },
   projectile: ProjectileDef,
   target: Unit | Building,
@@ -34,6 +34,7 @@ export function fire(
     owner: from.owner,
     source: source.id,
     sourceKind: source.kind,
+    sourceId: from.id,
     from: { x: from.x, y: from.y },
     targetId: target.id,
     targetKind,

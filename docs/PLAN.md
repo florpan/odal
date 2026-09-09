@@ -346,7 +346,9 @@ then rotation, then the research items.
       the arrow arrives, and shots outlive their shooter. `state.shots` in the snapshot (protocol 11),
       `systems/projectiles.ts`, drawn as a parabola in `render/scene.ts`. Archers and the tower line shoot
       arrows (the pack's `projectile_arrow`, `arrow.glb`), the catapult tower a ballista bolt (the same arrow
-      twice the size), the cannon tower a black ball.
+      twice the size), the cannon tower a black ball. A tower fires from the top of its drawn model (measured,
+      no data needed); shots at a building aim halfway up it, anywhere on the wall is a hit (Christer,
+      2026-09-09).
 - [ ] A bow in the archer's hands, and the towers' catapult and cannon animating when they fire.
 - [ ] Sounds: a twang, a thud, a boom.
 

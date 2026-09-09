@@ -109,6 +109,8 @@ interface ShotView {
   to: THREE.Vector3;
   targetId: number;
   targetKind: 'unit' | 'building';
+  /** Height above the target's feet the shot aims at: chest height on a person, halfway up a building. */
+  toLift: number;
   t: number;
   duration: number;
   elapsed: number;
@@ -119,8 +121,10 @@ interface ShotView {
   wantModel?: string;
 }
 
-/** Height above the ground a shot leaves from and aims at (a person is 0.3, a tower about 1). */
-const SHOT_HEIGHT = { unit: 0.2, building: 0.8 } as const;
+/** Height above the ground a shot leaves from or aims at on a person (0.3 tall): chest height. */
+const UNIT_SHOT_HEIGHT = 0.2;
+/** Fallback launch height for a building whose view is not drawn (under fog): about a tower's top. */
+const BUILDING_SHOT_HEIGHT = 0.8;
 
 export class Renderer {
   readonly scene = new THREE.Scene();
@@ -769,10 +773,16 @@ export class Renderer {
     return mesh;
   }
 
+  /** How tall a drawn building is (model or primitive), measured, so shots leave from a tower's top. */
+  private heightOf(v: EntityView): number {
+    const box = new THREE.Box3().setFromObject(v.body);
+    return box.isEmpty() ? BUILDING_SHOT_HEIGHT : box.max.y - v.group.position.y;
+  }
+
   /** Where a shot is aimed right now: the target's drawn position, or where it was last seen. */
   private shotTarget(v: ShotView): THREE.Vector3 {
     const view = v.targetKind === 'unit' ? this.units.get(v.targetId) : this.buildings.get(v.targetId);
-    if (view) v.to.copy(view.group.position).setY(view.group.position.y + SHOT_HEIGHT[v.targetKind]);
+    if (view) v.to.copy(view.group.position).setY(view.group.position.y + v.toLift);
     return v.to;
   }
 
@@ -813,17 +823,22 @@ export class Renderer {
         const root = this.projectileBody(p, model);
         if (!root) continue;
         if (p.visual.model && !model) void this.models.load(p.visual.model);
-        const from = new THREE.Vector3(
-          s.from.x,
-          this.groundY(s.from.x, s.from.y) + SHOT_HEIGHT[s.sourceKind],
-          s.from.y,
-        );
+        // A tower fires from its top (measured from the drawn model); a person from chest height.
+        // Shots at a building aim halfway up it: anywhere on the wall is a hit.
+        const shooter = s.sourceKind === 'building' ? this.buildings.get(s.sourceId) : undefined;
+        const launch =
+          s.sourceKind === 'unit' ? UNIT_SHOT_HEIGHT : shooter ? this.heightOf(shooter) : BUILDING_SHOT_HEIGHT;
+        const target = s.targetKind === 'building' ? this.buildings.get(s.targetId) : undefined;
+        const toLift =
+          s.targetKind === 'unit' ? UNIT_SHOT_HEIGHT : (target ? this.heightOf(target) : BUILDING_SHOT_HEIGHT) / 2;
+        const from = new THREE.Vector3(s.from.x, this.groundY(s.from.x, s.from.y) + launch, s.from.y);
         v = {
           root,
           from,
           to: from.clone(),
           targetId: s.targetId,
           targetKind: s.targetKind,
+          toLift,
           t: s.t,
           duration: s.duration,
           elapsed: 0,

@@ -618,6 +618,7 @@ describe('engine with the default tech tree', () => {
     const shots = Object.values(state.shots);
     expect(shots.length).toBe(1);
     expect(shots[0].targetId).toBe(victim.id);
+    expect(shots[0].sourceId).toBe(archer.id);
     expect(shots[0].damage).toBe(archerDef.damage);
     expect(victim.hp).toBe(hp);
     // The target walks away and the archer is removed; the arrow still lands on the mover.
