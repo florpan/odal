@@ -189,8 +189,12 @@ basic combat, multiplayer over WebSocket, minimap, HUD.
 - [x] Gathering depth: per-resource drop-off buildings so distance matters (2026-09-08, made optional
       2026-09-09: the town hall takes everything); contested deposits between players (2026-09-09)
 - [ ] A second tier of gathering techs. Open since the town hall takes everything: Mining no longer gates
-      stone, iron or gold gathering, only the closer drop-offs. Either accept that, or give nodes a
-      `requires` so a deposit needs the tech before workers can harvest it.
+      stone, iron or gold gathering, only the closer drop-offs. For the balance pass (Christer, 2026-09-09):
+      gold and lumber can never be gated, a player would get stuck with no way out; stone needs no gate, its
+      sinks are behind Masonry; iron could be the one resource a research unlocks (Mining, which costs only
+      lumber, before iron can be dug; Ironworking's iron cost then follows). Mechanism: a `requires` list on
+      node types, checked when a worker is sent to harvest and when it looks for another deposit, plus a
+      validator rule that every resource has at least one node type with no requirements.
 - [ ] AI opponent for solo play and balancing: an API for LLM agents rather than a scripted bot (backlog below)
 - [ ] Win condition: destroy all enemy town halls, and say so (backlog below)
 - [ ] Balance pass with real opponents, using the editor
