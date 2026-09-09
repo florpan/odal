@@ -53,10 +53,20 @@ describe('validator', () => {
   });
 
   test('accepts techs nobody researches (research is community-wide) but rejects buildings nobody can place', () => {
-    const orphan = structuredClone(DEFAULT_TREE) as unknown as { techs: Record<string, unknown>[]; buildings: Record<string, unknown>[] };
+    const orphan = structuredClone(DEFAULT_TREE) as unknown as {
+      techs: Record<string, unknown>[];
+      buildings: Record<string, unknown>[];
+    };
     orphan.techs.push({ id: 'orphan', name: 'Orphan', time: 1 });
     expect(validateTree(orphan).errors).toEqual([]);
-    orphan.buildings.push({ id: 'ghost', name: 'Ghost', buildable: false, time: 1, hp: 1, visual: { color: '#ffffff' } });
+    orphan.buildings.push({
+      id: 'ghost',
+      name: 'Ghost',
+      buildable: false,
+      time: 1,
+      hp: 1,
+      visual: { color: '#ffffff' },
+    });
     const { errors } = validateTree(orphan);
     expect(errors.some((e) => e.includes('building:ghost') && e.includes('unobtainable'))).toBe(true);
   });

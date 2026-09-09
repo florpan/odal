@@ -24,7 +24,7 @@ vision, fog, minimap) is unchanged. Neighbours and distances go through axial co
 wide and speeds, ranges and radii in the tech tree keep meaning "about one hex".
 
 Scale is the board-game kind: a hex is a building, or a tree, or a field. A tile represents what is on
-it rather than its true size. *Amended 2026-09-07:* people are not tile-sized. A character is 0.3 hex
+it rather than its true size. _Amended 2026-09-07:_ people are not tile-sized. A character is 0.3 hex
 tall, moves on continuous positions inside the hex grid (several per hex, kept apart by separation),
 and takes a work stance at the edge of its hex facing its work. The hex remains the unit of terrain,
 placement, pathfinding and vision. Footprints are a hex
