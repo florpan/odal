@@ -323,12 +323,16 @@ cape 2,1 · hat 1,1.
       action button, any time after placement. Cosmetic only: footprints are hexes, so no rule depends on facing.
 - [x] Chrome matches the pack (2026-09-08): every HUD, screen and editor colour is a custom property in `ui/theme.css`
       sampled from the Summer atlas (slate stone, terracotta wood, linen text, gold accent); Grenze for titles and
-      Alegreya Sans for text, self-hosted in `client/public/fonts`. Fog is the same slate as the minimap's unexplored
+      Alegreya Sans for text, self-hosted in `client/public/fonts`. Fog is the same colour as the minimap's unexplored
       and the scene background, sampled by every material at its world position (`render/fow.ts`; a sheet above the
-      board sat a hex or two off from the game camera), at 4 texels per world unit, blurred on the CPU, with two rings of "fringe" tiles drawn
-      beyond the explored ones (deeper than the blur's reach) so the ground vanishes into fog instead of ending at a
-      hex edge. Selection ring, build
-      ghost and health bars use the same palette, not tone mapped. Next: a skybox instead of the flat background.
+      board sat a hex or two off from the game camera), at 4 texels per world unit, blurred on the CPU. The whole board
+      is always drawn, unexplored ground under full fog (2026-09-10; until then only explored tiles plus two "fringe"
+      rings existed, which was fine against a slate background but stood out as a hard silhouette once the skybox
+      arrived). Same day, the board's own silhouette against the sky went too, since it gave away where on the map you
+      were: the fog turned from slate to a pale mist (white suits the pack better anyway), the board stands on a huge
+      fogged plain, the fog texture is padded with full fog so the plain is pure mist off the map, and a distance fog
+      in the sky's horizon colour (`HORIZON_COLOR`, tied to the sky image) fades plain and far board into the sky.
+      Selection ring, build ghost and health bars use the same palette, not tone mapped.
 - [x] HUD as a selection card (2026-09-08): what is selected and its actions in one floating card (a bottom
       sheet on phones), a minimap in the corner behind a Map toggle, nothing spanning the bottom.
 - [x] Touch controls (2026-09-07): tap selects, a held finger is the right click, one-finger drag pans, pinch
@@ -360,7 +364,7 @@ chart of the whole world, so the fog's frame tells you which corner you are in.
       that distance, outside every home zone), successive spots kept apart, so contested gold lies between the
       players wherever they are; with two players that may well be the coast.
 - [x] **Radar minimap** (2026-09-09). A fixed-scale window (`RADAR_SPAN` 44 hexes across) centred on the
-      camera, not a chart of the world; unexplored and beyond-the-map are the same slate. The camera square
+      camera, not a chart of the world; unexplored and beyond-the-map are the same mist as the fog. The camera square
       stays as a zoom indicator (it will rotate with the map, so it reveals nothing else). A flag marks the town
       hall; when it is outside the window the flag sits on the rim with a chevron pointing home. Attack alerts
       on the rim later. Everything is drawn through one world-to-canvas function, ready for a camera yaw.

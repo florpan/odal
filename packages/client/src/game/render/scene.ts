@@ -23,7 +23,7 @@ import type {
   Unit,
   Vec2,
 } from '@odal/engine';
-import { FOG_COLOR, FogLevel, FogOfWar } from './fow';
+import { FOG_COLOR, FogOfWar } from './fow';
 import { ModelLibrary } from './models';
 import type { HexAtlasSeason } from './models';
 import { marchGround } from './pick';
@@ -60,6 +60,23 @@ const HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0);
 const SCATTER_CHUNK = 10;
 /** Equirectangular sky image, served from client/public. */
 const SKYBOX = '/skybox/sky.png';
+/**
+ * The sky's colour at the horizon as it renders (display bytes; the background goes through AgX, so
+ * sample a screenshot, not the image): what the distance fog fades everything into, so the plain and
+ * the far board dissolve into the sky rather than meeting it in a line. Tied to the image above;
+ * retune when the sky changes.
+ */
+const HORIZON_COLOR = { r: 209, g: 209, b: 178 };
+/** Distance fog range in world units: clear inside the play zoom, full horizon colour beyond. */
+const HAZE_NEAR = 80;
+const HAZE_FAR = 600;
+/**
+ * Side of the plain the board stands on: fogged ground far past the map, so nothing outlines it. Huge
+ * so its far edge sits within a fraction of a pixel of the true horizon from any camera height.
+ */
+const PLAIN_SIZE = 20000;
+/** Camera far plane: past the plain's corners. Depth precision comes from the near plane, so this is free. */
+const CAMERA_FAR = 30000;
 
 export interface Pick {
   kind: 'unit' | 'building' | 'node';
@@ -184,8 +201,6 @@ export class Renderer {
   /** Ground tiles, one InstancedMesh per tile file (or per terrain while its file loads). */
   private ground: { mesh: THREE.InstancedMesh }[] = [];
   private mapState: GameState | null = null;
-  /** Per hex: 1 when its ground tile is shown (explored). Unexplored hexes are not drawn at all. */
-  private shown: Uint8Array | null = null;
   /** Per hex: which ground part and instance slot, its rotation, and the y of its top (`visual.height`). */
   private tilePart: Int16Array | null = null;
   private tileSlot: Int32Array | null = null;
@@ -199,6 +214,10 @@ export class Renderer {
   private plinthBase: Float32Array | null = null;
   private plinthHeight: Float32Array | null = null;
   private plinths: THREE.InstancedMesh | null = null;
+  /** A slab under the whole board, so seams between tiles show fogged stone rather than the sky. */
+  private floor: THREE.Mesh | null = null;
+  /** The fogged plain the board stands on, PLAIN_SIZE across (see fow.ts on the padding it samples). */
+  private plain: THREE.Mesh | null = null;
   /** Per hex: the scatter instances on it (terrain.visual.scatter), and 1 while a building hides them. */
   private scatterOf: ({ part: number; slot: number; m: THREE.Matrix4 }[] | undefined)[] | null = null;
   private scatterHidden: Uint8Array | null = null;
@@ -263,13 +282,26 @@ export class Renderer {
       THREE.SRGBColorSpace,
     );
     // Sky: an equirectangular painting (client/public/skybox, Christer's stand-in until a sharper one),
-    // drawn behind the board; the fringe under full fog now meets it instead of a flat clear colour.
+    // drawn behind the board. The board stands on a fogged plain that runs to the horizon (buildGround),
+    // and the distance fog below fades plain and board into the sky's horizon colour, so no silhouette
+    // gives away where on the map the player is looking.
     new THREE.TextureLoader().load(SKYBOX, (tex) => {
       tex.mapping = THREE.EquirectangularReflectionMapping;
       tex.colorSpace = THREE.SRGBColorSpace;
       this.scene.background = tex;
     });
-    this.camera = new THREE.PerspectiveCamera(50, 1, 0.5, 300);
+    // Display bytes again: three converts the fog colour to the output colour space itself.
+    this.scene.fog = new THREE.Fog(
+      new THREE.Color().setRGB(
+        HORIZON_COLOR.r / 255,
+        HORIZON_COLOR.g / 255,
+        HORIZON_COLOR.b / 255,
+        THREE.SRGBColorSpace,
+      ),
+      HAZE_NEAR,
+      HAZE_FAR,
+    );
+    this.camera = new THREE.PerspectiveCamera(50, 1, 0.5, CAMERA_FAR);
 
     this.scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x3d5a2a, 0.9));
     const sun = new THREE.DirectionalLight(0xffffff, 1.4); // neutral: colour comes from the models, not the light
@@ -331,8 +363,8 @@ export class Renderer {
 
   /**
    * Build the board for a map: one ground tile per hex, from the terrain's GLB tile (or its shore
-   * variant along the coast) once loaded, a flat coloured hex puck until then. Tiles are hidden
-   * (scale 0) and appear as the player explores (updateFog).
+   * variant along the coast) once loaded, a flat coloured hex puck until then. Every tile is drawn
+   * from the start; the fog of war (updateFog) is what hides unexplored ground.
    */
   setMap(state: GameState) {
     const cols = state.width;
@@ -344,7 +376,6 @@ export class Renderer {
     this.mapW = size.x;
     this.mapH = size.y;
     this.fow.setMap(cols, rows, size);
-    this.shown = new Uint8Array(cols * rows);
     this.scatterHidden = new Uint8Array(cols * rows);
     this.buildGround(state);
     const files = new Set<string>();
@@ -363,12 +394,14 @@ export class Renderer {
   }
 
   /**
-   * (Re)build the ground meshes: one InstancedMesh per tile file (or per terrain for pucks). Hexes
-   * already revealed stay revealed.
+   * (Re)build the ground meshes: one InstancedMesh per tile file (or per terrain for pucks), every
+   * hex placed.
    */
   private buildGround(state: GameState) {
     for (const part of this.ground) this.scene.remove(part.mesh);
     this.ground = [];
+    if (this.floor) this.scene.remove(this.floor);
+    if (this.plain) this.scene.remove(this.plain);
     const cols = state.width;
     const rows = state.height;
     const n = cols * rows;
@@ -425,8 +458,7 @@ export class Renderer {
       }
       mesh.instanceMatrix.needsUpdate = true;
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-      // Instances start hidden, so the bounding sphere three.js computes on first render would be empty
-      // and the part culled for good once revealed; the board is always on screen anyway.
+      // The board is always on screen; no point in three.js computing a bounding sphere for it.
       mesh.frustumCulled = false;
       mesh.castShadow = true;
       mesh.receiveShadow = true;
@@ -466,13 +498,28 @@ export class Renderer {
       this.plinths = mesh;
     }
 
+    // Floor: a stone slab just under the lowest tile's wall. Tiles at a step or a coast leave hairline
+    // seams, and the sky through them drew the unexplored shoreline in bright lines through the fog.
+    this.floor = new THREE.Mesh(this.box(this.mapW, 0.1, this.mapH), this.material(PLINTH_COLOR));
+    this.floor.position.set(this.mapW / 2, this.tileTopMin - TILE_WALL - 0.05, this.mapH / 2);
+    this.floor.receiveShadow = true;
+    this.scene.add(this.floor);
+
+    // Plain: fogged ground from under the floor to the horizon. Off the board the fog texture's padding
+    // gives full fog, which paints exactly FOG_COLOR whatever the light, so the board's edges and stone
+    // sides vanish into it; with distance it fades to the horizon like everything else. No shadows:
+    // full fog would hide them anyway.
+    this.plain = new THREE.Mesh(new THREE.PlaneGeometry(PLAIN_SIZE, PLAIN_SIZE), this.material(PLINTH_COLOR));
+    this.plain.rotation.x = -Math.PI / 2;
+    this.plain.position.set(this.mapW / 2, this.floor.position.y - 0.1, this.mapH / 2);
+    this.plain.frustumCulled = false;
+    this.scene.add(this.plain);
+
     this.buildScatter(state, hidden);
 
-    // Re-reveal what the player has already explored.
-    if (this.shown) {
-      for (let i = 0; i < n; i++) if (this.shown[i]) this.revealTile(i);
-      for (const part of this.ground) part.mesh.instanceMatrix.needsUpdate = true;
-    }
+    // Place everything; the fog of war does the hiding.
+    for (let i = 0; i < n; i++) this.placeTile(i);
+    for (const part of this.ground) part.mesh.instanceMatrix.needsUpdate = true;
   }
 
   /** Height of the ground under a world position: the top of that hex's tile. */
@@ -483,8 +530,8 @@ export class Renderer {
     return this.tileTop[t.y * this.cols + t.x];
   }
 
-  /** Place hex `i`'s tile (it starts scaled to nothing). Caller flags the instance matrix for upload. */
-  private revealTile(i: number) {
+  /** Place hex `i`'s tile, plinth and scatter. Caller flags the instance matrices for upload. */
+  private placeTile(i: number) {
     if (!this.tilePart || !this.tileSlot || !this.tileRot || !this.tileTop) return;
     const part = this.ground[this.tilePart[i]];
     if (!part) return;
@@ -631,7 +678,7 @@ export class Renderer {
     for (const i of hexes) {
       if (i < 0 || i >= this.scatterHidden.length) continue;
       this.scatterHidden[i] = hide ? 1 : 0;
-      if (this.shown?.[i] && this.scatterOf?.[i]) {
+      if (this.scatterOf?.[i]) {
         this.placeScatter(i);
         changed = true;
       }
@@ -640,22 +687,11 @@ export class Renderer {
   }
 
   /**
-   * Fog of war from the player's vision (render/fow.ts), and ground tiles revealed as hexes become
-   * charted (explored, or the whole map after Cartography) or join the fringe beyond. Called every
-   * snapshot; does nothing while no hex changed level.
+   * Fog of war from the player's vision and charted ground (explored, or the whole map after
+   * Cartography), see render/fow.ts. Called every snapshot; uploads nothing while no hex changed level.
    */
   updateFog(vision: Uint8Array | null, charted: Uint8Array | null) {
-    if (!this.fow.update(vision, charted) || !this.shown) return;
-    const { level } = this.fow;
-    let revealed = false;
-    for (let i = 0; i < level.length; i++) {
-      if (level[i] <= FogLevel.Fringe && !this.shown[i]) {
-        this.revealTile(i);
-        this.shown[i] = 1;
-        revealed = true;
-      }
-    }
-    if (revealed) for (const part of this.ground) part.mesh.instanceMatrix.needsUpdate = true;
+    this.fow.update(vision, charted);
   }
 
   // -------------------------------------------------------------------------

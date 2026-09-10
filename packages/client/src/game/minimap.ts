@@ -18,8 +18,8 @@ import type { World } from './world';
 
 /** World units across the canvas. Fixed on purpose: the radar does not follow the camera zoom. */
 export const RADAR_SPAN = 44;
-/** Same slate as the renderer's fog (render/fow.ts FOG_COLOR). */
-const UNEXPLORED: [number, number, number] = [28, 36, 40];
+/** Same mist as the renderer's fog (render/fow.ts FOG_COLOR). */
+const UNEXPLORED: [number, number, number] = [230, 226, 212];
 const SLATE = '#1c2428';
 /** Alert colours: the theme's red and gold (ui/theme.css). */
 const ATTACK = '#d83f35';

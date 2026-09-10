@@ -159,9 +159,11 @@ client/src/
     render/pick.ts      Ground picking on the stepped tiles: walks the ray down through the height band instead of
                         hitting a flat plane (which lands hexes behind a raised tile at a low tilt). Pure, tested.
     render/fow.ts       Fog of war: a map-sized alpha texture (4 texels per unit, hex-mapped, CPU-blurred) that every
-                        fogged material samples at its world x/z (onBeforeCompile), mixing towards the slate fog colour.
-                        Two rings of "fringe" tiles are drawn beyond the explored ones, deeper than the blur's reach, so
-                        the ground vanishes into fog rather than stopping. Tuning constants at the top of the file.
+                        fogged material samples at its world x/z (onBeforeCompile), mixing towards the pale mist colour.
+                        The whole board is always drawn; unexplored ground is simply under full fog. The texture is padded
+                        with full fog, so the huge plain the board stands on (scene.ts) is pure mist off the map, and the
+                        scene's distance fog fades plain and board into the sky's horizon colour: no outline of the map
+                        ever shows, so the view gives away nothing about where on it you are. Tuning constants at the top.
     render/models.ts    GLB library for `visual.model`: load once, per-team "Team" material, Lambert look, skeleton clones + clips.
     render/shore.ts     Which ground tile a hex shows: the terrain's tile, or a coast tile turned towards its longest run of water edges.
     index.ts            The ONLY module ui/ may import from game/
